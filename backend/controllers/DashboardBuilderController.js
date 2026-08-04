@@ -8,9 +8,9 @@ const db = require('../db');
 exports.listarFontesDeDados = async (req, res) => {
     try {
         const query = `
-            SELECT table_name 
-            FROM information_schema.views 
-            WHERE table_schema = 'public' 
+            SELECT table_name
+            FROM information_schema.views
+            WHERE table_schema = current_schema()
             AND (table_name LIKE 'vw_%' OR table_name LIKE 'metricas_%');
         `;
         const result = await db.query(query);
@@ -26,9 +26,10 @@ exports.listarColunasPorFonte = async (req, res) => {
     const { fonte } = req.params;
     try {
         const query = `
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
-            WHERE table_name = $1;
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+            AND table_name = $1;
         `;
         const result = await db.query(query, [fonte]);
         res.status(200).json({ sucesso: true, colunas: result.rows });
