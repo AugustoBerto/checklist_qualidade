@@ -9,7 +9,7 @@ const checklistController = require('../controllers/ChecklistController');
 router.get('/perguntas/:modelo', autorizar(), checklistController.buscarPerguntas);
 
 // Rota: POST /api/checklists/salvar
-// Salva o checklist completo e emite o evento de socket (Qualquer logado)
+// Salva o checklist completo (Qualquer logado)
 router.post('/salvar', autorizar(), checklistController.salvarChecklist);
 
 module.exports = router;

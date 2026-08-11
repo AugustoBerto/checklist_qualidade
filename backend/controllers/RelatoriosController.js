@@ -1,53 +1,6 @@
 const db = require('../db');
 const { calcularPontuacao, normalizarResposta } = require('../utils/scoring');
-const { gerarPdfDoRelatorio } = require('../services/pdfService');
-const { enviarRelatorioPorEmail } = require('../services/emailService');
-
-// 1. Relatório Geral: Top 3 Não Conformidades (Para o Dashboard)
-exports.buscarTop3NaoConformidades = async (req, res) => {
-    // Recebemos o id_checklist do frontend para identificar qual modelo queremos analisar
-    const { id_checklist } = req.query; 
-
-    if (!id_checklist) {
-        return res.status(400).json({ sucesso: false, mensagem: 'ID do checklist não informado.' });
-    }
-
-    try {
-        const sqlTop3 = `
-            SELECT
-                nome_categoria,
-                nome_pergunta,
-                COUNT(*) as total_nao_conforme
-            FROM
-                metricas_atualizadas_tableau
-            WHERE
-                classificacao_pergunta = 'nao_conforme' 
-                AND eh_ficticio = false
-                -- 📌 AJUSTE: Filtramos pelo NOME do modelo que a View fornece
-                AND nome_modelo = (
-                    SELECT nome_modelo 
-                    FROM metricas_atualizadas_tableau 
-                    WHERE id_formulario = $1 
-                    LIMIT 1
-                )
-            GROUP BY
-                nome_categoria,
-                nome_pergunta
-            ORDER BY
-                total_nao_conforme DESC
-            LIMIT 3;
-        `;
-        
-        const resultadoTop3 = await db.query(sqlTop3, [id_checklist]);
-        
-        res.status(200).json({ sucesso: true, dados: resultadoTop3.rows });
-    } catch (error) {
-        console.error('Erro ao buscar Top 3 por modelo (via nome):', error);
-        res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao processar métricas.' });
-    }
-};
-
-// 2. Relatório Específico: Dados de um Checklist Preenchido
+// Relatório específico: dados de um checklist preenchido
 exports.buscarRelatorioPorId = async (req, res) => {
     const submissaoId = parseInt(req.params.id, 10);
     
@@ -67,8 +20,8 @@ exports.buscarRelatorioPorId = async (req, res) => {
                 s.respostas -- Aqui está o nosso JSONB
             FROM formulario_submissoes s
             JOIN usuarios u ON s.id_usuario = u.id
-            JOIN celulas_producao cp ON s.id_celula = cp.id
-            JOIN setores st ON cp.id_setor_fk = st.id
+            LEFT JOIN celulas_producao cp ON s.id_celula = cp.id
+            LEFT JOIN setores st ON cp.id_setor_fk = st.id
             JOIN modelo m ON s.id_modelo = m.id
             WHERE s.id = $1
         `;
@@ -131,58 +84,5 @@ exports.buscarRelatorioPorId = async (req, res) => {
     } catch (err) {
         console.error('Erro ao buscar dados do relatório:', err);
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao buscar relatório.' });
-    }
-};
-
-exports.enviarRelatorioPorEmail = async (req, res) => {
-    const { id } = req.params;
-    const token = req.headers['authorization']?.split(' ')[1];
-    const urlRelatorio = `http://10.111.0.101:5170/detalhe/${id}`;
-
-    try {
-        // 📌 ATUALIZADO: Query ajustada para a nova estrutura de tabelas
-        const sqlBuscaDados = `
-            SELECT 
-                u.email,
-                u.nome as nome_usuario,
-                m.nome as nome_modelo
-            FROM formulario_submissoes s
-            JOIN usuarios u ON s.id_usuario = u.id
-            JOIN modelo m ON s.id_modelo = m.id
-            WHERE s.id = $1;
-        `;
-
-        const resultado = await db.query(sqlBuscaDados, [id]);
-
-        if (resultado.rows.length === 0) {
-            return res.status(404).json({ 
-                sucesso: false, 
-                mensagem: 'Relatório ou usuário não encontrado.' 
-            });
-        }
-
-        const dados = resultado.rows[0];
-        
-        res.status(202).json({ 
-            sucesso: true, 
-            mensagem: 'O relatório está sendo gerado e será enviado por e-mail.' 
-        });
-
-        gerarPdfDoRelatorio(urlRelatorio, token)
-            .then(pdfBuffer => {
-                enviarRelatorioPorEmail(pdfBuffer, dados.email, {
-                    nomeModelo: dados.nome_modelo,
-                    nomeUsuario: dados.nome_usuario
-                });
-            })
-            .catch(err => {
-                console.error(`[PDF] Falha no relatório ${id}:`, err);
-            });
-
-    } catch (error) {
-        console.error('Erro ao enviar e-mail:', error);
-        if (!res.headersSent) {
-            res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
-        }
     }
 };

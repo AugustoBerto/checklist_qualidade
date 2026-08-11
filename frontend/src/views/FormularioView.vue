@@ -279,7 +279,6 @@ async function enviarFormulario() {
   const idSetorFinal = Number(setorSelecionado.value) || usuarioObj.id_setor_fk;
 
   const payload = {
-    id_usuario: usuarioObj.id,
     id_modelo: idModelo.value || Number(modelo),
     id_setor: idSetorFinal, // <--- ENVIANDO O SETOR AQUI
     id_celula: Number(celulaSelecionada.value) || usuarioObj.id_celula_fk,

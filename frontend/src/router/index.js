@@ -10,38 +10,31 @@ import CriarUsuarioView from '../views/CriarUsuarioView.vue'
 import CriarModeloView from '../views/CriarModeloView.vue'
 import AdminLoginView from '../views/AdminLoginView.vue'
 import EditarModelo from '../views/EditarModelo.vue'
-import DashboardView from '../views/DashboardView.vue'
 import ConfiguracoesView from '../views/ConfiguracoesView.vue'
+import { possuiPerfilLocal, restaurarSessao } from '../services/session'
 
 const routes = [
   { path: '/', name: 'Home', component: HomeView },
   { path: '/login', name: 'Login', component: LoginView },
   { path: '/adminlogin', name: 'AdminLogin', component: AdminLoginView },
   {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: DashboardView,
-    //meta: { requiresAuth: true
-  },
-  {
     path: '/formulario/:modelo',
     name: 'Formulario',
     component: FormularioView,
-    meta: { requiresAuth: true, requiresUser: true }
+    meta: { requiresAuth: true }
   },
   {
     path: '/selecao',
     name: 'Selecao',
     component: SelecaoView,
-    meta: { requiresAuth: true, requiresUser: true }
+    meta: { requiresAuth: true }
   },
   {
     path: '/relatorio/:id',
     name: 'Relatorio',
     component: RelatorioView,
-    meta: { requiresAuth: true, requiresUser: true }
+    meta: { requiresAuth: true }
   },
-
   {
     path: '/usuarios/novo',
     name: 'CriarUsuario',
@@ -76,81 +69,55 @@ const routes = [
     path: '/consultar',
     name: 'Consultar',
     component: ConsultarView,
-    //meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true },
   },
   {
-    path: '/detalhe/:id', // Rota para o relatório detalhado
+    path: '/detalhe/:id',
     name: 'DetalheRelatorio',
     component: () => import('../views/DetalheRelatorioView.vue'),
-    //meta: { requiresAuth: true } // Rota protegida
-  },
-  // Rota para o Admin criar um novo painel (A tela que mandei na resposta anterior)
-  {
-    path: '/dashboard-builder/novo',
-    name: 'CriarDashboard',
-    component: () => import('../views/CriarDashboardView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
-  },
-  // Rota dinâmica que renderiza o painel final (A tela deste código acima)
-  {
-    path: '/dashboard-dinamico/:id',
-    name: 'DashboardDinamico',
-    component: () => import('../views/DashboardDinamico.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
   },
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
-const isTokenExpirado = (token) => {
-  if (!token) return true;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const agora = Math.floor(Date.now() / 1000);
-    return payload.exp < agora;
-  } catch (e) {
-    return true; // Se o token estiver malformado, considera expirado
+const getIsAdmin = () => {
+  const userStr = localStorage.getItem('usuario');
+  if (userStr) {
+    try {
+      const u = JSON.parse(userStr);
+      if (u.papel === 'ADMIN') {
+        return true;
+      }
+    } catch (e) {}
   }
+  return false;
 };
 
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token');
-  const isAdmin = localStorage.getItem('isAdmin') === 'true';
-
-  // --- VERIFICAÇÃO DE EXPIRAÇÃO ---
-  if (token && isTokenExpirado(token)) {
-    console.warn("Token expirado detectado no Router. Limpando sessão...");
-    localStorage.clear();
-    return next({ name: 'Login' });
-  }
+router.beforeEach(async (to) => {
+  if (!possuiPerfilLocal()) await restaurarSessao()
+  const autenticado = possuiPerfilLocal()
+  const isAdmin = getIsAdmin()
 
   // --- IMPEDE ACESSO À LOGIN SE JÁ LOGADO ---
-  if ((to.path === '/login' || to.path === '/adminlogin') && token) {
-    return isAdmin ? next({ path: '/administrador' }) : next({ path: '/selecao' });
+  if ((to.path === '/login' || to.path === '/adminlogin') && autenticado) {
+    return isAdmin ? { path: '/administrador' } : { path: '/selecao' }
   }
 
   // --- REGRAS DE PROTEÇÃO DE ROTA ---
 
   // 1. Requer autenticação e não tem token
-  if (to.meta.requiresAuth && !token) {
-    return next({ name: 'Login' });
+  if (to.meta.requiresAuth && !autenticado) {
+    return { name: 'Login' }
   }
 
   // 2. Rota de Admin acessada por usuário comum
   if (to.meta.requiresAdmin && !isAdmin) {
-    return next({ path: '/selecao' });
+    return { path: '/selecao' }
   }
-
-  // 3. Rota de Usuário acessada por Admin 
-  // (Opcional: se o Admin puder preencher checklists, remova essa regra)
-  if (to.meta.requiresUser && isAdmin) {
-    return next({ path: '/administrador' });
-  }
-
-  next();
 })
 
 export default router

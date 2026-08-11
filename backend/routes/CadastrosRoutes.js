@@ -27,32 +27,32 @@ router.put('/modelos/:id', autorizar('admin'), CadastrosController.atualizarMode
 
 // --- MARCAS ---
 // Mantivemos o caminho '/dados/marcas' para não precisar alterar o Vue.js!
-router.get('/marcas', CadastrosController.listarMarcas);
-router.post('/marcas', CadastrosController.criarMarca);
-router.put('/marcas/:id', CadastrosController.atualizarMarca);
-router.delete('/marcas/:id', CadastrosController.excluirMarca);
+router.get('/marcas', autorizar(), CadastrosController.listarMarcas);
+router.post('/marcas', autorizar('ADMIN'), CadastrosController.criarMarca);
+router.put('/marcas/:id', autorizar('ADMIN'), CadastrosController.atualizarMarca);
+router.delete('/marcas/:id', autorizar('ADMIN'), CadastrosController.excluirMarca);
 
 // --- SETORES ---
-router.get('/setores', CadastrosController.listarSetores);
-router.post('/setores', CadastrosController.criarSetor);
-router.put('/setores/:id', CadastrosController.atualizarSetor);
-router.delete('/setores/:id', CadastrosController.excluirSetor);
+router.get('/setores', autorizar(), CadastrosController.listarSetores);
+router.post('/setores', autorizar('ADMIN'), CadastrosController.criarSetor);
+router.put('/setores/:id', autorizar('ADMIN'), CadastrosController.atualizarSetor);
+router.delete('/setores/:id', autorizar('ADMIN'), CadastrosController.excluirSetor);
 
 // --- CÉLULAS DE PRODUÇÃO ---
-router.get('/celulas', CadastrosController.listarCelulas);
-router.post('/celulas', CadastrosController.criarCelula);
-router.put('/celulas/:id', CadastrosController.atualizarCelula);
-router.delete('/celulas/:id', CadastrosController.excluirCelula);
+router.get('/celulas', autorizar(), CadastrosController.listarCelulas);
+router.post('/celulas', autorizar('ADMIN'), CadastrosController.criarCelula);
+router.put('/celulas/:id', autorizar('ADMIN'), CadastrosController.atualizarCelula);
+router.delete('/celulas/:id', autorizar('ADMIN'), CadastrosController.excluirCelula);
 
 // --- UNIDADES ---
-router.get('/unidades', CadastrosController.listarUnidades);
-router.post('/unidades', CadastrosController.criarUnidade);
-router.put('/unidades/:id', CadastrosController.atualizarUnidade);
-router.delete('/unidades/:id', CadastrosController.excluirUnidade);
+router.get('/unidades', autorizar(), CadastrosController.listarUnidades);
+router.post('/unidades', autorizar('ADMIN'), CadastrosController.criarUnidade);
+router.put('/unidades/:id', autorizar('ADMIN'), CadastrosController.atualizarUnidade);
+router.delete('/unidades/:id', autorizar('ADMIN'), CadastrosController.excluirUnidade);
 
-router.get('/turnos', CadastrosController.listarTurnos);
-router.post('/turnos', CadastrosController.criarTurno);
-router.put('/turnos/:id', CadastrosController.atualizarTurno);
-router.delete('/turnos/:id', CadastrosController.excluirTurno);
+router.get('/turnos', autorizar(), CadastrosController.listarTurnos);
+router.post('/turnos', autorizar('ADMIN'), CadastrosController.criarTurno);
+router.put('/turnos/:id', autorizar('ADMIN'), CadastrosController.atualizarTurno);
+router.delete('/turnos/:id', autorizar('ADMIN'), CadastrosController.excluirTurno);
 
 module.exports = router;

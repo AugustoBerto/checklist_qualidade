@@ -10,5 +10,4 @@ router.get('/marcas', autorizar(), dadosController.listarMarcas);
 router.get('/turnos', autorizar(), dadosController.listarTurnos);
 // Rota: GET /api/dados/modelos?marca_id=1
 router.get('/modelos', autorizar(), dadosController.listarModelosAtivos);
-router.get('/gerar-pdf', dadosController.gerarPdfLideranca2026)
 module.exports = router;

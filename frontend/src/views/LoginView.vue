@@ -51,7 +51,7 @@
 <script setup>
 import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '../services/api' 
+import { autenticarComCracha, autenticarComSenha } from '../services/session'
 
 const router = useRouter();
 
@@ -65,24 +65,11 @@ const mostrarSenha = ref(false);
 
 const fazerLogin = async () => {
   try {
-    const { data } = await api.post('/login/usuarios', {
-      usuario: form.usuario,
-      senha: form.senha
-    });
-
-    if (data.sucesso) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('isAdmin', data.usuario.admin); // 📌 Ajustado para ler de data.usuario
-      
-      // 📌 SALVANDO O OBJETO COMPLETO DO USUÁRIO
-      // Como o backend já manda o objeto 'usuario' completo, salvamos ele direto!
-      localStorage.setItem('usuario', JSON.stringify(data.usuario));
-      
-      router.push('/selecao');
-    }
+    await autenticarComSenha(form.usuario, form.senha);
+    router.push('/selecao');
   } catch (err) {
     if (err.response && err.response.data) {
-      alert(err.response.data.mensagem);
+      alert(err.response.data.mensagem || err.response.data.message || 'Usuário ou senha incorretos.');
     } else {
       alert('Erro ao conectar com o servidor.');
     }
@@ -97,22 +84,11 @@ const fazerLoginCodBar = async () => {
   }
 
   try {
-    const { data } = await api.post('/login/codbar/usuarios', {
-      codBar: form.codBar
-    });
-
-    if (data.sucesso) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('isAdmin', data.usuario.admin); // 📌 Ajustado para ler de data.usuario
-      
-      // 📌 SALVANDO O OBJETO COMPLETO DO USUÁRIO AQUI TAMBÉM
-      localStorage.setItem('usuario', JSON.stringify(data.usuario));
-      
-      router.push('/selecao');
-    }
+    await autenticarComCracha(form.codBar);
+    router.push('/selecao');
   } catch (err) {
     if (err.response && err.response.data) {
-      alert(err.response.data.mensagem);
+      alert(err.response.data.mensagem || err.response.data.message || 'Não foi possível autenticar o crachá.');
     }
   }
 };

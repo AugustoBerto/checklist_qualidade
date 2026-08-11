@@ -49,19 +49,6 @@
         </div>
       </router-link>
 
-      <!-- Card: Gerenciador de B.I. (Criar Dashboard) -->
-      <router-link to="/dashboard-builder/novo" class="module-card">
-        <div class="icon-wrapper bg-purple">
-          <i class="mdi mdi-view-dashboard-edit"></i>
-        </div>
-        <div class="module-info">
-          <h3>Criar Dashboard (B.I.)</h3>
-          <p>Montar novos painéis de indicadores, configurar gráficos e fontes de dados.</p>
-        </div>
-        <div class="arrow-icon">
-          <i class="mdi mdi-chevron-right"></i>
-        </div>
-      </router-link>
     </div>
   </div>
 </template>

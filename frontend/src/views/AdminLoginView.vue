@@ -68,7 +68,7 @@
 <script setup>
 import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '../services/api' //  Importa a instância configurada do Axios
+import { autenticarComCracha, autenticarComSenha } from '../services/session'
 
 const router = useRouter();
 
@@ -83,25 +83,12 @@ const mostrarSenha = ref(false);
 //  Login padrão (Usuário e Senha)
 const fazerLogin = async () => {
   try {
-    // Agora usamos a rota padronizada: /api/login/admin
-    const { data } = await api.post('/login/admin', {
-      usuario: form.usuario,
-      senha: form.senha
-    });
-
-    if (data.sucesso) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('isAdmin', data.usuario.admin); // 📌 Ajustado para ler de data.usuario
-      
-      // 📌 SALVANDO O OBJETO COMPLETO DO USUÁRIO AQUI TAMBÉM
-      localStorage.setItem('usuario', JSON.stringify(data.usuario));// Agora o backend envia isso no login comum também
-      
-      router.push('/administrador');
-    }
+    await autenticarComSenha(form.usuario, form.senha, true);
+    router.push('/administrador');
   } catch (err) {
     // O erro 401 já é tratado pelo interceptor, aqui tratamos apenas avisos de interface
     if (err.response && err.response.data) {
-      alert(err.response.data.mensagem);
+      alert(err.response.data.mensagem || err.response.data.message || err.message || 'Usuário ou senha incorretos.');
     } else {
       alert('Erro ao conectar com o servidor.');
     }
@@ -116,23 +103,11 @@ const fazerLoginCodBar = async () => {
   }
 
   try {
-    // Nova rota padronizada: /api/login/codbar/admin
-    const { data } = await api.post('/login/codbar/admin', {
-      codBar: form.codBar
-    });
-
-    if (data.sucesso) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('isAdmin', data.usuario.admin); // 📌 Ajustado para ler de data.usuario
-      
-      // 📌 SALVANDO O OBJETO COMPLETO DO USUÁRIO AQUI TAMBÉM
-      localStorage.setItem('usuario', JSON.stringify(data.usuario));
-      
-      router.push('/administrador');
-    }
+    await autenticarComCracha(form.codBar, true);
+    router.push('/administrador');
   } catch (err) {
     if (err.response && err.response.data) {
-      alert(err.response.data.mensagem);
+      alert(err.response.data.mensagem || err.response.data.message || err.message || 'Não foi possível autenticar o crachá.');
     }
   }
 };

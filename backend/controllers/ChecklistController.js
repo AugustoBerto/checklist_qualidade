@@ -1,28 +1,4 @@
 const db = require('../db');
-const { getIo } = require('../socket'); // Seu gerenciador de WebSockets
-
-// ==========================================
-// FUNÇÕES AUXILIARES
-// ==========================================
-
-async function emitirRankingAtualizado() {
-    const io = getIo();
-    if (!io) return;
-    try {
-        const sql = `
-            SELECT nome_modelo, COUNT(*) as total_nao_conforme
-            FROM metricas_atualizadas_tableau
-            WHERE classificacao_pergunta = 'nao_conforme' AND eh_ficticio = false
-            GROUP BY nome_modelo
-            ORDER BY total_nao_conforme DESC
-            LIMIT 5;
-        `;
-        const resultado = await db.query(sql);
-        io.emit('atualizar-ranking', resultado.rows);
-    } catch (error) {
-        console.error("Erro ao emitir ranking:", error);
-    }
-}
 
 // ==========================================
 // MÓDULO: CHECKLISTS
@@ -74,9 +50,8 @@ exports.buscarPerguntas = async (req, res) => {
 
 exports.salvarChecklist = async (req, res) => {
     // 📌 RECEBENDO PAYLOAD OTIMIZADO (Agora também extraindo o id_setor)
-    const { id_usuario, id_modelo, id_setor, id_celula, assinatura, respostas, inicio_checklist } = req.body;
-    
-    const idUsuarioFinal = id_usuario || (req.usuario ? req.usuario.id : null);
+    const { id_modelo, id_setor, id_celula, assinatura, respostas, inicio_checklist } = req.body;
+    const idUsuarioFinal = req.usuario?.id;
 
     if (!idUsuarioFinal || !id_modelo || !respostas || !Array.isArray(respostas) || respostas.length === 0) {
         return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos ou sem respostas.' });
@@ -85,7 +60,35 @@ exports.salvarChecklist = async (req, res) => {
     const client = await db.connect();
 
     try {
-        await client.query('BEGIN'); 
+        await client.query('BEGIN');
+
+        const modeloRes = await client.query('SELECT id FROM modelo WHERE id = $1 AND ativo = true', [id_modelo]);
+        if (modeloRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ sucesso: false, mensagem: 'Modelo inválido ou inativo.' });
+        }
+
+        const idsPerguntas = respostas.map((resposta) => Number(resposta.id_pergunta));
+        if (idsPerguntas.some((id) => !Number.isInteger(id)) || new Set(idsPerguntas).size !== idsPerguntas.length) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ sucesso: false, mensagem: 'As respostas possuem perguntas inválidas ou duplicadas.' });
+        }
+        const perguntasRes = await client.query(
+            'SELECT id FROM perguntas WHERE id_modelo = $1 AND id = ANY($2::int[])',
+            [id_modelo, idsPerguntas]
+        );
+        if (perguntasRes.rows.length !== idsPerguntas.length) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ sucesso: false, mensagem: 'Há perguntas que não pertencem ao modelo informado.' });
+        }
+
+        if (!req.usuario.admin) {
+            if ((id_setor && Number(id_setor) !== req.usuario.id_setor_fk) ||
+                (id_celula && Number(id_celula) !== req.usuario.id_celula_fk)) {
+                await client.query('ROLLBACK');
+                return res.status(403).json({ sucesso: false, mensagem: 'O perfil não possui acesso ao setor ou célula informados.' });
+            }
+        }
 
         // Processar assinatura Base64 para bytea
         let assinaturaBuffer = null;
@@ -115,9 +118,7 @@ exports.salvarChecklist = async (req, res) => {
         const currentIdFormulario = resSubmissao.rows[0].id;
 
         await client.query('COMMIT'); 
-        emitirRankingAtualizado();
-
-        res.status(201).json({ 
+        res.status(201).json({
             sucesso: true, 
             mensagem: 'Checklist salvo com velocidade Enterprise!', 
             id_relatorio: currentIdFormulario 

@@ -16,9 +16,6 @@
       <header class="report-header">
         <div class="header-main-info">
           <h1><i class="mdi mdi-file-check-outline"></i> Resumo da Auditoria</h1>
-          <div v-if="statusEmail" class="email-badge" :class="{ 'sending': statusEmail.includes('Processando') }">
-            <i class="mdi mdi-email-outline"></i> {{ statusEmail }}
-          </div>
         </div>
       </header>
 
@@ -69,27 +66,6 @@
         </div>
       </main>
 
-      <section class="top-nao-conforme-section" v-if="top3NaoConforme.length > 0">
-        <div class="section-header">
-          <h2><i class="mdi mdi-trending-down"></i> Pontos de Atenção ({{ relatorio.info.nome_modelo }})</h2>
-          <p>Itens com maior índice de falha em todo o histórico exclusivo deste modelo.</p>
-        </div>
-
-        <div class="top-list">
-          <div v-for="(item, index) in top3NaoConforme" :key="index" class="top-item-card">
-            <div class="rank-number">{{ index + 1 }}</div>
-            <div class="item-body">
-              <span class="item-tag">{{ item.nome_categoria }}</span>
-              <p class="item-desc">{{ item.nome_pergunta }}</p>
-            </div>
-            <div class="item-stats">
-              <span class="count-val">{{ item.total_nao_conforme }}</span>
-              <span class="count-label">falhas</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
     </div>
   </div>
 </template>
@@ -105,8 +81,6 @@ const route = useRoute();
 const isLoading = ref(true);
 const error = ref(null);
 const relatorio = ref(null);
-const top3NaoConforme = ref([]);
-const statusEmail = ref('');
 
 const pontuacao = computed(() => {
   if (!relatorio.value || !relatorio.value.dadosGrafico) {
@@ -140,39 +114,17 @@ const formatarData = (dataString) => {
   return new Date(dataString).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 };
 
-const acionarEnvioDeEmail = async () => {
-  const relatorioId = route.params.id;
-  statusEmail.value = 'Processando e enviando email...';
-  try {
-    const res = await api.post(`/relatorios/${relatorioId}/enviar-email`);
-    statusEmail.value = res.data.mensagem;
-  } catch (err) {
-    statusEmail.value = 'Falha ao acionar o envio do email.';
-    console.error("Erro no envio de email:", err);
-  }
-};
-
 const buscarDados = async () => {
   isLoading.value = true;
   error.value = null;
   try {
     const relatorioId = route.params.id;
-    const [resRelatorio, resTop3] = await Promise.all([
-      api.get(`/relatorios/${relatorioId}`),
-      api.get('/relatorios/metricas/top-nao-conformes', { 
-        params: { id_checklist: relatorioId }
-      })
-    ]);
+    const resRelatorio = await api.get(`/relatorios/${relatorioId}`);
 
     if (resRelatorio.data.sucesso) {
       relatorio.value = resRelatorio.data;
-      acionarEnvioDeEmail();
     } else {
       error.value = resRelatorio.data.mensagem;
-    }
-
-    if (resTop3.data.sucesso) {
-      top3NaoConforme.value = resTop3.data.dados;
     }
   } catch (err) {
     error.value = 'Falha ao carregar os dados do relatório.';

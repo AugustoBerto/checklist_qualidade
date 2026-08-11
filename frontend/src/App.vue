@@ -1,9 +1,5 @@
 <template>
-  <div v-if="isTvRoute" class="tv-mode-wrapper">
-    <router-view />
-  </div>
-
-  <div v-else id="app">
+  <div id="app">
     <header class="header">
       <div class="header-content">
         <div class="logo-container">
@@ -22,11 +18,12 @@
           <template v-else>
             <template v-if="!isAdmin">
               <router-link to="/selecao" class="nav-link">Realizar Auditoria</router-link>
-              <router-link to="/consultar" class="nav-link">Meus Registros</router-link>
+              <router-link to="/consultar" class="nav-link">Histórico Completo</router-link>
             </template>
 
             <template v-if="isAdmin">
               <router-link to="/administrador" class="nav-link">Painel Gerencial</router-link>
+              <router-link to="/selecao" class="nav-link">Realizar Auditoria</router-link>
               <router-link to="/consultar" class="nav-link">Histórico Completo</router-link>
             </template>
 
@@ -54,9 +51,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue' 
-import { RouterLink, useRouter, useRoute } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
 import localforage from 'localforage'
+import { encerrarSessao, restaurarSessao } from './services/session'
 
 // Configuração do IndexedDB
 localforage.config({
@@ -65,7 +63,6 @@ localforage.config({
 });
 
 const router = useRouter()
-const route = useRoute()
 
 // Estados Globais de Autenticação
 const usuarioLogado = ref(false);
@@ -73,55 +70,25 @@ const nomeUsuario = ref('');
 const isAdmin = ref(false); 
 
 const verificarAuth = () => {
-  const token = localStorage.getItem('token');
-  
-  if (token) {
-    try {
-      const payloadDecodificado = atob(token.split('.')[1]);
-      const payloadObjeto = JSON.parse(payloadDecodificado);
-      const tempoAtual = Math.floor(Date.now() / 1000);
-      
-      // Verifica se o Token expirou
-      if (payloadObjeto.exp < tempoAtual) {
-        limparSessao();
-        return; 
-      }
-      
-      usuarioLogado.value = true;
-
-      // 📌 VALIDAÇÃO ROBUSTA DO TIPO DE USUÁRIO
-      const usuarioSalvo = localStorage.getItem('usuario');
-      if (usuarioSalvo && usuarioSalvo !== 'desconhecido') {
-        try {
-            const usuarioObj = JSON.parse(usuarioSalvo);
-            
-            // Captura o primeiro nome para ficar mais amigável
-            nomeUsuario.value = usuarioObj.nome.split(' ')[0]; 
-            
-            // O sistema entende como admin se o 'nivelusuario' for 1 ou a flag 'admin' for true
-            isAdmin.value = (usuarioObj.nivelusuario === 1 || usuarioObj.admin === true || localStorage.getItem('isAdmin') === 'true');
-        } catch (e) {
-            nomeUsuario.value = usuarioSalvo;
-            isAdmin.value = localStorage.getItem('isAdmin') === 'true';
-        }
-      } else {
-        isAdmin.value = localStorage.getItem('isAdmin') === 'true';
-      }
-      
-    } catch (error) {
-      console.error('Erro ao decodificar o token:', error);
-      limparSessao();
-    }
-  } else {
+  const usuarioSalvo = localStorage.getItem('usuario');
+  if (!usuarioSalvo) {
     usuarioLogado.value = false;
     nomeUsuario.value = '';
     isAdmin.value = false;
+    return;
+  }
+  try {
+    const usuarioObj = JSON.parse(usuarioSalvo);
+    usuarioLogado.value = true;
+    nomeUsuario.value = (usuarioObj.nome || usuarioObj.usuario || '').split(' ')[0];
+    isAdmin.value = usuarioObj.papel === 'ADMIN';
+  } catch {
+    limparSessao();
   }
 };
 
 // Função auxiliar para evitar repetição de código
 const limparSessao = () => {
-  localStorage.removeItem('token');
   localStorage.removeItem('usuario');
   localStorage.removeItem('isAdmin');
   usuarioLogado.value = false;
@@ -130,6 +97,7 @@ const limparSessao = () => {
 };
 
 const fazerLogoff = async () => {
+  await encerrarSessao();
   limparSessao();
   
   try {
@@ -142,16 +110,12 @@ const fazerLogoff = async () => {
   router.push('/');
 }
 
-// 📌 Identifica Rotas de TV/Dashboards Públicos
-const isTvRoute = computed(() => {
-  return route.path.includes('/dashboard') || 
-         route.path.includes('/tvdash') || 
-         route.query.tv === 'true';
-});
-
 // Validação de Ciclo de Vida
-onMounted(verificarAuth);
-watch(() => route.path, verificarAuth);
+onMounted(async () => {
+  await restaurarSessao();
+  verificarAuth();
+});
+watch(() => router.currentRoute.value.path, verificarAuth);
 </script>
 
 <style>

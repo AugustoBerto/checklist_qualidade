@@ -35,19 +35,6 @@
         </div>
       </router-link>
 
-      <router-link to="/dashboard" class="module-card">
-        <div class="icon-wrapper bg-orange">
-          <i class="mdi mdi-chart-box-outline"></i>
-        </div>
-        <div class="module-info">
-          <h3>Indicadores (Dashboard)</h3>
-          <p>Acompanhe métricas, gráficos e os KPIs de qualidade da fábrica em tempo real.</p>
-        </div>
-        <div class="arrow-icon">
-          <i class="mdi mdi-chevron-right"></i>
-        </div>
-      </router-link>
-
       <router-link to="/adminlogin" class="module-card">
         <div class="icon-wrapper bg-purple">
           <i class="mdi mdi-cog-outline"></i>

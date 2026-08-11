@@ -108,9 +108,9 @@ const form = ref({ setor_selecionado: '', modelo: '', celula_selecionada: '' })
 const usuarioString = localStorage.getItem('usuario') || '{}'
 const usuario = ref(JSON.parse(usuarioString))
 
-const isAdmin = computed(() => usuario.value.permissao === 'admin' || usuario.value.admin === true || Number(usuario.value.nivelusuario) === -1)
-const isLider = computed(() => Number(usuario.value.nivelusuario) === 1)
-const isInspetor = computed(() => Number(usuario.value.nivelusuario) === 2)
+const isAdmin = computed(() => usuario.value.papel === 'ADMIN')
+const isLider = computed(() => usuario.value.papel === 'LIDER')
+const isInspetor = computed(() => usuario.value.papel === 'INSPETOR')
 
 const podeTrocarMarca = computed(() => isAdmin.value || isInspetor.value || marcas.value.length > 1)
 
