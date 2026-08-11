@@ -49,7 +49,7 @@
 
         <form @submit.prevent="irParaFormulario">
           
-          <div class="form-group mb-3" v-if="isInspetor">
+          <div class="form-group mb-3">
             <label for="setor">Setor da Inspeção:</label>
             <div class="select-wrapper">
               <VueSelect v-model="form.setor_selecionado" :options="opcoesSetores"
@@ -60,15 +60,14 @@
           <div class="form-group mt-3">
             <label for="modelo">Modelos disponíveis:</label>
             <div class="select-wrapper">
-              <VueSelect v-model="form.modelo" :options="opcoesModelos" placeholder="Selecione o modelo..." :disabled="!form.setor_selecionado && isInspetor" />
+              <VueSelect v-model="form.modelo" :options="opcoesModelos" placeholder="Selecione o modelo..." :disabled="!form.setor_selecionado" />
             </div>
           </div>
 
-          <div class="form-group mt-4" v-if="isInspetor">
+          <div class="form-group mt-4">
             <label for="celula">Célula da Inspeção:</label>
             <div class="select-wrapper">
-              <VueSelect v-model="form.celula_selecionada" :options="opcoesCelulas"
-                placeholder="Selecione a linha/célula..." :disabled="!form.setor_selecionado" />
+              <VueSelect v-model="form.celula_selecionada" :options="opcoesCelulas" placeholder="Selecione a linha/célula..." :disabled="!form.setor_selecionado" />
             </div>
           </div>
 
@@ -109,15 +108,12 @@ const usuarioString = localStorage.getItem('usuario') || '{}'
 const usuario = ref(JSON.parse(usuarioString))
 
 const isAdmin = computed(() => usuario.value.papel === 'ADMIN')
-const isLider = computed(() => usuario.value.papel === 'LIDER')
-const isInspetor = computed(() => usuario.value.papel === 'INSPETOR')
-
-const podeTrocarMarca = computed(() => isAdmin.value || isInspetor.value || marcas.value.length > 1)
+const podeTrocarMarca = computed(() => marcas.value.length > 1)
 
 const isBotaoDesabilitado = computed(() => {
-  if (isInspetor.value && !form.value.setor_selecionado) return true;
+  if (!form.value.setor_selecionado) return true;
   if (!form.value.modelo) return true;
-  if (isInspetor.value && !form.value.celula_selecionada) return true;
+  if (!form.value.celula_selecionada) return true;
   return false;
 })
 
@@ -139,31 +135,6 @@ onMounted(async () => {
     const listaSetores = resSetores.data?.setores || resSetores.data?.dados || resSetores.data || [];
     opcoesSetores.value = listaSetores.map(s => ({ label: s.nome, value: s.id }));
 
-    // 1. LÓGICA DO INSPETOR: Configurar setor inicial
-    if (isInspetor.value && usuario.value.id_setor_fk) {
-       form.value.setor_selecionado = usuario.value.id_setor_fk; // Autopreencher com o setor dele
-       filtrarCelulasPorSetor(usuario.value.id_setor_fk);
-    } else if (!isAdmin.value) {
-       // Se não for admin nem inspetor, filtra as células pelo setor dele fixo
-       filtrarCelulasPorSetor(usuario.value.id_setor_fk);
-    } else {
-       // Admin vê todas
-       opcoesCelulas.value = listaCelulasGlobal.value.map(c => ({ label: c.nome, value: c.id }));
-    }
-
-    // 2. FILTRO RESTRITO PARA O LÍDER
-    if (isLider.value && usuario.value.id_celula_fk) {
-        const minhaCelula = listaCelulasGlobal.value.find(c => String(c.id) === String(usuario.value.id_celula_fk));
-        if (minhaCelula && minhaCelula.id_marca_fk) {
-            const marcasRestritas = listaMarcas.filter(m => String(m.id) === String(minhaCelula.id_marca_fk));
-            if (marcasRestritas.length > 0) {
-                marcas.value = marcasRestritas;
-                if (marcasRestritas.length === 1) selecionarMarca(marcasRestritas[0]);
-                return; 
-            }
-        }
-    }
-
     marcas.value = listaMarcas;
 
   } catch (error) {
@@ -175,7 +146,6 @@ onMounted(async () => {
 
 // === NOVO: Observar mudança de Setor (Inspetor) ===
 watch(() => form.value.setor_selecionado, async (novoSetorId) => {
-  if (isInspetor.value) {
     form.value.celula_selecionada = ''; // Limpa a célula anterior
     form.value.modelo = ''; // Limpa o modelo anterior
     
@@ -189,7 +159,6 @@ watch(() => form.value.setor_selecionado, async (novoSetorId) => {
       opcoesCelulas.value = [];
       opcoesModelos.value = [];
     }
-  }
 })
 
 function filtrarCelulasPorSetor(idSetor) {
@@ -203,7 +172,7 @@ async function carregarModelos(marca, setorId) {
     const queryParams = { marca_id: marca.id };
 
     // Filtra pelo setor selecionado (seja Inspetor trocando ou setor fixo)
-    if (setorId && !isAdmin.value) {
+    if (setorId) {
         queryParams.setor_id = setorId;
     }
 
@@ -220,14 +189,7 @@ async function carregarModelos(marca, setorId) {
 async function selecionarMarca(marca) {
   marcaSelecionada.value = marca;
   
-  let setorParaBusca = null;
-  if (isInspetor.value) {
-    setorParaBusca = form.value.setor_selecionado;
-  } else if (usuario.value.id_setor_fk && !isAdmin.value) {
-    setorParaBusca = usuario.value.id_setor_fk;
-  }
-
-  await carregarModelos(marca, setorParaBusca);
+  await carregarModelos(marca, form.value.setor_selecionado);
 }
 
 function irParaFormulario() {
@@ -238,12 +200,8 @@ function irParaFormulario() {
     cb: new Date().getTime() 
   };
   
-  if (isInspetor.value) {
-    query.celula = form.value.celula_selecionada;
-    query.setor = form.value.setor_selecionado; // Passa o setor na URL também
-  } else if (isLider.value) {
-    query.celula = usuario.value.id_celula_fk;
-  }
+  query.celula = form.value.celula_selecionada;
+  query.setor = form.value.setor_selecionado;
   
   if (query.celula) localStorage.setItem('celula_auditada_atual', query.celula);
 

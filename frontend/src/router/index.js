@@ -8,7 +8,6 @@ import SelecaoView from '../views/CheckSelecao.vue'
 import RelatorioView from '../views/RelatorioView.vue'
 import CriarUsuarioView from '../views/CriarUsuarioView.vue'
 import CriarModeloView from '../views/CriarModeloView.vue'
-import AdminLoginView from '../views/AdminLoginView.vue'
 import EditarModelo from '../views/EditarModelo.vue'
 import ConfiguracoesView from '../views/ConfiguracoesView.vue'
 import { possuiPerfilLocal, restaurarSessao } from '../services/session'
@@ -16,7 +15,6 @@ import { possuiPerfilLocal, restaurarSessao } from '../services/session'
 const routes = [
   { path: '/', name: 'Home', component: HomeView },
   { path: '/login', name: 'Login', component: LoginView },
-  { path: '/adminlogin', name: 'AdminLogin', component: AdminLoginView },
   {
     path: '/formulario/:modelo',
     name: 'Formulario',
@@ -103,8 +101,8 @@ router.beforeEach(async (to) => {
   const isAdmin = getIsAdmin()
 
   // --- IMPEDE ACESSO À LOGIN SE JÁ LOGADO ---
-  if ((to.path === '/login' || to.path === '/adminlogin') && autenticado) {
-    return isAdmin ? { path: '/administrador' } : { path: '/selecao' }
+  if (to.path === '/login' && autenticado) {
+    return { path: '/' }
   }
 
   // --- REGRAS DE PROTEÇÃO DE ROTA ---

@@ -8,17 +8,14 @@
     </div>
     
     <div class="card">
-      <div class="toolbar" v-if="checklists.length > 0 || searchQuery">
+      <form class="toolbar" @submit.prevent="buscarChecklists(1)">
         <div class="search-box">
           <i class="mdi mdi-magnify search-icon"></i>
-          <input 
-            type="text" 
-            v-model="searchQuery" 
-            placeholder="Pesquisar por modelo, usuário ou célula/setor..." 
-            class="input-search"
-          >
+          <input type="text" v-model="filtros.usuario" placeholder="Responsável" class="input-search">
         </div>
-      </div>
+        <input type="date" v-model="filtros.dataInicio"><input type="date" v-model="filtros.dataFim">
+        <button type="submit" class="btn-view">Filtrar</button>
+      </form>
 
       <div v-if="isLoading" class="status-message loading-state">
         <div class="spinner"></div> 
@@ -30,7 +27,7 @@
         <p>{{ error }}</p>
       </div>
       
-      <div v-else-if="filteredChecklists.length === 0" class="status-message empty-state">
+      <div v-else-if="checklists.length === 0" class="status-message empty-state">
         <i class="mdi mdi-clipboard-text-off-outline"></i>
         <p>Nenhum checklist encontrado para esta busca.</p>
       </div>
@@ -47,7 +44,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="checklist in filteredChecklists" :key="checklist.id">
+            <tr v-for="checklist in checklists" :key="checklist.id">
               <td>
                 <strong>{{ checklist.nome_modelo }}</strong>
                 <div class="celula-badge" v-if="checklist.nome_celula">
@@ -78,32 +75,24 @@
           </tbody>
         </table>
       </div>
+      <div v-if="paginacao.totalPages > 1" class="toolbar">
+        <button class="btn-view" :disabled="paginacao.page === 1" @click="buscarChecklists(paginacao.page - 1)">Anterior</button>
+        <span>Página {{ paginacao.page }} de {{ paginacao.totalPages }}</span>
+        <button class="btn-view" :disabled="paginacao.page === paginacao.totalPages" @click="buscarChecklists(paginacao.page + 1)">Próxima</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import api from '../services/api';
 
 const checklists = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
-const searchQuery = ref('');
-
-// 📌 ATUALIZADO: Filtro reativo agora busca também pela Célula/Linha
-const filteredChecklists = computed(() => {
-  if (!searchQuery.value) return checklists.value;
-  
-  const query = searchQuery.value.toLowerCase();
-  return checklists.value.filter(c => {
-    const modelo = c.nome_modelo ? c.nome_modelo.toLowerCase() : '';
-    const usuario = c.nome_usuario ? c.nome_usuario.toLowerCase() : '';
-    const celula = c.nome_celula ? c.nome_celula.toLowerCase() : '';
-    const setor = c.nome_setor ? c.nome_setor.toLowerCase() : '';
-    return modelo.includes(query) || usuario.includes(query) || celula.includes(query) || setor.includes(query);
-  });
-});
+const filtros = ref({ usuario: '', dataInicio: '', dataFim: '' });
+const paginacao = ref({ page: 1, totalPages: 1, total: 0, pageSize: 25 });
 
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/---- --:--';
@@ -113,15 +102,16 @@ const formatarData = (dataString) => {
   });
 };
 
-const buscarChecklists = async () => {
+const buscarChecklists = async (page = 1) => {
   isLoading.value = true;
   error.value = null;
 
   try {
-    const res = await api.get('/submissoes');
+    const res = await api.get('/submissoes', { params: { ...filtros.value, page, pageSize: 25 } });
     
     if (res.data.sucesso) {
       checklists.value = res.data.dados;
+      paginacao.value = res.data.paginacao;
     } else {
       error.value = res.data.mensagem;
     }

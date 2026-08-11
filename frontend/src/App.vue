@@ -10,9 +10,7 @@
         <nav class="nav">
           <template v-if="!usuarioLogado">
             <router-link to="/" class="nav-link">Início</router-link>
-            <router-link to="/consultar" class="nav-link">Consultar Histórico</router-link>
-            <router-link to="/login" class="nav-link">Portal Colaborador</router-link>
-            <router-link to="/adminlogin" class="nav-link">Acesso Gestão</router-link>
+            <router-link to="/login" class="nav-link">Entrar</router-link>
           </template>
 
           <template v-else>
@@ -22,6 +20,7 @@
             </template>
 
             <template v-if="isAdmin">
+              <router-link to="/" class="nav-link">Portal</router-link>
               <router-link to="/administrador" class="nav-link">Painel Gerencial</router-link>
               <router-link to="/selecao" class="nav-link">Realizar Auditoria</router-link>
               <router-link to="/consultar" class="nav-link">Histórico Completo</router-link>

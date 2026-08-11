@@ -82,13 +82,6 @@ exports.salvarChecklist = async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: 'Há perguntas que não pertencem ao modelo informado.' });
         }
 
-        if (!req.usuario.admin) {
-            if ((id_setor && Number(id_setor) !== req.usuario.id_setor_fk) ||
-                (id_celula && Number(id_celula) !== req.usuario.id_celula_fk)) {
-                await client.query('ROLLBACK');
-                return res.status(403).json({ sucesso: false, mensagem: 'O perfil não possui acesso ao setor ou célula informados.' });
-            }
-        }
 
         // Processar assinatura Base64 para bytea
         let assinaturaBuffer = null;

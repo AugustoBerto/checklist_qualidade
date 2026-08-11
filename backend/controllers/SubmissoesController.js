@@ -8,6 +8,18 @@ const { calcularPontuacao, normalizarResposta } = require('../utils/scoring');
 // 1. Listar todas as submissões (Para a tabela principal)
 exports.listarSubmissoes = async (req, res) => {
     try {
+        const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+        const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 25, 1), 100);
+        const filtros = [];
+        const valores = [];
+        const adicionarFiltro = (sql, valor) => { valores.push(valor); filtros.push(sql.replace('?', `$${valores.length}`)); };
+        if (req.query.dataInicio) adicionarFiltro('s.data_envio >= ?::date', req.query.dataInicio);
+        if (req.query.dataFim) adicionarFiltro("s.data_envio < (?::date + interval '1 day')", req.query.dataFim);
+        if (req.query.marca) adicionarFiltro('m.marca = ?', req.query.marca);
+        if (req.query.setorId) adicionarFiltro('COALESCE(s.id_setor, st_mod.id, st_cp.id) = ?::int', req.query.setorId);
+        if (req.query.celulaId) adicionarFiltro('s.id_celula = ?::int', req.query.celulaId);
+        if (req.query.usuario) adicionarFiltro('u.nome ILIKE ?', `%${req.query.usuario}%`);
+        const where = filtros.length ? `WHERE ${filtros.join(' AND ')}` : '';
         // 📌 CORREÇÃO 1: Tudo alterado para LEFT JOIN. 
         // O COALESCE agora tenta buscar o nome do setor do modelo, da célula ou do usuário.
         const sql = `
@@ -25,10 +37,16 @@ exports.listarSubmissoes = async (req, res) => {
             LEFT JOIN setores st_cp ON cp.id_setor_fk = st_cp.id
             LEFT JOIN setores st_mod ON m.id_setor_fk = st_mod.id
             LEFT JOIN setores st_user ON u.id_setor_fk = st_user.id
+            ${where}
             ORDER BY s.data_envio DESC;
         `;
-        const resultado = await db.query(sql);
-        res.status(200).json({ sucesso: true, dados: resultado.rows });
+        const countSql = `SELECT count(*) FROM formulario_submissoes s JOIN usuarios u ON s.id_usuario = u.id JOIN modelo m ON s.id_modelo = m.id LEFT JOIN celulas_producao cp ON s.id_celula = cp.id LEFT JOIN setores st_cp ON cp.id_setor_fk = st_cp.id LEFT JOIN setores st_mod ON m.id_setor_fk = st_mod.id ${where}`;
+        const [totalResult, resultado] = await Promise.all([
+            db.query(countSql, valores),
+            db.query(`${sql.replace(';', '')} LIMIT $${valores.length + 1} OFFSET $${valores.length + 2}`, [...valores, pageSize, (page - 1) * pageSize]),
+        ]);
+        const total = Number(totalResult.rows[0].count);
+        res.status(200).json({ sucesso: true, dados: resultado.rows, paginacao: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
     } catch (error) {
         console.error('Erro ao listar submissões:', error);
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao listar submissões.' });

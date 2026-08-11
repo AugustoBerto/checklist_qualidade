@@ -14,9 +14,9 @@
     </div>
     <form v-else class="card form" @submit.prevent="salvar">
       <label>Matrícula <input v-model.trim="form.matricula" required :disabled="Boolean(form.id)"></label>
-      <label>Nome <input v-model.trim="form.nome" placeholder="Preenchido pelo dass_auth se vazio"></label>
+      <label v-if="form.id">Nome <input :value="form.nome" disabled></label>
       <label>Papel <select v-model="form.papel" required><option value="" disabled>Selecione</option><option value="ADMIN">Administrador</option><option value="LIDER">Líder</option><option value="INSPETOR">Inspetor</option></select></label>
-      <label>Função <input v-model.trim="form.funcao"></label>
+      <label v-if="form.id">Função <input :value="form.funcao" disabled></label>
       <label>Unidade <select v-model="form.id_unidade_fk"><option value="">Não definida</option><option v-for="u in unidades" :key="u.id" :value="u.id">{{ u.nome }}</option></select></label>
       <label>Setor <select v-model="form.id_setor_fk"><option value="">Não definido</option><option v-for="s in setores" :key="s.id" :value="s.id">{{ s.nome }}</option></select></label>
       <label>Célula <select v-model="form.id_celula_fk"><option value="">Não definida</option><option v-for="c in celulas" :key="c.id" :value="c.id">{{ c.nome }}</option></select></label>
@@ -46,7 +46,7 @@ const editar = (perfil) => { Object.assign(form, vazio(), perfil); erro.value = 
 const salvar = async () => {
   salvando.value = true; erro.value = ''; sucesso.value = ''
   try {
-    const payload = { ...form }
+    const { nome, funcao, id, ...payload } = form
     if (form.id) await api.put(`/perfis/${form.id}`, payload); else await api.post('/perfis', payload)
     sucesso.value = 'Perfil salvo.'; modo.value = 'lista'; await carregar()
   } catch (e) { erro.value = e.response?.data?.mensagem || 'Não foi possível salvar o perfil.' } finally { salvando.value = false }

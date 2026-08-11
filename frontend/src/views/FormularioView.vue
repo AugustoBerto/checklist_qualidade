@@ -8,6 +8,11 @@
     </div>
 
     <form @submit.prevent="enviarFormulario" class="form-checklist">
+      <div class="card progresso">
+        <strong>{{ progresso.respondidas }} de {{ progresso.total }} itens respondidos</strong>
+        <progress :value="progresso.respondidas" :max="progresso.total || 1"></progress>
+        <span v-if="progresso.pendentes.length">Pendentes: {{ progresso.pendentes.join(', ') }}</span>
+      </div>
       <details v-for="(perguntas, categoria) in categorias" :key="categoria" class="sessaoOpcao"
         :class="getCategoryStatusClass(categoria)">
         <summary class="cabecalhoSessao">
@@ -55,7 +60,7 @@
 
               <div class="observacao-container">
                 <label :for="'obs-' + pergunta.variavel" class="label-observacao">
-                  Ação Corretiva / Observação
+                  Observação da não conformidade
                   <span v-if="requireObservacaoOnNonConforme" class="obrigatorio">*</span>
                 </label>
                 <textarea :id="'obs-' + pergunta.variavel" v-model="observacoesNaoConformes[pergunta.variavel]"
@@ -201,6 +206,20 @@ const categoryStatus = computed(() => {
   return status;
 });
 
+const progresso = computed(() => {
+  const pendentes = [];
+  let total = 0;
+  let respondidas = 0;
+  for (const categoria in categorias.value) {
+    const perguntas = categorias.value[categoria];
+    total += perguntas.length;
+    const respondidasCategoria = perguntas.filter((p) => respostas.value[p.variavel]).length;
+    respondidas += respondidasCategoria;
+    if (respondidasCategoria < perguntas.length) pendentes.push(categoria);
+  }
+  return { total, respondidas, pendentes };
+});
+
 const getCategoryStatusClass = (cat) => categoryStatus.value[cat] || 'pendente';
 
 const clear = () => {
@@ -314,6 +333,8 @@ async function enviarFormulario() {
   padding: 2rem;
   background-color: var(--bg-body);
 }
+.progresso { display: grid; gap: .5rem; margin-bottom: 1rem; }
+.progresso progress { width: 100%; }
 
 .header-n { margin-bottom: 2rem; border-bottom: 2px solid var(--border-color); padding-bottom: 1rem; }
 .header-titles h1 { font-size: 1.8rem; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 10px; }

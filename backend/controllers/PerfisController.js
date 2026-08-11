@@ -44,7 +44,7 @@ exports.criar = async (req, res) => {
     const erro = validarPerfil(req.body);
     if (erro) return res.status(400).json({ sucesso: false, mensagem: erro });
 
-    const { nome, matricula, papel, funcao, id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk } = req.body;
+    const { matricula, papel, id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk } = req.body;
     try {
         const colaborador = await buscarColaboradorCentral(matricula);
         if (!colaborador) return res.status(400).json({ sucesso: false, mensagem: 'Matrícula não encontrada no dass_auth.' });
@@ -54,7 +54,7 @@ exports.criar = async (req, res) => {
                 id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk
             ) VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8)
             RETURNING ${camposPerfil}
-        `, [nome || colaborador.nome || null, matricula, papel, funcao || colaborador.funcao || null,
+        `, [colaborador.nome || null, matricula, papel, colaborador.funcao || null,
             id_unidade_fk || null, id_setor_fk || null, id_celula_fk || null, id_turno_fk || null]);
         res.status(201).json({ sucesso: true, perfil: rows[0] });
     } catch (error) {
@@ -64,18 +64,19 @@ exports.criar = async (req, res) => {
 };
 
 exports.atualizar = async (req, res) => {
-    const erro = validarPerfil(req.body);
-    if (erro) return res.status(400).json({ sucesso: false, mensagem: erro });
+    if (!PAPEIS.has(req.body.papel)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Papel válido é obrigatório.' });
+    }
 
-    const { nome, matricula, papel, ativo, funcao, id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk } = req.body;
+    const { papel, ativo, id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk } = req.body;
     try {
         const { rows } = await db.query(`
             UPDATE usuarios SET
-                nome = $1, matricula = $2, papel = $3, ativo = $4, funcao = $5,
-                id_unidade_fk = $6, id_setor_fk = $7, id_celula_fk = $8, id_turno_fk = $9
-            WHERE id = $10
+                papel = $1, ativo = $2,
+                id_unidade_fk = $3, id_setor_fk = $4, id_celula_fk = $5, id_turno_fk = $6
+            WHERE id = $7
             RETURNING ${camposPerfil}
-        `, [nome || null, matricula, papel, ativo === false || ativo === 0 ? 0 : 1, funcao || null,
+        `, [papel, ativo === false || ativo === 0 ? 0 : 1,
             id_unidade_fk || null, id_setor_fk || null, id_celula_fk || null, id_turno_fk || null, req.params.id]);
         if (rows.length === 0) return res.status(404).json({ sucesso: false, mensagem: 'Perfil não encontrado.' });
         res.json({ sucesso: true, perfil: rows[0] });

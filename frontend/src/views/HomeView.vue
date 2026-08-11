@@ -28,14 +28,14 @@
         </div>
         <div class="module-info">
           <h3>Consultar Histórico</h3>
-          <p>Visualizar relatórios anteriores, pesquisar checklists e acompanhar ações corretivas.</p>
+          <p>Visualizar relatórios anteriores e pesquisar checklists realizados.</p>
         </div>
         <div class="arrow-icon">
           <i class="mdi mdi-chevron-right"></i>
         </div>
       </router-link>
 
-      <router-link to="/adminlogin" class="module-card">
+      <router-link v-if="isAdmin" to="/administrador" class="module-card">
         <div class="icon-wrapper bg-purple">
           <i class="mdi mdi-cog-outline"></i>
         </div>
@@ -52,7 +52,11 @@
 </template>
 
 <script setup>
-// Não há necessidade de lógica complexa aqui, o Vue Router faz o trabalho.
+import { computed } from 'vue'
+
+const isAdmin = computed(() => {
+  try { return JSON.parse(localStorage.getItem('usuario') || '{}').papel === 'ADMIN' } catch { return false }
+})
 </script>
 
 <style scoped>

@@ -31,14 +31,13 @@
         </div>
       </form>
 
-      <form @submit.prevent="fazerLoginCodBar">
-        <input type="hidden" v-model="form.codbar" id="codBarras" value="">
-      </form>
-
+      <div class="form-group">
+        <label for="codBar">Código de barras</label>
+        <input id="codBar" v-model.trim="form.codBar" inputmode="numeric" placeholder="Digite ou cole o código">
+      </div>
       <div class="form-actions">
-        <button onclick="AndroidInterface.iniciarScanner()" class="login-button">
-          Entrar com leitura código de barras
-        </button>
+        <button type="button" class="login-button" @click="fazerLoginCodBar">Entrar com código de barras</button>
+        <button v-if="leitorDisponivel" type="button" class="login-button" @click="abrirLeitor">Abrir leitor</button>
       </div>
 
       <div class="login-footer">
@@ -62,6 +61,7 @@ const form = reactive({
 });
 
 const mostrarSenha = ref(false);
+const leitorDisponivel = ref(false)
 
 const fazerLogin = async () => {
   try {
@@ -78,7 +78,7 @@ const fazerLogin = async () => {
 
 // 📌 Login via Código de Barras
 const fazerLoginCodBar = async () => {
-  if (!form.codBar || form.codBar.length !== 14) {
+  if (!form.codBar) {
     alert('Código de barras inválido.');
     return;
   }
@@ -94,7 +94,7 @@ const fazerLoginCodBar = async () => {
 };
 
 const onCodigoLido = (codigo) => {
-  if (codigo.length === 14 && /^\d{14}$/.test(codigo)) {
+  if (codigo) {
     form.codBar = codigo;
     fazerLoginCodBar();
   } else {
@@ -103,8 +103,11 @@ const onCodigoLido = (codigo) => {
 };
 
 onMounted(() => {
+  leitorDisponivel.value = Boolean(window.AndroidInterface?.iniciarScanner)
   window.onCodigoLido = onCodigoLido;
 });
+
+const abrirLeitor = () => window.AndroidInterface?.iniciarScanner()
 
 onUnmounted(() => {
   delete window.onCodigoLido;

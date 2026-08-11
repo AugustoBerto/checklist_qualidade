@@ -76,7 +76,7 @@
               
               <div v-if="item.foto || item.observacao" class="evidence-box">
                 <div v-if="item.observacao" class="obs-text">
-                  <strong>Ação Corretiva:</strong> {{ item.observacao }}
+                  <strong>Observação da não conformidade:</strong> {{ item.observacao }}
                 </div>
                 <div v-if="item.foto" class="photo-doc">
                   <img :src="item.foto" @click="openImageModal(item.foto)" class="clickable-img">
