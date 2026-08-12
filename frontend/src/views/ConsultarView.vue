@@ -167,12 +167,14 @@ onMounted(buscarChecklists);
 .spinner { border: 4px solid #e2e8f0; width: 40px; height: 40px; border-radius: 50%; border-left-color: var(--primary, #2563eb); animation: spin 1s linear infinite; margin: 0 auto 1.5rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 768px) {
-  .page-container { padding: 1.5rem; }
-  .card { padding: 1.5rem; }
+  .page-container { padding: 1rem; }
+  .header-titles h1 { font-size: 1.5rem; }
+  .card { padding: 1rem; }
   .toolbar { justify-content: center; }
   .search-box { max-width: 100%; }
   .data-table th, .data-table td { padding: 1rem 0.5rem; font-size: 0.9rem; }
-  .btn-view { padding: 0.5rem 0.8rem; font-size: 0.85rem; }
+  .data-table { min-width: 620px; }
+  .btn-view { min-height: 44px; padding: 0.5rem 0.8rem; font-size: 0.85rem; }
   .btn-view i { display: none; }
 }
 </style>

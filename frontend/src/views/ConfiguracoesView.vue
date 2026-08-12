@@ -30,7 +30,8 @@
         <p>Nenhum registro encontrado para <strong>{{ nomeAbaAtiva }}</strong>.</p>
       </div>
 
-      <table v-else class="data-table">
+      <div v-else class="table-container">
+      <table class="data-table">
         <thead>
           <tr>
             <th class="col-id">ID</th>
@@ -75,6 +76,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div v-if="showModal" class="modal-overlay" @click.self="fecharModal">
@@ -406,4 +408,22 @@ onMounted(() => buscarDados(true));
 @keyframes spin { to { transform: rotate(360deg); } }
 .slide-in { animation: slideUp 0.3s ease-out; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 767px) {
+  .page-container { padding: 1rem; }
+  .header-n { align-items: stretch; flex-direction: column; gap: 1rem; }
+  .header-titles h1 { font-size: 1.4rem; }
+  .header-n > .btn-primary { justify-content: center; }
+  .table-container { overflow-x: auto; }
+  .data-table { min-width: 620px; }
+  .data-table th, .data-table td { padding: 0.85rem 1rem; }
+  .btn-icon { min-width: 44px; min-height: 44px; }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal-content { max-height: calc(100dvh - 1rem); overflow-y: auto; border-radius: 12px 12px 0 0; }
+  .modal-header, .modal-body { padding: 1rem; }
+  .modal-header h2 { font-size: 1.1rem; }
+  .time-row { grid-template-columns: 1fr; }
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions .btn-primary, .modal-actions .btn-outline { justify-content: center; width: 100%; }
+}
 </style>

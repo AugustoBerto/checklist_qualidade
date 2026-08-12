@@ -211,9 +211,6 @@
   transform: translateX(5px);
 }
 
-/* ==========================================
-   ANIMAÇÕES DE ENTRADA
-   ========================================== */
 @keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -232,7 +229,8 @@
   .welcome-header { margin-bottom: 2rem; }
   .icon-wrapper { width: 55px; height: 55px; font-size: 1.8rem; }
   .module-info h3 { font-size: 1.1rem; }
-  .page-container { padding: 1.5rem; }
+  .page-container { padding: 1rem; }
+  .modules-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {

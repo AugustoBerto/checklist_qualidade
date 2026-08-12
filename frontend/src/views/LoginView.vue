@@ -267,6 +267,16 @@ onUnmounted(() => {
   color: var(--primary); /* Fica azul ao tocar */
 }
 
+@media (max-width: 767px) {
+  .page-container { min-height: auto; padding: 2rem 0; }
+  .titulo-flex { margin-bottom: 1.5rem; }
+  .titulo-flex h1 { font-size: 1.65rem; }
+  .card { padding: 1.25rem; border-radius: 12px; }
+  .form-group { margin-bottom: 1rem; }
+  .toggle-password { min-width: 44px; min-height: 44px; }
+  .login-button { min-height: 52px; padding: 1rem; }
+}
+
 /* ==========================================
    DIVISOR E RODAPÉ
    ========================================== */

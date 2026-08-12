@@ -200,7 +200,7 @@ onMounted(buscarDados);
 
 <style scoped>
 /* 📌 SEU CSS ORIGINAL (Mantido Integralmente) */
-.report-fullscreen-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #f1f5f9; z-index: 9999; overflow-y: auto; padding: 2rem; box-sizing: border-box; }
+.report-fullscreen-wrapper { min-height: 100%; background-color: #f1f5f9; padding: 2rem; box-sizing: border-box; }
 .report-sheet { max-width: 900px; margin: 0 auto; background: white; padding: 3rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 8px; min-height: 100%; }
 .report-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; border-bottom: 2px solid #334155; padding-bottom: 1.5rem; }
 .header-left { display: flex; gap: 1.5rem; align-items: center; }
@@ -251,6 +251,26 @@ onMounted(buscarDados);
   .report-sheet { box-shadow: none; padding: 0; width: 100%; }
   .no-print { display: none !important; }
   .evidence-box { border: 1px solid #e2e8f0; background: white; page-break-inside: avoid; }
+}
+@media (max-width: 767px) {
+  .report-fullscreen-wrapper { padding: 0; }
+  .report-sheet { border-radius: 0; padding: 1rem; }
+  .report-header, .header-left, .meta-row, .question-main, .evidence-box { align-items: stretch; flex-direction: column; }
+  .report-header { gap: 1rem; }
+  .header-left { gap: 0.75rem; }
+  .logo { height: 42px; width: max-content; }
+  .title-group h1 { font-size: 1.3rem; }
+  .header-actions { width: 100%; }
+  .header-actions button { flex: 1; min-height: 44px; padding: 0.6rem; }
+  .metadata-doc { padding: 1rem; margin-bottom: 1.5rem; }
+  .meta-row { gap: 1rem; margin-bottom: 1rem; }
+  .answer-badge { min-width: 0; text-align: left; }
+  .evidence-box { gap: 1rem; }
+  .photo-doc { width: 100%; }
+  .photo-doc img { max-height: 260px; width: 100%; }
+  .signature-block { max-width: 300px; width: 100%; }
+  .image-modal-overlay { padding: 1rem; }
+  .modal-close-button { top: -3rem; right: 0; min-height: 44px; min-width: 44px; }
 }
 .slide-in { animation: slideUp 0.4s ease-out; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }

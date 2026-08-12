@@ -8,9 +8,9 @@
     <p v-if="erro" class="alert error">{{ erro }}</p>
     <p v-if="sucesso" class="alert success">{{ sucesso }}</p>
     <div v-if="modo === 'lista'" class="card">
-      <table class="data-table"><thead><tr><th>Nome</th><th>Matrícula</th><th>Papel</th><th>Status</th><th></th></tr></thead>
+      <div class="table-container"><table class="data-table"><thead><tr><th>Nome</th><th>Matrícula</th><th>Papel</th><th>Status</th><th></th></tr></thead>
         <tbody><tr v-for="perfil in perfis" :key="perfil.id"><td>{{ perfil.nome }}</td><td>{{ perfil.matricula }}</td><td>{{ perfil.papel }}</td><td>{{ perfil.ativo ? 'Ativo' : 'Inativo' }}</td><td><button @click="editar(perfil)">Editar</button></td></tr></tbody>
-      </table>
+      </table></div>
     </div>
     <form v-else class="card form" @submit.prevent="salvar">
       <label>Matrícula <input v-model.trim="form.matricula" required :disabled="Boolean(form.id)"></label>
@@ -59,4 +59,14 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 .header-n { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; }.header-n h1 { margin:0; }.header-n p { color:#666; }
 .card { background:#fff; border:1px solid #ddd; border-radius:8px; padding:1.5rem; }.data-table { width:100%; border-collapse:collapse; }.data-table th,.data-table td { padding:.75rem; border-bottom:1px solid #ddd; text-align:left; }
 .form { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:1rem; }.form label { display:grid; gap:.35rem; }.form input,.form select { padding:.55rem; }.btn-salvar { grid-column:1/-1; }.alert { padding:.75rem; border-radius:4px; }.error { background:#fee2e2; }.success { background:#dcfce7; }
+@media (max-width: 767px) {
+  .page-container { padding: 1rem; }
+  .header-n { align-items: stretch; flex-direction: column; gap: 1rem; }
+  .header-n > button { width: 100%; }
+  .card { padding: 1rem; }
+  .table-container { overflow-x: auto; }
+  .data-table { min-width: 560px; }
+  .form { grid-template-columns: 1fr; }
+  .btn-salvar { min-height: 44px; }
+}
 </style>

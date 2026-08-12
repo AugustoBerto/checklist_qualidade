@@ -26,6 +26,8 @@ const encerrarSessaoCentral = async () => {
   limparPerfil()
 }
 
+let restauracaoEmAndamento = null
+
 export const autenticarComSenha = async (usuario, senha, exigirAdmin = false) => {
   await authApi.post('/auth/login', { usuario, senha })
   try {
@@ -46,14 +48,22 @@ export const autenticarComCracha = async (codBar, exigirAdmin = false) => {
   }
 }
 
-export const restaurarSessao = async () => {
-  try {
-    await authApi.post('/auth/me')
-    return await carregarPerfil()
-  } catch {
-    limparPerfil()
-    return null
-  }
+export const restaurarSessao = () => {
+  if (restauracaoEmAndamento) return restauracaoEmAndamento
+
+  restauracaoEmAndamento = (async () => {
+    try {
+      await authApi.post('/auth/me')
+      return await carregarPerfil()
+    } catch {
+      limparPerfil()
+      return null
+    } finally {
+      restauracaoEmAndamento = null
+    }
+  })()
+
+  return restauracaoEmAndamento
 }
 
 export const encerrarSessao = encerrarSessaoCentral

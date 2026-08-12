@@ -548,6 +548,10 @@ const tentarNovamente = () => buscarDados();
 }
 
 @media (max-width: 768px) {
+  .page-container { padding: 1rem; }
+  .header-main-info { align-items: stretch; }
+  .header-main-info h1 { font-size: 1.5rem; }
+  .email-badge { justify-content: center; width: 100%; }
   .score-value {
     font-size: 3.5rem;
   }
@@ -559,5 +563,12 @@ const tentarNovamente = () => buscarDados();
   .metadata-grid {
     grid-template-columns: 1fr;
   }
+
+  .chart-card, .score-column { min-width: 0; width: 100%; }
+  .chart-card { padding: 1rem; }
+  .scorecard, .top-nao-conforme-section { padding: 1rem; }
+  .chart-container { height: 300px; }
+  .top-item-card { align-items: flex-start; gap: 0.75rem; }
+  .item-stats { min-width: 0; }
 }
 </style>

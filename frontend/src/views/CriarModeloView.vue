@@ -23,7 +23,8 @@
         <i class="mdi mdi-loading mdi-spin"></i> A carregar modelos...
       </div>
       
-      <table v-else class="data-table">
+      <div v-else class="table-container">
+      <table class="data-table">
         <thead>
           <tr>
             <th>ID</th>
@@ -67,6 +68,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div v-else class="card form-card">
@@ -568,4 +570,25 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 .btn-principal:hover:not(:disabled) { background-color: #2ecc71; }
 .btn-principal:disabled { background-color: #95a5a6; cursor: not-allowed; }
 .error-message { background: #fee; border-left: 4px solid #e74c3c; padding: 1rem; color: #c0392b; margin: 1rem 0; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;}
+
+@media (max-width: 767px) {
+  .page-container { padding: 1rem; }
+  .header-n { align-items: stretch; flex-direction: column; gap: 1rem; }
+  .header-titles h1 { font-size: 1.35rem; }
+  .header-actions, .header-actions > button { width: 100%; }
+  .header-actions > button { justify-content: center; }
+  .card-admin, .form-card { padding: 1rem; }
+  .table-container { overflow-x: auto; }
+  .data-table { min-width: 700px; }
+  .form-group-row, .box-add-categoria, .categoria-header, .add-pergunta-box { flex-direction: column; }
+  .form-group-row { gap: 1rem; }
+  .w-50, .w-33 { width: 100%; }
+  .checkbox-group { align-items: flex-start; }
+  .categoria-header > div[style] { width: 100%; flex-wrap: wrap; gap: 0.75rem !important; }
+  .titulo-cat { width: 100%; margin-right: 0; }
+  .btn-secundario, .btn-add-pergunta, .btn-excluir-categoria { justify-content: center; width: 100%; }
+  .pergunta-item { align-items: flex-start; }
+  .texto-pergunta { min-width: 0; width: 100%; }
+  .btn-excluir-item { min-width: 44px; min-height: 44px; }
+}
 </style>

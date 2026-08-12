@@ -112,6 +112,7 @@ import api from '../services/api';
 import SignaturePad from 'vue3-signature';
 import localforage from 'localforage';
 import { obterPerfilLocal } from '../services/session';
+import { createDraftPersistence } from '../services/draftPersistence';
 
 localforage.config({
   name: 'AppLideranca',
@@ -144,36 +145,48 @@ const requireObservacaoOnNonConforme = ref(true);
 const rascunhoKey = `checklist_rascunho_${usuarioObj.id || 'desconhecido'}_${modelo}_${setorSelecionado.value || usuarioObj.id_setor_fk || 'sem-setor'}_${celulaSelecionada.value || usuarioObj.id_celula_fk || 'sem-celula'}`;
 const inputsFoto = new Map();
 const MAX_FOTO_BYTES = 2 * 1024 * 1024;
+const persistenciaRascunho = createDraftPersistence(localforage, rascunhoKey);
+let rascunhoCarregado = false;
 
-watch([respostas, fotosNaoConformes, observacoesNaoConformes, inicioChecklistTimestamp], async () => {
-  try {
-    const rascunho = JSON.parse(JSON.stringify({
-      respostas: respostas.value,
-      fotosNaoConformes: fotosNaoConformes.value,
-      observacoesNaoConformes: observacoesNaoConformes.value,
-      inicioChecklistTimestamp: inicioChecklistTimestamp.value
-    }));
-    await localforage.setItem(rascunhoKey, rascunho);
-  } catch (e) {
-    console.error('Erro ao salvar rascunho:', e);
+const obterMetadataRascunho = () => ({
+  respostas: respostas.value,
+  observacoesNaoConformes: observacoesNaoConformes.value,
+  inicioChecklistTimestamp: inicioChecklistTimestamp.value
+});
+
+watch([respostas, observacoesNaoConformes, inicioChecklistTimestamp], () => {
+  if (rascunhoCarregado) persistenciaRascunho.schedule(obterMetadataRascunho());
+}, { deep: true });
+
+watch(respostas, () => {
+  if (!rascunhoCarregado) return;
+  for (const variavel of Object.keys(fotosNaoConformes.value)) {
+    if (respostas.value[variavel] !== 'Não Conforme') {
+      const { [variavel]: _, ...fotosRestantes } = fotosNaoConformes.value;
+      fotosNaoConformes.value = fotosRestantes;
+      void persistenciaRascunho.removePhoto(variavel, obterMetadataRascunho());
+    }
   }
 }, { deep: true });
 
 onMounted(async () => {
   window.onFotoCapturada = onFotoCapturada;
   try {
-    const rascunho = await localforage.getItem(rascunhoKey);
+    const rascunho = await persistenciaRascunho.load();
     if (rascunho) {
-      respostas.value = rascunho.respostas || {};
-      fotosNaoConformes.value = rascunho.fotosNaoConformes || {};
-      observacoesNaoConformes.value = rascunho.observacoesNaoConformes || {};
-      inicioChecklistTimestamp.value = rascunho.inicioChecklistTimestamp;
+      respostas.value = rascunho.metadata.respostas || {};
+      fotosNaoConformes.value = rascunho.fotos;
+      observacoesNaoConformes.value = rascunho.metadata.observacoesNaoConformes || {};
+      inicioChecklistTimestamp.value = rascunho.metadata.inicioChecklistTimestamp;
     } else {
       inicioChecklistTimestamp.value = new Date().toISOString();
     }
   } catch (e) {
     inicioChecklistTimestamp.value = new Date().toISOString();
   }
+  rascunhoCarregado = true;
+  document.addEventListener('visibilitychange', salvarRascunhoAoOcultar);
+  window.addEventListener('pagehide', salvarRascunhoAoOcultar);
   
   try {
     const res = await api.get(`/checklists/perguntas/${modelo}`);
@@ -191,7 +204,16 @@ onMounted(async () => {
 
 onUnmounted(() => {
   delete window.onFotoCapturada;
+  document.removeEventListener('visibilitychange', salvarRascunhoAoOcultar);
+  window.removeEventListener('pagehide', salvarRascunhoAoOcultar);
+  if (rascunhoCarregado) void persistenciaRascunho.flush(obterMetadataRascunho());
 });
+
+const salvarRascunhoAoOcultar = (event) => {
+  if ((event?.type === 'pagehide' || document.visibilityState === 'hidden') && rascunhoCarregado) {
+    void persistenciaRascunho.flush(obterMetadataRascunho());
+  }
+};
 
 const categoryStatus = computed(() => {
   const status = {};
@@ -285,6 +307,7 @@ async function salvarFoto(variavel, origem) {
   try {
     const foto = await comprimirImagem(origem);
     fotosNaoConformes.value = { ...fotosNaoConformes.value, [variavel]: foto };
+    void persistenciaRascunho.setPhoto(variavel, foto, obterMetadataRascunho());
     limparErroFoto(variavel);
   } catch (erro) {
     marcarErroFoto(variavel, erro.message);
@@ -381,7 +404,7 @@ async function enviarFormulario() {
     const res = await api.post('/checklists/salvar', payload);
     alert('Checklist enviado com sucesso!');
     
-    await localforage.removeItem(rascunhoKey);
+    await persistenciaRascunho.clear();
     localStorage.removeItem('celula_auditada_atual');
     
     const idRota = res.data.id_formulario || res.data.id_relatorio;
@@ -636,9 +659,16 @@ async function enviarFormulario() {
   .grupoOpcao { flex-shrink: 0; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 767px) {
   .page-container { padding: 1rem; }
+  .header-titles h1 { font-size: 1.4rem; }
+  .header-titles p { font-size: 1rem; }
+  .cabecalhoSessao, .conteudoSessao { padding-left: 1rem; padding-right: 1rem; }
+  .cabecalhoSessao h2 { font-size: 1.05rem; }
+  .captura-foto-container, .card-assinatura { padding: 1rem; }
   .grupoOpcao { gap: 1rem; }
-  .radio-label { width: 100%; border-bottom: 1px solid #f1f5f9; }
+  .radio-label { width: 100%; min-height: 44px; border-bottom: 1px solid #f1f5f9; }
+  .btn-foto, .btn-limpar { min-height: 44px; }
+  .btn-enviar { max-width: none; min-height: 52px; padding: 1rem; }
 }
 </style>

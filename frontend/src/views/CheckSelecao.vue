@@ -434,4 +434,18 @@ function resetarSelecao() {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@media (max-width: 767px) {
+  .page-container { padding: 1.25rem 0; }
+  .titulo-flex { margin-bottom: 2rem; }
+  .titulo-flex h1 { font-size: 1.6rem; }
+  .subtitle { font-size: 1rem; }
+  .brand-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+  .brand-card { padding: 1rem 0.5rem; border-radius: 12px; }
+  .brand-logo-wrapper { width: 60px; height: 60px; margin-bottom: 0.5rem; }
+  .brand-name { font-size: 0.9rem; overflow-wrap: anywhere; }
+  .card-formulario { padding: 1.25rem; border-radius: 12px; }
+  .header-marca { align-items: flex-start; gap: 0.75rem; }
+  .btn-trocar { min-height: 44px; }
+  .continuar-button { min-height: 52px; }
+}
 </style>

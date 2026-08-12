@@ -38,7 +38,7 @@
     </header>
 
     <main class="main-content">
-      <router-view :key="$route.fullPath" />
+      <router-view :key="$route.path" />
     </main>
 
     <footer class="footer">
@@ -50,10 +50,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import localforage from 'localforage'
-import { encerrarSessao, obterPerfilLocal, restaurarSessao } from './services/session'
+import { encerrarSessao, obterPerfilLocal } from './services/session'
 
 localforage.config({
   name: 'AppLideranca',
@@ -101,10 +101,7 @@ const fazerLogoff = async () => {
   router.push('/');
 }
 
-onMounted(async () => {
-  await restaurarSessao();
-  verificarAuth();
-});
+verificarAuth();
 watch(() => router.currentRoute.value.path, verificarAuth);
 </script>
 
@@ -209,8 +206,18 @@ body {
    RESPONSIVIDADE (MOBILE)
    ========================================== */
 @media (max-width: 768px) {
-  .header-content { flex-direction: column; height: auto; gap: 1rem; padding: 1rem; }
-  .nav { flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
-  .user-info { margin-left: 0; padding-left: 0; border-left: none; width: 100%; justify-content: center; margin-top: 0.5rem; }
+  .header-content { flex-direction: column; height: auto; gap: 0.75rem; padding: 0.75rem 1rem; }
+  .logo-container { gap: 0.75rem; }
+  .header-logo { height: 32px; }
+  .logo { font-size: 1.1rem; }
+  .nav { width: 100%; flex-wrap: wrap; justify-content: center; gap: 0.25rem; }
+  .nav-link { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0.6rem 0.8rem; }
+  .user-info { margin-left: 0; padding-left: 0; border-left: none; width: 100%; justify-content: center; margin-top: 0.25rem; gap: 0.5rem; flex-wrap: wrap; }
+  .main-content { padding: 1rem; }
+}
+
+@media (max-width: 400px) {
+  .logo-container { flex-direction: column; text-align: center; gap: 0.35rem; }
+  .nav-link { font-size: 0.9rem; }
 }
 </style>
