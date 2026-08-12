@@ -3,7 +3,7 @@
     <header class="header">
       <div class="header-content">
         <div class="logo-container">
-          <img src="./img/dass.png" alt="DASS" class="header-logo" />
+          <img :src="logoDass" alt="DASS" class="header-logo" />
           <h1 class="logo">Sistema de Checklist</h1>
         </div>
         
@@ -28,9 +28,9 @@
 
             <div class="user-info">
               <span class="user-greeting">Olá, {{ nomeUsuario }}</span>
-              <a @click="fazerLogoff" class="nav-link logout-button">
+              <button type="button" @click="fazerLogoff" class="nav-link logout-button">
                 <i class="mdi mdi-logout"></i> Sair
-              </a>
+              </button>
             </div>
           </template>
         </nav>
@@ -53,40 +53,33 @@
 import { ref, onMounted, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import localforage from 'localforage'
-import { encerrarSessao, restaurarSessao } from './services/session'
+import { encerrarSessao, obterPerfilLocal, restaurarSessao } from './services/session'
 
-// Configuração do IndexedDB
 localforage.config({
   name: 'AppLideranca',
   storeName: 'rascunhos_checklist'
 });
 
 const router = useRouter()
+const logoDass = new URL('./img/dass.png', import.meta.url).href
 
-// Estados Globais de Autenticação
 const usuarioLogado = ref(false);
 const nomeUsuario = ref('');
 const isAdmin = ref(false); 
 
 const verificarAuth = () => {
-  const usuarioSalvo = localStorage.getItem('usuario');
-  if (!usuarioSalvo) {
+  const usuarioObj = obterPerfilLocal();
+  if (!usuarioObj) {
     usuarioLogado.value = false;
     nomeUsuario.value = '';
     isAdmin.value = false;
     return;
   }
-  try {
-    const usuarioObj = JSON.parse(usuarioSalvo);
-    usuarioLogado.value = true;
-    nomeUsuario.value = (usuarioObj.nome || usuarioObj.usuario || '').split(' ')[0];
-    isAdmin.value = usuarioObj.papel === 'ADMIN';
-  } catch {
-    limparSessao();
-  }
+  usuarioLogado.value = true;
+  nomeUsuario.value = (usuarioObj.nome || usuarioObj.usuario || '').split(' ')[0];
+  isAdmin.value = usuarioObj.papel === 'ADMIN';
 };
 
-// Função auxiliar para evitar repetição de código
 const limparSessao = () => {
   localStorage.removeItem('usuario');
   localStorage.removeItem('isAdmin');
@@ -100,7 +93,6 @@ const fazerLogoff = async () => {
   limparSessao();
   
   try {
-    // Apaga os rascunhos offline de checklists inacabados por segurança
     await localforage.clear();
   } catch (err) {
     console.error('Erro ao limpar o banco de dados local:', err);
@@ -109,7 +101,6 @@ const fazerLogoff = async () => {
   router.push('/');
 }
 
-// Validação de Ciclo de Vida
 onMounted(async () => {
   await restaurarSessao();
   verificarAuth();

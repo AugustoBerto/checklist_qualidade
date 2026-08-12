@@ -1,6 +1,5 @@
 const db = require('../db');
 
-// Lista todas as marcas (para popular dropdowns)
 exports.listarMarcas = async (req, res) => {
     try {
         const result = await db.query('SELECT id, nome FROM marcas ORDER BY nome ASC');
@@ -11,7 +10,6 @@ exports.listarMarcas = async (req, res) => {
     }
 };
 
-// 📌 NOVO: Lista os turnos disponíveis (Para o dropdown de cadastro de Usuários)
 exports.listarTurnos = async (req, res) => {
     try {
         const result = await db.query(`
@@ -26,12 +24,10 @@ exports.listarTurnos = async (req, res) => {
     }
 };
 
-// 📌 ATUALIZADO: Lista apenas modelos ATIVOS (filtrados por marca e/ou setor)
 exports.listarModelosAtivos = async (req, res) => {
     try {
         const { marca_id, setor_id } = req.query;
 
-        // Inicia a query pegando apenas os ativos
         let query = 'SELECT id, nome, marca, id_setor_fk FROM modelo WHERE ativo = true';
         let values = [];
         let paramIndex = 1;

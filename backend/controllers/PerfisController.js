@@ -19,7 +19,13 @@ const buscarColaboradorCentral = async (matricula) => {
     if (!DASS_COLABORADOR_BASE_URL) {
         throw new Error('VALIDACAO_CENTRAL_NAO_CONFIGURADA');
     }
-    const resposta = await fetch(`${DASS_COLABORADOR_BASE_URL.replace(/\/$/, '')}/${encodeURIComponent(matricula)}`);
+    let resposta;
+    try {
+        resposta = await fetch(`${DASS_COLABORADOR_BASE_URL.replace(/\/$/, '')}/${encodeURIComponent(matricula)}`, { signal: AbortSignal.timeout(5000) });
+    } catch (error) {
+        if (error.name === 'TimeoutError' || error.name === 'AbortError') throw new Error('VALIDACAO_CENTRAL_TIMEOUT');
+        throw new Error('VALIDACAO_CENTRAL_INDISPONIVEL');
+    }
     if (resposta.status === 404) return null;
     if (!resposta.ok) throw new Error('VALIDACAO_CENTRAL_INDISPONIVEL');
     const corpo = await resposta.json();
@@ -59,7 +65,11 @@ exports.criar = async (req, res) => {
         res.status(201).json({ sucesso: true, perfil: rows[0] });
     } catch (error) {
         console.error('Erro ao criar perfil:', error);
-        res.status(error.code === '23505' ? 409 : 503).json({ sucesso: false, mensagem: 'Não foi possível validar ou criar o perfil.' });
+        if (error.code === '23505') return res.status(409).json({ sucesso: false, mensagem: 'Já existe um perfil para esta matrícula.' });
+        if (error.message === 'VALIDACAO_CENTRAL_NAO_CONFIGURADA') return res.status(500).json({ sucesso: false, mensagem: 'A validação central não está configurada.' });
+        if (error.message === 'VALIDACAO_CENTRAL_TIMEOUT') return res.status(504).json({ sucesso: false, mensagem: 'A validação central excedeu o tempo limite.' });
+        if (error.message === 'VALIDACAO_CENTRAL_INDISPONIVEL') return res.status(503).json({ sucesso: false, mensagem: 'A validação central está indisponível.' });
+        res.status(500).json({ sucesso: false, mensagem: 'Não foi possível criar o perfil.' });
     }
 };
 

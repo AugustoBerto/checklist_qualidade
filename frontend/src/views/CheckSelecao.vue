@@ -13,10 +13,15 @@
         <div class="spinner"></div> 
         <p>Carregando as configurações...</p>
       </div>
+      <div v-else-if="erroCarregamento" class="loading-state error-state" role="alert">
+        <i class="mdi mdi-alert-circle-outline"></i>
+        <p>{{ erroCarregamento }}</p>
+        <button type="button" class="btn-trocar" @click="carregarDadosIniciais">Tentar novamente</button>
+      </div>
       <div v-else class="brand-grid">
         <div v-for="marca in marcas" :key="marca.id" class="brand-card" @click="selecionarMarca(marca)">
           <div class="brand-logo-wrapper">
-            <img v-show="!errosImagens[marca.id]" :src="`/logos/${tratarNomeImagem(marca.nome)}.png`" :alt="marca.nome"
+            <img v-show="!errosImagens[marca.id]" :src="urlLogo(marca.nome)" :alt="marca.nome"
               class="img-responsive" @error="marcarErroImagem(marca.id)">
 
             <span v-show="errosImagens[marca.id]" class="brand-initial">
@@ -34,7 +39,7 @@
         <div class="header-marca">
           <div class="mini-brand-info">
             <img v-if="!errosImagens[marcaSelecionada.id]"
-              :src="`/logos/${tratarNomeImagem(marcaSelecionada.nome)}.png`" class="mini-logo"
+              :src="urlLogo(marcaSelecionada.nome)" class="mini-logo"
               @error="marcarErroImagem(marcaSelecionada.id)">
             <span v-else class="mini-initial">
               {{ marcaSelecionada?.nome ? marcaSelecionada.nome.charAt(0) : '?' }}
@@ -87,25 +92,23 @@ import VueSelect from 'vue3-select-component'
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
+import { obterPerfilLocal } from '../services/session'
 
 const router = useRouter()
 
-// Estados
 const marcas = ref([])
 const opcoesSetores = ref([])
 const opcoesModelos = ref([])
 const opcoesCelulas = ref([])
-const listaCelulasGlobal = ref([]) // Guarda todas as células para filtrar no front
+const listaCelulasGlobal = ref([])
 const marcaSelecionada = ref(null)
 const errosImagens = ref({})
 const isLoadingMarcas = ref(true)
+const erroCarregamento = ref('')
 
-// Formulário atualizado com o campo setor
 const form = ref({ setor_selecionado: '', modelo: '', celula_selecionada: '' })
 
-// Usuário e Permissões
-const usuarioString = localStorage.getItem('usuario') || '{}'
-const usuario = ref(JSON.parse(usuarioString))
+const usuario = ref(obterPerfilLocal() || {})
 
 const isAdmin = computed(() => usuario.value.papel === 'ADMIN')
 const podeTrocarMarca = computed(() => marcas.value.length > 1)
@@ -117,18 +120,17 @@ const isBotaoDesabilitado = computed(() => {
   return false;
 })
 
-onMounted(async () => {
+async function carregarDadosIniciais() {
   try {
     isLoadingMarcas.value = true;
+    erroCarregamento.value = '';
     
-    // Adicionado chamada para Setores (Presumindo endpoint padrão da sua API)
     const [resMarcas, resCelulas, resSetores] = await Promise.all([
       api.get('/cadastros/marcas'),
       api.get('/cadastros/celulas'),
-      api.get('/cadastros/setores').catch(() => ({ data: [] })) // Fallback se endpoint falhar
+      api.get('/cadastros/setores').catch(() => ({ data: [] }))
     ]);
 
-    // Extração segura
     let listaMarcas = resMarcas.data?.sucesso ? (resMarcas.data.dados || resMarcas.data.marcas || []) : (resMarcas.data || []);
     listaCelulasGlobal.value = resCelulas.data?.celulas || resCelulas.data?.dados || resCelulas.data || [];
     
@@ -139,19 +141,20 @@ onMounted(async () => {
 
   } catch (error) {
     console.error('Erro na carga inicial:', error);
+    erroCarregamento.value = 'Não foi possível carregar as opções. Verifique a conexão e tente novamente.';
   } finally {
     isLoadingMarcas.value = false;
   }
-})
+}
 
-// === NOVO: Observar mudança de Setor (Inspetor) ===
+onMounted(carregarDadosIniciais)
+
 watch(() => form.value.setor_selecionado, async (novoSetorId) => {
-    form.value.celula_selecionada = ''; // Limpa a célula anterior
-    form.value.modelo = ''; // Limpa o modelo anterior
+    form.value.celula_selecionada = '';
+    form.value.modelo = '';
     
     if (novoSetorId) {
       filtrarCelulasPorSetor(novoSetorId);
-      // Se a marca já estiver selecionada, recarrega os modelos pro novo setor
       if (marcaSelecionada.value) {
         await carregarModelos(marcaSelecionada.value, novoSetorId);
       }
@@ -171,7 +174,6 @@ async function carregarModelos(marca, setorId) {
   try {
     const queryParams = { marca_id: marca.id };
 
-    // Filtra pelo setor selecionado (seja Inspetor trocando ou setor fixo)
     if (setorId) {
         queryParams.setor_id = setorId;
     }
@@ -217,6 +219,10 @@ function tratarNomeImagem(nome) {
     .replace(/[^a-z0-9-]/g, '');
 }
 
+function urlLogo(nome) {
+  return `${import.meta.env.BASE_URL}logos/${tratarNomeImagem(nome)}.png`;
+}
+
 function marcarErroImagem(id) { 
   errosImagens.value[id] = true; 
 }
@@ -225,7 +231,6 @@ function resetarSelecao() {
   marcaSelecionada.value = null; 
   opcoesModelos.value = []; 
   form.value.modelo = ''; 
-  // Não reseto o setor para não irritar o inspetor tendo que escolher de novo
   form.value.celula_selecionada = ''; 
 }
 </script>

@@ -48,15 +48,25 @@
                 <button type="button" class="btn-foto" @click="solicitarFoto(pergunta.variavel)">
                   <i class="mdi mdi-camera"></i> Tirar/Anexar Foto
                 </button>
+                <input
+                  :ref="(element) => registrarInputFoto(pergunta.variavel, element)"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
+                  class="input-foto"
+                  @change="processarArquivoFoto(pergunta.variavel, $event)"
+                >
 
                 <div v-if="fotosNaoConformes[pergunta.variavel]" class="foto-preview">
-                  <img :src="fotosNaoConformes[pergunta.variavel]" alt="Preview">
+                  <img v-if="!errosFotos[pergunta.variavel]" :src="fotosNaoConformes[pergunta.variavel]" alt="Prévia da evidência" @error="marcarErroFoto(pergunta.variavel)">
+                  <span v-else class="foto-status-pendente obrigatorio">Não foi possível exibir a foto. Anexe outra imagem.</span>
                   <span class="foto-status-ok"><i class="mdi mdi-check-circle"></i> Foto Adicionada</span>
                 </div>
                 <div v-else class="foto-status-pendente" :class="{ 'obrigatorio': requirePhotoOnNonConforme }">
                   {{ requirePhotoOnNonConforme ? '⚠️ Foto obrigatória' : 'Foto opcional' }}
                 </div>
               </div>
+              <p v-if="errosFotos[pergunta.variavel]" class="foto-erro" role="alert">{{ errosFotos[pergunta.variavel] }}</p>
 
               <div class="observacao-container">
                 <label :for="'obs-' + pergunta.variavel" class="label-observacao">
@@ -101,6 +111,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../services/api'; 
 import SignaturePad from 'vue3-signature';
 import localforage from 'localforage';
+import { obterPerfilLocal } from '../services/session';
 
 localforage.config({
   name: 'AppLideranca',
@@ -111,20 +122,10 @@ const route = useRoute();
 const router = useRouter();
 const modelo = route.params.modelo;
 
-// 📌 Captura a Célula e o Setor da URL (caso seja inspetor) ou do cache
 const celulaSelecionada = ref(route.query.celula || localStorage.getItem('celula_auditada_atual') || null);
-const setorSelecionado = ref(route.query.setor || null); // <--- ADICIONADO PARA O SETOR
+const setorSelecionado = ref(route.query.setor || null);
 
-// Extrai o objeto completo do usuário para pegar os IDs relacionais
-let usuarioObj = { id: null, id_celula_fk: null, id_setor_fk: null }; // <--- ADICIONADO id_setor_fk
-try {
-  const userRaw = localStorage.getItem('usuario');
-  if (userRaw && userRaw !== 'desconhecido') {
-    usuarioObj = JSON.parse(userRaw);
-  }
-} catch(e) {
-  console.warn('Erro ao ler dados do usuário do localStorage:', e);
-}
+const usuarioObj = obterPerfilLocal() || { id: null, id_celula_fk: null, id_setor_fk: null };
 
 const categorias = ref({});
 const respostas = ref({});
@@ -135,12 +136,14 @@ const signatureRef = ref(null);
 const enviando = ref(false); 
 const inicioChecklistTimestamp = ref(null);
 const fotosNaoConformes = ref({}); 
+const errosFotos = ref({});
 const observacoesNaoConformes = ref({}); 
 const requirePhotoOnNonConforme = ref(true); 
 const requireObservacaoOnNonConforme = ref(true); 
 
-// Mantém a chave de rascunho funcionando com o ID do usuário
-const rascunhoKey = `checklist_rascunho_${usuarioObj.id || 'desconhecido'}_${modelo}`;
+const rascunhoKey = `checklist_rascunho_${usuarioObj.id || 'desconhecido'}_${modelo}_${setorSelecionado.value || usuarioObj.id_setor_fk || 'sem-setor'}_${celulaSelecionada.value || usuarioObj.id_celula_fk || 'sem-celula'}`;
+const inputsFoto = new Map();
+const MAX_FOTO_BYTES = 2 * 1024 * 1024;
 
 watch([respostas, fotosNaoConformes, observacoesNaoConformes, inicioChecklistTimestamp], async () => {
   try {
@@ -176,7 +179,6 @@ onMounted(async () => {
     const res = await api.get(`/checklists/perguntas/${modelo}`);
     categorias.value = res.data.respostasAgrupadas;
     
-    // Captura o nome e o ID do modelo
     const primeiraCategoria = Object.values(res.data.respostasAgrupadas)[0];
     if (primeiraCategoria?.length > 0) {
       nomeModelo.value = primeiraCategoria[0].modelo || primeiraCategoria[0].nome_modelo;
@@ -237,15 +239,85 @@ const solicitarFoto = (variavel) => {
   if (window.AndroidInterface?.capturarFoto) {
     window.AndroidInterface.capturarFoto(variavel);
   } else {
-    onFotoCapturada(variavel, 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w');
+    inputsFoto.get(variavel)?.click();
   }
 };
 
-const onFotoCapturada = (variavel, fotoBase64) => {
-  if (fotoBase64) {
-    fotosNaoConformes.value[variavel] = fotoBase64.startsWith('data:image') 
-      ? fotoBase64 : `data:image/jpeg;base64,${fotoBase64}`;
+const registrarInputFoto = (variavel, element) => {
+  if (element) inputsFoto.set(variavel, element);
+  else inputsFoto.delete(variavel);
+};
+
+const marcarErroFoto = (variavel, mensagem = 'Não foi possível processar a imagem selecionada.') => {
+  errosFotos.value = { ...errosFotos.value, [variavel]: mensagem };
+};
+
+const limparErroFoto = (variavel) => {
+  const { [variavel]: _, ...outrosErros } = errosFotos.value;
+  errosFotos.value = outrosErros;
+};
+
+const tamanhoBase64 = (dataUrl) => Math.ceil((dataUrl.split(',')[1] || '').length * 3 / 4);
+
+const carregarImagem = (origem) => new Promise((resolve, reject) => {
+  const imagem = new Image();
+  imagem.onload = () => resolve(imagem);
+  imagem.onerror = () => reject(new Error('Imagem inválida'));
+  imagem.src = origem;
+});
+
+async function comprimirImagem(origem) {
+  const imagem = await carregarImagem(origem);
+  const escala = Math.min(1, 1600 / Math.max(imagem.naturalWidth, imagem.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(imagem.naturalWidth * escala));
+  canvas.height = Math.max(1, Math.round(imagem.naturalHeight * escala));
+  canvas.getContext('2d').drawImage(imagem, 0, 0, canvas.width, canvas.height);
+
+  for (const qualidade of [0.85, 0.7, 0.55, 0.4]) {
+    const resultado = canvas.toDataURL('image/jpeg', qualidade);
+    if (tamanhoBase64(resultado) <= MAX_FOTO_BYTES) return resultado;
   }
+  throw new Error('A imagem é muito grande mesmo após compressão. Escolha outra foto.');
+}
+
+async function salvarFoto(variavel, origem) {
+  try {
+    const foto = await comprimirImagem(origem);
+    fotosNaoConformes.value = { ...fotosNaoConformes.value, [variavel]: foto };
+    limparErroFoto(variavel);
+  } catch (erro) {
+    marcarErroFoto(variavel, erro.message);
+  }
+}
+
+async function processarArquivoFoto(variavel, event) {
+  const arquivo = event.target.files?.[0];
+  event.target.value = '';
+  if (!arquivo) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(arquivo.type)) {
+    marcarErroFoto(variavel, 'Selecione uma imagem JPEG, PNG ou WebP.');
+    return;
+  }
+  const origem = URL.createObjectURL(arquivo);
+  try {
+    await salvarFoto(variavel, origem);
+  } finally {
+    URL.revokeObjectURL(origem);
+  }
+}
+
+const onFotoCapturada = async (variavel, fotoBase64) => {
+  if (typeof fotoBase64 !== 'string' || !fotoBase64.trim()) {
+    marcarErroFoto(variavel, 'O aplicativo não retornou uma foto válida.');
+    return;
+  }
+  const origem = fotoBase64.startsWith('data:image/') ? fotoBase64 : `data:image/jpeg;base64,${fotoBase64}`;
+  if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(origem)) {
+    marcarErroFoto(variavel, 'O aplicativo retornou uma imagem em formato inválido.');
+    return;
+  }
+  await salvarFoto(variavel, origem);
 };
 
 async function enviarFormulario() {
@@ -294,12 +366,11 @@ async function enviarFormulario() {
     }
   }
   
-  // 📌 LÓGICA DO SETOR: Se o Setor veio pela URL, ele usa. Se não, usa o que está atrelado ao Líder.
   const idSetorFinal = Number(setorSelecionado.value) || usuarioObj.id_setor_fk;
 
   const payload = {
     id_modelo: idModelo.value || Number(modelo),
-    id_setor: idSetorFinal, // <--- ENVIANDO O SETOR AQUI
+    id_setor: idSetorFinal,
     id_celula: Number(celulaSelecionada.value) || usuarioObj.id_celula_fk,
     assinatura: assinatura.value,
     respostas: respostasFormatadas,
@@ -466,6 +537,8 @@ async function enviarFormulario() {
   gap: 8px;
   margin-bottom: 1rem;
 }
+.input-foto { display: none; }
+.foto-erro { color: var(--danger); margin: .5rem 0 0; font-size: .9rem; }
 
 .foto-preview img {
   max-width: 100%;

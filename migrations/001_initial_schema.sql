@@ -86,6 +86,7 @@ CREATE TABLE checklist_app.formulario_submissoes (
   id_celula integer REFERENCES checklist_app.celulas_producao(id),
   assinatura bytea,
   respostas jsonb NOT NULL,
+  snapshot jsonb,
   inicio_checklist timestamp without time zone,
   data_envio timestamp without time zone NOT NULL DEFAULT now(),
   id_setor integer,

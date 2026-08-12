@@ -1,21 +1,19 @@
 const db = require('../db');
-const bcrypt = require('bcrypt');
 
-// Função auxiliar (fica fora dos exports para uso interno)
+const nomeValido = (nome) => typeof nome === 'string' && nome.trim().length > 0 && nome.trim().length <= 255;
+const idValido = (id) => Number.isInteger(Number(id)) && Number(id) > 0;
+const normalizarNome = (nome) => nome.trim().toUpperCase();
+
 const slugify = (text) => {
     return text.toString().toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/\s+/g, '_').replace(/[^\w-]+/g, '').replace(/--+/g, '_');
 };
-
-// ==========================================
-// MÓDULO: MODELOS (Checklists)
-// ==========================================
 
 exports.criarModelo = async (req, res) => {
     const { nomeModelo, nomeMarca, categorias, id_setor } = req.body;
 
-    if (!nomeModelo || !categorias || !id_setor || Object.keys(categorias).length === 0) {
+    if (!nomeValido(nomeModelo) || !categorias || !idValido(id_setor) || Object.keys(categorias).length === 0) {
         return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos. Selecione o setor e preencha todos os campos.' });
     }
 
@@ -25,11 +23,14 @@ exports.criarModelo = async (req, res) => {
         await client.query('BEGIN'); 
 
         const sqlModelo = 'INSERT INTO modelo (nome, marca, id_setor_fk) VALUES ($1, $2, $3) RETURNING id';
-        const resModelo = await client.query(sqlModelo, [nomeModelo, nomeMarca, id_setor]);
+        const resModelo = await client.query(sqlModelo, [nomeModelo.trim(), nomeValido(nomeMarca) ? nomeMarca.trim() : null, id_setor]);
         const modeloId = resModelo.rows[0].id;
 
         for (const nomeCategoria in categorias) {
             const catData = categorias[nomeCategoria];
+            if (!nomeValido(nomeCategoria) || !Array.isArray(catData?.perguntas) || !catData.perguntas.length || catData.perguntas.some((pergunta) => !nomeValido(pergunta))) {
+                throw new Error('DADOS_MODELO_INVALIDOS');
+            }
             const isCtq = catData.ctq || false;
             const arrayPerguntas = catData.perguntas || [];
 
@@ -40,7 +41,6 @@ exports.criarModelo = async (req, res) => {
             for (const [index, textoPergunta] of arrayPerguntas.entries()) {
                 const identificacao = `${slugify(nomeCategoria)}_${index + 1}`;
                 
-                // 📌 INSERE JÁ COM O STATUS ATIVO = 1
                 const sqlPergunta = `
                     INSERT INTO perguntas (pergunta, identificacao, id_categoria, id_modelo, ativo) 
                     VALUES ($1, $2, $3, $4, 1)
@@ -59,7 +59,7 @@ exports.criarModelo = async (req, res) => {
         if (error.code === '23505') { 
              return res.status(409).json({ sucesso: false, mensagem: `O modelo '${nomeModelo}' já existe.` });
         }
-        res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
+        res.status(error.message === 'DADOS_MODELO_INVALIDOS' ? 400 : 500).json({ sucesso: false, mensagem: error.message === 'DADOS_MODELO_INVALIDOS' ? 'Categorias e perguntas válidas são obrigatórias.' : 'Erro interno no servidor.' });
     } finally {
         client.release(); 
     }
@@ -87,7 +87,6 @@ exports.buscarModeloPorId = async (req, res) => {
 
         const modelo = modeloResult.rows[0];
 
-        // 📌 CORREÇÃO: O LEFT JOIN agora traz SOMENTE as perguntas ativas (ativo = 1)
         const queryDetalhes = `
             SELECT c.categoria, c.ctq, p.pergunta
             FROM categorias c
@@ -133,7 +132,7 @@ exports.atualizarModelo = async (req, res) => {
     const { id } = req.params;
     const { nomeModelo, nomeMarca, categorias, ativo, id_setor } = req.body;
 
-    if (!nomeModelo || !categorias || !id_setor || Object.keys(categorias).length === 0) {
+    if (!idValido(id) || !nomeValido(nomeModelo) || !categorias || !idValido(id_setor) || Object.keys(categorias).length === 0) {
         return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos. Setor e categorias são obrigatórios.' });
     }
 
@@ -142,12 +141,15 @@ exports.atualizarModelo = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        await client.query(
+        const modeloAtualizado = await client.query(
             'UPDATE modelo SET nome = $1, marca = $2, ativo = $3, id_setor_fk = $4 WHERE id = $5', 
             [nomeModelo, nomeMarca, ativo, id_setor, id]
         );
+        if (!modeloAtualizado.rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ sucesso: false, mensagem: 'Modelo não encontrado.' });
+        }
 
-        // 📌 NOVA LÓGICA DE ATUALIZAÇÃO (SEM EXCLUIR O QUE JÁ EXISTE)
         const perguntasMantidasIds = [];
 
         for (const nomeCategoria in categorias) {
@@ -155,16 +157,13 @@ exports.atualizarModelo = async (req, res) => {
             const isCtq = catData.ctq || false;
             const arrayPerguntas = catData.perguntas || [];
 
-            // 1. Checa se a categoria já existe neste modelo
             let categoriaId;
             const resCat = await client.query('SELECT id FROM categorias WHERE categoria = $1 AND id_modelo = $2', [nomeCategoria, id]);
             
             if (resCat.rows.length > 0) {
                 categoriaId = resCat.rows[0].id;
-                // Atualiza a flag CTQ caso ela tenha sido modificada
                 await client.query('UPDATE categorias SET ctq = $1 WHERE id = $2', [isCtq, categoriaId]);
             } else {
-                // Insere nova categoria se o usuário tiver alterado o nome dela
                 const insCat = await client.query(
                     'INSERT INTO categorias (categoria, id_modelo, ctq) VALUES ($1, $2, $3) RETURNING id', 
                     [nomeCategoria, id, isCtq]
@@ -172,11 +171,9 @@ exports.atualizarModelo = async (req, res) => {
                 categoriaId = insCat.rows[0].id;
             }
 
-            // 2. Itera sobre as perguntas enviadas no painel
             for (const [index, textoPergunta] of arrayPerguntas.entries()) {
                 const identificacao = `${slugify(nomeCategoria)}_${index + 1}`;
                 
-                // Busca se essa pergunta exata já existe nessa categoria
                 const resPerg = await client.query(
                     'SELECT id FROM perguntas WHERE id_categoria = $1 AND pergunta = $2', 
                     [categoriaId, textoPergunta]
@@ -184,14 +181,12 @@ exports.atualizarModelo = async (req, res) => {
 
                 if (resPerg.rows.length > 0) {
                     const pergId = resPerg.rows[0].id;
-                    // Se existir, garante que está ativa e atualiza a ordem (identificacao)
                     await client.query(
                         'UPDATE perguntas SET ativo = 1, identificacao = $1 WHERE id = $2', 
                         [identificacao, pergId]
                     );
                     perguntasMantidasIds.push(pergId);
                 } else {
-                    // Se a pergunta for nova OU se corrigiram um erro de digitação (cria uma nova para não quebrar o histórico da antiga)
                     const insPerg = await client.query(
                         `INSERT INTO perguntas (pergunta, identificacao, id_categoria, id_modelo, ativo) 
                          VALUES ($1, $2, $3, $4, 1) RETURNING id`, 
@@ -202,7 +197,6 @@ exports.atualizarModelo = async (req, res) => {
             }
         }
 
-        // 3. SOFT DELETE: Todas as perguntas deste modelo que NÃO estão no array de "Mantidas" recebem ativo = 0
         if (perguntasMantidasIds.length > 0) {
             await client.query(
                 'UPDATE perguntas SET ativo = 0 WHERE id_modelo = $1 AND id != ALL($2::int[])', 
@@ -226,13 +220,8 @@ exports.atualizarModelo = async (req, res) => {
         client.release();
     }
 };
-// ==========================================
-// CRUD: MARCAS
-// ==========================================
-
 exports.listarMarcas = async (req, res) => {
     try {
-        // Busca todas as marcas, ordenadas. O Front-end costuma filtrar as ativas.
         const { rows } = await db.query('SELECT * FROM marcas ORDER BY nome ASC');
         res.status(200).json({ sucesso: true, dados: rows });
     } catch (error) {
@@ -243,10 +232,10 @@ exports.listarMarcas = async (req, res) => {
 
 exports.criarMarca = async (req, res) => {
     const { nome } = req.body;
-    if (!nome) return res.status(400).json({ sucesso: false, mensagem: 'O nome da marca é obrigatório.' });
+    if (!nomeValido(nome)) return res.status(400).json({ sucesso: false, mensagem: 'O nome da marca é obrigatório.' });
 
     try {
-        const { rows } = await db.query('INSERT INTO marcas (nome) VALUES ($1) RETURNING *', [nome.toUpperCase()]);
+        const { rows } = await db.query('INSERT INTO marcas (nome) VALUES ($1) RETURNING *', [normalizarNome(nome)]);
         res.status(201).json({ sucesso: true, mensagem: 'Marca criada com sucesso!', marca: rows[0] });
     } catch (error) {
         console.error('Erro ao criar marca:', error);
@@ -259,10 +248,10 @@ exports.atualizarMarca = async (req, res) => {
     const { id } = req.params;
     const { nome } = req.body;
     
-    if (!nome) return res.status(400).json({ sucesso: false, mensagem: 'Nome é obrigatório.' });
+    if (!idValido(id) || !nomeValido(nome)) return res.status(400).json({ sucesso: false, mensagem: 'ID e nome válido são obrigatórios.' });
 
     try {
-        const result = await db.query('UPDATE marcas SET nome = $1 WHERE id = $2 RETURNING *', [nome.toUpperCase(), id]);
+        const result = await db.query('UPDATE marcas SET nome = $1 WHERE id = $2 RETURNING *', [normalizarNome(nome), id]);
         if (result.rowCount === 0) return res.status(404).json({ sucesso: false, mensagem: 'Marca não encontrada.' });
         
         res.status(200).json({ sucesso: true, mensagem: 'Marca atualizada!', marca: result.rows[0] });
@@ -274,12 +263,10 @@ exports.atualizarMarca = async (req, res) => {
 
 exports.excluirMarca = async (req, res) => {
     const { id } = req.params;
+    if (!idValido(id)) return res.status(400).json({ sucesso: false, mensagem: 'ID inválido.' });
     try {
-        // Soft Delete (Supondo que você tem a coluna 'ativo' ou semelhante. Se não tiver, altere para DELETE FROM)
-        // await db.query('UPDATE marcas SET ativo = 0 WHERE id = $1', [id]);
-        
-        // Se a sua tabela marcas não tiver coluna ativo, você pode deletar assim (cuidado com FK constraints):
-        await db.query('DELETE FROM marcas WHERE id = $1', [id]);
+        const result = await db.query('DELETE FROM marcas WHERE id = $1', [id]);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Marca não encontrada.' });
         
         res.status(200).json({ sucesso: true, mensagem: 'Marca removida/inativada com sucesso.' });
     } catch (error) {
@@ -301,9 +288,9 @@ exports.listarSetores = async (req, res) => {
 
 exports.criarSetor = async (req, res) => {
     const { nome } = req.body;
-    if (!nome) return res.status(400).json({ sucesso: false, mensagem: 'Nome do setor é obrigatório.' });
+    if (!nomeValido(nome)) return res.status(400).json({ sucesso: false, mensagem: 'Nome do setor é obrigatório.' });
     try {
-        const { rows } = await db.query('INSERT INTO setores (nome, ativo) VALUES ($1, 1) RETURNING *', [nome.toUpperCase()]);
+        const { rows } = await db.query('INSERT INTO setores (nome, ativo) VALUES ($1, 1) RETURNING *', [normalizarNome(nome)]);
         res.status(201).json({ sucesso: true, mensagem: 'Setor criado com sucesso!', setor: rows[0] });
     } catch (error) {
         console.error('Erro ao criar setor:', error);
@@ -314,8 +301,9 @@ exports.criarSetor = async (req, res) => {
 exports.atualizarSetor = async (req, res) => {
     const { id } = req.params;
     const { nome, ativo } = req.body;
+    if (!idValido(id) || !nomeValido(nome) || typeof ativo !== 'boolean') return res.status(400).json({ sucesso: false, mensagem: 'ID, nome e status válido são obrigatórios.' });
     try {
-        const result = await db.query('UPDATE setores SET nome = $1, ativo = $2 WHERE id = $3 RETURNING *', [nome.toUpperCase(), ativo, id]);
+        const result = await db.query('UPDATE setores SET nome = $1, ativo = $2 WHERE id = $3 RETURNING *', [normalizarNome(nome), ativo, id]);
         if (result.rowCount === 0) return res.status(404).json({ sucesso: false, mensagem: 'Setor não encontrado.' });
         res.status(200).json({ sucesso: true, mensagem: 'Setor atualizado!', setor: result.rows[0] });
     } catch (error) {
@@ -326,21 +314,18 @@ exports.atualizarSetor = async (req, res) => {
 
 exports.excluirSetor = async (req, res) => {
     const { id } = req.params;
+    if (!idValido(id)) return res.status(400).json({ sucesso: false, mensagem: 'ID inválido.' });
     try {
-        // Soft delete: Apenas desativa para não quebrar históricos
-        await db.query('UPDATE setores SET ativo = 0 WHERE id = $1', [id]);
+        const result = await db.query('UPDATE setores SET ativo = 0 WHERE id = $1', [id]);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Setor não encontrado.' });
         res.status(200).json({ sucesso: true, mensagem: 'Setor inativado com sucesso.' });
     } catch (error) {
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
     }
 };
 
-// ==========================================
-// CRUD: CÉLULAS DE PRODUÇÃO
-// ==========================================
 exports.listarCelulas = async (req, res) => {
     try {
-        // 📌 ATUALIZADO: Agora trazemos a Marca junto com o Setor para a tabela do painel
         const query = `
             SELECT 
                 cp.*, 
@@ -360,10 +345,9 @@ exports.listarCelulas = async (req, res) => {
 };
 
 exports.criarCelula = async (req, res) => {
-    // 📌 ATUALIZADO: Recebendo o id_marca_fk do frontend
     const { nome, id_setor_fk, id_marca_fk } = req.body;
     
-    if (!nome || !id_setor_fk) {
+    if (!nomeValido(nome) || !idValido(id_setor_fk) || (id_marca_fk != null && !idValido(id_marca_fk))) {
         return res.status(400).json({ sucesso: false, mensagem: 'Nome e Setor são obrigatórios.' });
     }
     
@@ -372,7 +356,7 @@ exports.criarCelula = async (req, res) => {
             INSERT INTO celulas_producao (nome, id_setor_fk, id_marca_fk, ativo) 
             VALUES ($1, $2, $3, 1) RETURNING *
         `;
-        const { rows } = await db.query(query, [nome.toUpperCase(), id_setor_fk, id_marca_fk || null]);
+        const { rows } = await db.query(query, [normalizarNome(nome), id_setor_fk, id_marca_fk || null]);
         res.status(201).json({ sucesso: true, mensagem: 'Célula criada!', celula: rows[0] });
     } catch (error) {
         console.error('Erro ao criar célula:', error);
@@ -382,8 +366,8 @@ exports.criarCelula = async (req, res) => {
 
 exports.atualizarCelula = async (req, res) => {
     const { id } = req.params;
-    // 📌 ATUALIZADO: Recebendo o id_marca_fk para edição
     const { nome, id_setor_fk, id_marca_fk, ativo } = req.body;
+    if (!idValido(id) || !nomeValido(nome) || !idValido(id_setor_fk) || (id_marca_fk != null && !idValido(id_marca_fk)) || typeof ativo !== 'boolean') return res.status(400).json({ sucesso: false, mensagem: 'Dados da célula inválidos.' });
     
     try {
         const query = `
@@ -391,7 +375,8 @@ exports.atualizarCelula = async (req, res) => {
             SET nome = $1, id_setor_fk = $2, id_marca_fk = $3, ativo = $4 
             WHERE id = $5 RETURNING *
         `;
-        const result = await db.query(query, [nome.toUpperCase(), id_setor_fk, id_marca_fk || null, ativo, id]);
+        const result = await db.query(query, [normalizarNome(nome), id_setor_fk, id_marca_fk || null, ativo, id]);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Célula não encontrada.' });
         res.status(200).json({ sucesso: true, mensagem: 'Célula atualizada!', celula: result.rows[0] });
     } catch (error) {
         console.error('Erro ao atualizar célula:', error);
@@ -401,17 +386,16 @@ exports.atualizarCelula = async (req, res) => {
 
 exports.excluirCelula = async (req, res) => {
     const { id } = req.params;
+    if (!idValido(id)) return res.status(400).json({ sucesso: false, mensagem: 'ID inválido.' });
     try {
-        await db.query('UPDATE celulas_producao SET ativo = 0 WHERE id = $1', [id]);
+        const result = await db.query('UPDATE celulas_producao SET ativo = 0 WHERE id = $1', [id]);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Célula não encontrada.' });
         res.status(200).json({ sucesso: true, mensagem: 'Célula inativada com sucesso.' });
     } catch (error) {
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
     }
 };
 
-// ==========================================
-// CRUD: UNIDADES
-// ==========================================
 exports.listarUnidades = async (req, res) => {
     try {
         const { rows } = await db.query('SELECT * FROM unidades ORDER BY nome ASC');
@@ -423,9 +407,9 @@ exports.listarUnidades = async (req, res) => {
 
 exports.criarUnidade = async (req, res) => {
     const { nome } = req.body;
-    if (!nome) return res.status(400).json({ sucesso: false, mensagem: 'Nome é obrigatório.' });
+    if (!nomeValido(nome)) return res.status(400).json({ sucesso: false, mensagem: 'Nome é obrigatório.' });
     try {
-        const { rows } = await db.query('INSERT INTO unidades (nome, ativo) VALUES ($1, 1) RETURNING *', [nome.toUpperCase()]);
+        const { rows } = await db.query('INSERT INTO unidades (nome, ativo) VALUES ($1, 1) RETURNING *', [normalizarNome(nome)]);
         res.status(201).json({ sucesso: true, mensagem: 'Unidade criada!', unidade: rows[0] });
     } catch (error) {
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
@@ -435,8 +419,10 @@ exports.criarUnidade = async (req, res) => {
 exports.atualizarUnidade = async (req, res) => {
     const { id } = req.params;
     const { nome, ativo } = req.body;
+    if (!idValido(id) || !nomeValido(nome) || typeof ativo !== 'boolean') return res.status(400).json({ sucesso: false, mensagem: 'ID, nome e status válido são obrigatórios.' });
     try {
-        const result = await db.query('UPDATE unidades SET nome = $1, ativo = $2 WHERE id = $3 RETURNING *', [nome.toUpperCase(), ativo, id]);
+        const result = await db.query('UPDATE unidades SET nome = $1, ativo = $2 WHERE id = $3 RETURNING *', [normalizarNome(nome), ativo, id]);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Unidade não encontrada.' });
         res.status(200).json({ sucesso: true, mensagem: 'Unidade atualizada!', unidade: result.rows[0] });
     } catch (error) {
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
@@ -445,8 +431,10 @@ exports.atualizarUnidade = async (req, res) => {
 
 exports.excluirUnidade = async (req, res) => {
     const { id } = req.params;
+    if (!idValido(id)) return res.status(400).json({ sucesso: false, mensagem: 'ID inválido.' });
     try {
-        await db.query('UPDATE unidades SET ativo = 0 WHERE id = $1', [id]);
+        const result = await db.query('UPDATE unidades SET ativo = 0 WHERE id = $1', [id]);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Unidade não encontrada.' });
         res.status(200).json({ sucesso: true, mensagem: 'Unidade inativada com sucesso.' });
     } catch (error) {
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
@@ -463,9 +451,9 @@ exports.listarTurnos = async (req, res) => {
     }
 };
 
-// Criar novo turno
 exports.criarTurno = async (req, res) => {
     const { nome, entrada_inicio, entrada_fim, intervalo_inicio, intervalo_fim } = req.body;
+    if (!nomeValido(nome) || !entrada_inicio || !entrada_fim || !intervalo_inicio || !intervalo_fim) return res.status(400).json({ sucesso: false, mensagem: 'Todos os campos do turno são obrigatórios.' });
     try {
         const sql = `
             INSERT INTO turnos (nome, entrada_inicio, entrada_fim, intervalo_inicio, intervalo_fim)
@@ -479,10 +467,10 @@ exports.criarTurno = async (req, res) => {
     }
 };
 
-// Atualizar turno existente
 exports.atualizarTurno = async (req, res) => {
     const { id } = req.params;
     const { nome, entrada_inicio, entrada_fim, intervalo_inicio, intervalo_fim } = req.body;
+    if (!idValido(id) || !nomeValido(nome) || !entrada_inicio || !entrada_fim || !intervalo_inicio || !intervalo_fim) return res.status(400).json({ sucesso: false, mensagem: 'Dados do turno inválidos.' });
     try {
         const sql = `
             UPDATE turnos 
@@ -490,6 +478,7 @@ exports.atualizarTurno = async (req, res) => {
             WHERE id = $6 RETURNING *`;
         const values = [nome, entrada_inicio, entrada_fim, intervalo_inicio, intervalo_fim, id];
         const result = await db.query(sql, values);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Turno não encontrado.' });
         res.status(200).json({ sucesso: true, dado: result.rows[0] });
     } catch (error) {
         console.error('Erro ao atualizar turno:', error);
@@ -497,11 +486,12 @@ exports.atualizarTurno = async (req, res) => {
     }
 };
 
-// Eliminar turno
 exports.excluirTurno = async (req, res) => {
     const { id } = req.params;
+    if (!idValido(id)) return res.status(400).json({ sucesso: false, mensagem: 'ID inválido.' });
     try {
-        await db.query('DELETE FROM turnos WHERE id = $1', [id]);
+        const result = await db.query('DELETE FROM turnos WHERE id = $1', [id]);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Turno não encontrado.' });
         res.status(200).json({ sucesso: true, mensagem: 'Turno removido com sucesso.' });
     } catch (error) {
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao remover. O turno pode estar vinculado a utilizadores.' });

@@ -53,10 +53,9 @@
 
 <script setup>
 import { computed } from 'vue'
+import { obterPerfilLocal } from '../services/session'
 
-const isAdmin = computed(() => {
-  try { return JSON.parse(localStorage.getItem('usuario') || '{}').papel === 'ADMIN' } catch { return false }
-})
+const isAdmin = computed(() => obterPerfilLocal()?.papel === 'ADMIN')
 </script>
 
 <style scoped>

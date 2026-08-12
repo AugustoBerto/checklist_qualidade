@@ -71,8 +71,7 @@
 </template>
 
 <script setup>
-// O seu script permanece inalterado
-import { ref, onMounted, nextTick, computed } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../services/api';
 import * as echarts from 'echarts';
@@ -81,6 +80,8 @@ const route = useRoute();
 const isLoading = ref(true);
 const error = ref(null);
 const relatorio = ref(null);
+let chartInstance = null;
+const redimensionarGrafico = () => chartInstance?.resize();
 
 const pontuacao = computed(() => {
   if (!relatorio.value || !relatorio.value.dadosGrafico) {
@@ -142,10 +143,11 @@ const buscarDados = async () => {
 const inicializarGrafico = (datasetSource) => {
   const chartDom = document.getElementById('graficoRelatorio');
   if (!chartDom) return;
-  
-  const myChart = echarts.init(chartDom);
+
+  chartInstance?.dispose();
+  chartInstance = echarts.init(chartDom);
   const legendas = datasetSource.slice(1).map(item => item[0]);
-  
+
   const option = {
     legend: { data: legendas, top: 'bottom' },
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
@@ -167,11 +169,16 @@ const inicializarGrafico = (datasetSource) => {
     }]
   };
   
-  myChart.setOption(option);
-  window.addEventListener('resize', () => myChart.resize());
+  chartInstance.setOption(option);
+  window.removeEventListener('resize', redimensionarGrafico);
+  window.addEventListener('resize', redimensionarGrafico);
 };
-
 onMounted(buscarDados);
+onUnmounted(() => {
+  window.removeEventListener('resize', redimensionarGrafico);
+  chartInstance?.dispose();
+  chartInstance = null;
+});
 
 const tentarNovamente = () => buscarDados();
 </script>

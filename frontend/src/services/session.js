@@ -22,7 +22,7 @@ const carregarPerfil = async (exigirAdmin = false) => {
 }
 
 const encerrarSessaoCentral = async () => {
-  try { await authApi.post('/auth/logout') } catch { /* sessão pode já ter expirado */ }
+  try { await authApi.post('/auth/logout') } catch {}
   limparPerfil()
 }
 
@@ -57,4 +57,14 @@ export const restaurarSessao = async () => {
 }
 
 export const encerrarSessao = encerrarSessaoCentral
-export const possuiPerfilLocal = () => Boolean(localStorage.getItem('usuario'))
+
+export const obterPerfilLocal = () => {
+  try {
+    return JSON.parse(localStorage.getItem('usuario') || 'null')
+  } catch {
+    limparPerfil()
+    return null
+  }
+}
+
+export const possuiPerfilLocal = () => Boolean(obterPerfilLocal())

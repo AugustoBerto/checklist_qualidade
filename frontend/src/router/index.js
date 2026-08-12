@@ -8,9 +8,8 @@ import SelecaoView from '../views/CheckSelecao.vue'
 import RelatorioView from '../views/RelatorioView.vue'
 import CriarUsuarioView from '../views/CriarUsuarioView.vue'
 import CriarModeloView from '../views/CriarModeloView.vue'
-import EditarModelo from '../views/EditarModelo.vue'
 import ConfiguracoesView from '../views/ConfiguracoesView.vue'
-import { possuiPerfilLocal, restaurarSessao } from '../services/session'
+import { obterPerfilLocal, possuiPerfilLocal, restaurarSessao } from '../services/session'
 
 const routes = [
   { path: '/', name: 'Home', component: HomeView },
@@ -58,12 +57,6 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
-    path: '/editar-modelo/',
-    name: 'EditarModelo',
-    component: EditarModelo,
-    meta: { requiresAuth: true, requiresAdmin: true }
-  },
-  {
     path: '/consultar',
     name: 'Consultar',
     component: ConsultarView,
@@ -82,37 +75,21 @@ const router = createRouter({
   routes
 })
 
-const getIsAdmin = () => {
-  const userStr = localStorage.getItem('usuario');
-  if (userStr) {
-    try {
-      const u = JSON.parse(userStr);
-      if (u.papel === 'ADMIN') {
-        return true;
-      }
-    } catch (e) {}
-  }
-  return false;
-};
+const getIsAdmin = () => obterPerfilLocal()?.papel === 'ADMIN'
 
 router.beforeEach(async (to) => {
   if (!possuiPerfilLocal()) await restaurarSessao()
   const autenticado = possuiPerfilLocal()
   const isAdmin = getIsAdmin()
 
-  // --- IMPEDE ACESSO À LOGIN SE JÁ LOGADO ---
   if (to.path === '/login' && autenticado) {
     return { path: '/' }
   }
 
-  // --- REGRAS DE PROTEÇÃO DE ROTA ---
-
-  // 1. Requer autenticação e não tem token
   if (to.meta.requiresAuth && !autenticado) {
     return { name: 'Login' }
   }
 
-  // 2. Rota de Admin acessada por usuário comum
   if (to.meta.requiresAdmin && !isAdmin) {
     return { path: '/selecao' }
   }

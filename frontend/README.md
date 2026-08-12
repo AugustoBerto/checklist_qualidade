@@ -1,5 +1,21 @@
-# Vue 3 + Vite
+# ChecklistApp Frontend
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Interface Vue do sistema de checklist. As chamadas ao backend usam
+`VITE_API_URL` e a autenticação central usa `VITE_AUTH_API_URL` ou `/api`.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## Desenvolvimento
+
+```bash
+npm install
+npm run dev
+```
+
+Para o ambiente local, mantenha o proxy Vite apontando para o Gateway em
+`VITE_GATEWAY_URL=http://localhost:2399`. A aplicação pode ser hospedada em
+subcaminho com `VITE_APP_BASE_URL=/checklist/`.
+
+## Validação
+
+```bash
+npm run build
+```
