@@ -1,0 +1,18 @@
+# Disposable PostgreSQL 15 used only by the database-foundation integration
+# tests. The data directory is tmpfs and disappears with `docker compose down`.
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${DB_TEST_DATABASE:-checklist_test}
+      POSTGRES_USER: ${DB_TEST_USER:-checklist_test}
+      POSTGRES_PASSWORD: ${DB_TEST_PASSWORD:-checklist_test_only}
+    ports:
+      - "127.0.0.1:${DB_TEST_PORT:-55432}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 20

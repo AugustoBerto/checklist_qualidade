@@ -2,7 +2,13 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "node --test"
+    "test": "npm run test:unit",
+    "test:unit": "node --test --test-concurrency=1 test/*.test.js",
+    "test:integration": "node scripts/test-integration.js",
+    "test:all": "npm run test:unit && npm run test:integration",
+    "db:init": "node scripts/db.js init",
+    "db:migrate": "node scripts/db.js migrate",
+    "db:status": "node scripts/db.js status"
   },
   "dependencies": {
     "cors": "^2.8.5",
