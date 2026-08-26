@@ -38,16 +38,6 @@ export const autenticarComSenha = async (usuario, senha, exigirAdmin = false) =>
   }
 }
 
-export const autenticarComCracha = async (codBar, exigirAdmin = false) => {
-  await authApi.post('/auth/login/codbar', { codBar })
-  try {
-    return await carregarPerfil(exigirAdmin)
-  } catch (erro) {
-    await encerrarSessaoCentral()
-    throw erro
-  }
-}
-
 export const restaurarSessao = () => {
   if (restauracaoEmAndamento) return restauracaoEmAndamento
 
