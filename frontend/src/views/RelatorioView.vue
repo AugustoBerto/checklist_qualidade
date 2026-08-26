@@ -1,23 +1,37 @@
 <template>
   <div class="page-container">
-    <div v-if="isLoading" class="status-message loading-state">
-      <div class="spinner"></div>
-      <p>Gerando insights do relatório...</p>
-    </div>
+    <FeedbackState
+      v-if="isLoading"
+      type="loading"
+      message="Gerando insights e indicadores do relatório..."
+    />
 
-    <div v-else-if="error" class="status-message error">
-      <i class="mdi mdi-alert-circle-outline"></i>
-      <h2>Ocorreu um Erro</h2>
-      <p>{{ error }}</p>
-      <button @click="tentarNovamente" class="btn-primary">Tentar Novamente</button>
-    </div>
+    <FeedbackState
+      v-else-if="error"
+      type="error"
+      title="Ocorreu um erro ao carregar o relatório"
+      :message="error"
+      :show-retry="true"
+      @retry="buscarDados"
+    />
 
     <div v-else-if="relatorio" class="relatorio-content slide-in">
-      <header class="report-header">
-        <div class="header-main-info">
-          <h1><i class="mdi mdi-file-check-outline"></i> Resumo da Auditoria</h1>
-        </div>
-      </header>
+      <PageHeader
+        title="Resumo da Auditoria"
+        :subtitle="`Modelo: ${relatorio.info.nome_modelo} | Responsável: ${relatorio.info.nome_usuario}`"
+        icon="mdi mdi-file-check-outline"
+      >
+        <template #actions>
+          <router-link :to="`/detalhe/${$route.params.id}`" class="btn-primary">
+            <i class="mdi mdi-text-box-search-outline"></i>
+            <span>Ver Documento Completo</span>
+          </router-link>
+          <router-link to="/selecao" class="btn-outline">
+            <i class="mdi mdi-plus"></i>
+            <span>Nova Auditoria</span>
+          </router-link>
+        </template>
+      </PageHeader>
 
       <section class="metadata-grid">
         <div class="meta-card">
@@ -30,7 +44,7 @@
         </div>
         <div class="meta-card">
           <span class="meta-label">Setor</span>
-          <span class="meta-value">{{ relatorio.info.nome_setor || 'Não informada' }}</span>
+          <span class="meta-value">{{ relatorio.info.nome_setor || 'Não informado' }}</span>
         </div>
         <div class="meta-card">
           <span class="meta-label">Responsável</span>
@@ -38,7 +52,7 @@
         </div>
         <div class="meta-card">
           <span class="meta-label">Data e Hora</span>
-          <span class="meta-value">{{ formatarData(relatorio.info.data_envio) }}</span>
+          <span class="meta-value">{{ formatarDataHora(relatorio.info.data_envio) }}</span>
         </div>
       </section>
 
@@ -46,7 +60,7 @@
         <div class="chart-card">
           <h3 class="card-title">Distribuição de Conformidade</h3>
           <div class="chart-container">
-            <div id="graficoRelatorio" style="width: 100%; height: 400px;"></div>
+            <div id="graficoRelatorio" style="width: 100%; height: 380px;"></div>
           </div>
         </div>
 
@@ -60,12 +74,11 @@
             <p class="score-details">{{ pontuacao.detalhes }}</p>
             <div class="status-indicator">
               <i class="mdi" :class="pontuacao.score >= 70 ? 'mdi-check-decagram' : 'mdi-alert-decagram'"></i>
-              {{ pontuacao.score >= 90 ? 'Excelente' : (pontuacao.score >= 70 ? 'Dentro do Padrão' : 'Abaixo do Esperado') }}
+              <span>{{ pontuacao.score >= 90 ? 'Excelente' : (pontuacao.score >= 70 ? 'Dentro do Padrão' : 'Abaixo do Esperado') }}</span>
             </div>
           </div>
         </div>
       </main>
-
     </div>
   </div>
 </template>
@@ -74,7 +87,17 @@
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../services/api';
-import * as echarts from 'echarts';
+import PageHeader from '../components/PageHeader.vue';
+import FeedbackState from '../components/FeedbackState.vue';
+import { formatarDataHora } from '../services/formatters';
+
+// 📌 Tree-shaking do ECharts para otimização de performance e redução de bundle
+import * as echarts from 'echarts/core';
+import { PieChart } from 'echarts/charts';
+import { TooltipComponent, LegendComponent, DatasetComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+
+echarts.use([PieChart, TooltipComponent, LegendComponent, DatasetComponent, CanvasRenderer]);
 
 const route = useRoute();
 const isLoading = ref(true);
@@ -109,11 +132,6 @@ const pontuacao = computed(() => {
     detalhes: `${totalConforme} de ${totalCategorias} conformes.`
   };
 });
-
-const formatarData = (dataString) => {
-  if (!dataString) return '';
-  return new Date(dataString).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-};
 
 const buscarDados = async () => {
   isLoading.value = true;
@@ -173,74 +191,188 @@ const inicializarGrafico = (datasetSource) => {
   window.removeEventListener('resize', redimensionarGrafico);
   window.addEventListener('resize', redimensionarGrafico);
 };
+
 onMounted(buscarDados);
 onUnmounted(() => {
   window.removeEventListener('resize', redimensionarGrafico);
   chartInstance?.dispose();
   chartInstance = null;
 });
-
-const tentarNovamente = () => buscarDados();
 </script>
 
-
-
 <style scoped>
-/* ==========================================
-   LAYOUT GERAL
-   ========================================== */
 .page-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  background-color: var(--bg-body, #f8fafc);
-  font-family: 'Inter', system-ui, sans-serif;
+  padding: 1.5rem 1rem;
 }
 
-/* ==========================================
-   HEADER E STATUS EMAIL
-   ========================================== */
-.report-header {
+.btn-primary {
+  background: var(--primary, #2563eb);
+  color: white;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  min-height: 42px;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover, #1d4ed8);
+}
+
+.btn-outline {
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  min-height: 42px;
+}
+
+.btn-outline:hover {
+  background: #f1f5f9;
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.header-main-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
+.meta-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
 }
 
-.header-main-info h1 {
-  font-size: 2rem;
-  font-weight: 800;
+.meta-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.meta-value {
+  font-size: 1.2rem;
+  font-weight: 700;
   color: var(--text-primary);
-  margin: 0;
-}
-
-.email-badge {
-  background-color: #f0f9ff;
-  color: #0369a1;
-  padding: 0.6rem 1.2rem;
-  border-radius: 50px;
-  border: 1px solid #bae6fd;
-  font-size: 0.9rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.email-badge.sending {
-  background-color: #fff7ed;
-  color: #9a3412;
-  border-color: #ffedd5;
 }
 
 /* ==========================================
-   METADATA GRID (CARDS)
+   VISUALIZAÇÃO (GRÁFICO + SCORE)
    ========================================== */
+.main-visual-content {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.chart-card {
+  flex: 2;
+  min-width: 350px;
+  background: white;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.card-title {
+  margin-top: 0;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+  border-left: 4px solid var(--primary);
+  padding-left: 10px;
+}
+
+.chart-container {
+  height: 400px;
+}
+
+.score-column {
+  flex: 1;
+  min-width: 300px;
+  max-height: 424px;
+}
+
+.scorecard {
+  background: white;
+  padding: 2.5rem;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  border-top: 8px solid;
+  box-shadow: var(--shadow-md);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.scorecard.otimo {
+  border-color: var(--success);
+}
+
+.scorecard.bom {
+  border-color: #f59e0b;
+}
+
+.scorecard.ruim {
+  border-color: var(--danger);
+}
+
+.score-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.score-value {
+  font-size: 5rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1;
+  margin: 1rem 0;
+}
+
+.score-bar-bg {
+  height: 12px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.score-bar-fg {
+  height: 100%;
+  transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.scorecard.otimo .score-bar-fg {
+  background: var(--success);
+}
+
+.scorecard.bom .score-bar-fg {
+  background: #f59e0b;
+}
 .metadata-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -433,10 +565,13 @@ const tentarNovamente = () => buscarDados();
 .top-item-card {
   display: flex;
   align-items: center;
+  gap: 1rem;
   padding: 1.2rem;
   background: #fff5f5;
   border-radius: 12px;
   border-left: 5px solid #ef4444;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .rank-number {
@@ -445,10 +580,14 @@ const tentarNovamente = () => buscarDados();
   font-weight: 900;
   color: #ef4444;
   opacity: 0.5;
+  flex-shrink: 0;
 }
 
 .item-body {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .item-tag {
@@ -459,17 +598,21 @@ const tentarNovamente = () => buscarDados();
   background: #fee2e2;
   padding: 2px 8px;
   border-radius: 4px;
+  display: inline-block;
 }
 
 .item-desc {
   margin: 5px 0 0 0;
   font-weight: 600;
   color: var(--text-primary);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .item-stats {
   text-align: center;
   min-width: 80px;
+  flex-shrink: 0;
 }
 
 .count-val {
