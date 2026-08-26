@@ -5,6 +5,11 @@
     </div>
 
     <div class="card">
+      <div v-if="erroLogin" class="alert error">
+        <i class="mdi mdi-alert-circle-outline"></i>
+        <span>{{ erroLogin }}</span>
+      </div>
+
       <form @submit.prevent="fazerLogin">
         <div class="form-group">
           <label for="usuario">Usuário:</label>
@@ -17,16 +22,16 @@
           <div class="password-container">
             <input :type="mostrarSenha ? 'text' : 'password'" id="senha" v-model="form.senha" required
               placeholder="Digite sua senha" autocomplete="current-password" class="password-input" />
-            <button type="button" class="toggle-password" @click="mostrarSenha = !mostrarSenha">
-              <span v-if="mostrarSenha">👁️</span>
-              <span v-else>👁️‍🗨️</span>
+            <button type="button" class="toggle-password" @click="mostrarSenha = !mostrarSenha" :title="mostrarSenha ? 'Ocultar senha' : 'Exibir senha'">
+              <i class="mdi" :class="mostrarSenha ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"></i>
             </button>
           </div>
         </div>
 
         <div class="form-actions">
-          <button type="submit" class="login-button btn-primary">
-            Entrar no Sistema
+          <button type="submit" class="login-button btn-primary" :disabled="carregando">
+            <i class="mdi" :class="carregando ? 'mdi-loading mdi-spin' : 'mdi-login'"></i>
+            <span>{{ carregando ? 'Entrando...' : 'Entrar no Sistema' }}</span>
           </button>
         </div>
       </form>
@@ -51,17 +56,23 @@ const form = reactive({
 });
 
 const mostrarSenha = ref(false);
+const carregando = ref(false);
+const erroLogin = ref('');
 
 const fazerLogin = async () => {
+  erroLogin.value = '';
+  carregando.value = true;
   try {
     await autenticarComSenha(form.usuario, form.senha);
     router.push('/selecao');
   } catch (err) {
     if (err.response && err.response.data) {
-      alert(err.response.data.mensagem || err.response.data.message || 'Usuário ou senha incorretos.');
+      erroLogin.value = err.response.data.mensagem || err.response.data.message || 'Usuário ou senha incorretos.';
     } else {
-      alert('Erro ao conectar com o servidor.');
+      erroLogin.value = 'Erro ao conectar com o servidor.';
     }
+  } finally {
+    carregando.value = false;
   }
 };
 </script>
@@ -96,6 +107,23 @@ const fazerLogin = async () => {
   border-radius: var(--radius-lg);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
   border: 1px solid var(--border-color);
+}
+
+.alert {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.alert.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecdd3;
 }
 
 /* CAMPOS DE TEXTO */

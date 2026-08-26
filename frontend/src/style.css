@@ -6,7 +6,7 @@
 
 html {
   min-width: 320px;
-  background: #f4f7f9;
+  background: #f8fafc;
 }
 
 body {
@@ -35,8 +35,90 @@ textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ==========================================
+   PADRÃO GLOBAL DE BOTÕES
+   ========================================== */
+.btn-primary,
+.btn-secondary,
+.btn-outline,
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  padding: 0.6rem 1.25rem;
+  min-height: 42px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background-color: var(--primary, #2563eb);
+  color: #ffffff;
+  border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover, #1d4ed8);
+}
+
+.btn-secondary {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.btn-outline {
+  background-color: #ffffff;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+
+.btn-danger {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecdd3;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+button:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-outline:disabled,
+.btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 @media (max-width: 767px) {
   button,
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline,
+  .btn-danger,
   input:not([type='checkbox']):not([type='radio']),
   select {
     min-height: 44px;
