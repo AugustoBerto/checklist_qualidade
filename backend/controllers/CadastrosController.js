@@ -278,7 +278,7 @@ exports.excluirMarca = async (req, res) => {
 
 exports.listarSetores = async (req, res) => {
     try {
-        const { rows } = await db.query('SELECT * FROM setores ORDER BY nome ASC');
+        const { rows } = await db.query('SELECT * FROM setores WHERE ativo = 1 ORDER BY nome ASC');
         res.status(200).json({ sucesso: true, setores: rows });
     } catch (error) {
         console.error('Erro ao listar setores:', error);
@@ -334,6 +334,7 @@ exports.listarCelulas = async (req, res) => {
             FROM celulas_producao cp 
             LEFT JOIN setores s ON cp.id_setor_fk = s.id 
             LEFT JOIN marcas m ON cp.id_marca_fk = m.id
+            WHERE cp.ativo = 1
             ORDER BY cp.nome ASC
         `;
         const { rows } = await db.query(query);
@@ -398,7 +399,7 @@ exports.excluirCelula = async (req, res) => {
 
 exports.listarUnidades = async (req, res) => {
     try {
-        const { rows } = await db.query('SELECT * FROM unidades ORDER BY nome ASC');
+        const { rows } = await db.query('SELECT * FROM unidades WHERE ativo = 1 ORDER BY nome ASC');
         res.status(200).json({ sucesso: true, unidades: rows });
     } catch (error) {
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
