@@ -47,7 +47,6 @@ O token é assinado com `JWT_SECRET`/`PRIVATE_KEY`. As aplicações que precisam
 | Rota pública pelo Gateway | Rota recebida pelo dass_auth | Função |
 | --- | --- | --- |
 | `POST /api/auth/login` | `POST /auth/login` | Autentica `usuario` e `senha` contra `autenticacao.usuarios`. |
-| `POST /api/auth/login/codbar` | `POST /auth/login/codbar` | Autentica pelo código de barras. |
 | `POST /api/auth/me` | `POST /auth/me` | Valida a sessão atual e, se necessário, usa o refresh token para emitir novos cookies. |
 | `POST /api/auth/token/refresh` | `POST /auth/token/refresh` | Renova explicitamente access e refresh tokens. |
 | `POST /api/auth/logout` | `POST /auth/logout` | Coloca o token em blacklist, consome o refresh token e limpa os cookies. |

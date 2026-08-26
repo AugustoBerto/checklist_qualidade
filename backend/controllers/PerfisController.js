@@ -33,6 +33,8 @@ const buscarColaboradorCentral = async (matricula) => {
     return corpo.data || null;
 };
 
+const normalizarIdFk = (id) => (id && Number.isInteger(Number(id)) && Number(id) > 0 ? Number(id) : null);
+
 exports.me = async (req, res) => {
     res.json({ sucesso: true, perfil: req.usuario });
 };
@@ -62,7 +64,7 @@ exports.criar = async (req, res) => {
             ) VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8)
             RETURNING ${camposPerfil}
         `, [colaborador.nome || null, matricula, papel, colaborador.funcao || null,
-            id_unidade_fk || null, id_setor_fk || null, id_celula_fk || null, id_turno_fk || null]);
+            normalizarIdFk(id_unidade_fk), normalizarIdFk(id_setor_fk), normalizarIdFk(id_celula_fk), normalizarIdFk(id_turno_fk)]);
         res.status(201).json({ sucesso: true, perfil: rows[0] });
     } catch (error) {
         console.error('Erro ao criar perfil:', error);
@@ -88,7 +90,7 @@ exports.atualizar = async (req, res) => {
             WHERE id = $7
             RETURNING ${camposPerfil}
         `, [papel, ativo === false || ativo === 0 ? 0 : 1,
-            id_unidade_fk || null, id_setor_fk || null, id_celula_fk || null, id_turno_fk || null, req.params.id]);
+            normalizarIdFk(id_unidade_fk), normalizarIdFk(id_setor_fk), normalizarIdFk(id_celula_fk), normalizarIdFk(id_turno_fk), req.params.id]);
         if (rows.length === 0) return res.status(404).json({ sucesso: false, mensagem: 'Perfil não encontrado.' });
         res.json({ sucesso: true, perfil: rows[0] });
     } catch (error) {
