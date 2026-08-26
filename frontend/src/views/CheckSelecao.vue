@@ -1,23 +1,34 @@
 <template>
   <div class="page-container">
-    <div class="titulo-flex">
-      <h1>
-        <i class="mdi" :class="marcaSelecionada ? 'mdi-format-list-bulleted-type' : 'mdi-domain'"></i>
-        {{ marcaSelecionada ? 'Selecione o Modelo' : 'Selecione a Marca' }}
-      </h1>
-      <p class="subtitle" v-if="!marcaSelecionada">Escolha a marca para iniciar o preenchimento da auditoria.</p>
-    </div>
+    <PageHeader
+      :title="marcaSelecionada ? 'Selecione o Modelo de Auditoria' : 'Selecione a Marca'"
+      :subtitle="marcaSelecionada ? 'Configure o setor, modelo e linha/célula de produção.' : 'Escolha a marca para iniciar o preenchimento da auditoria.'"
+      :icon="marcaSelecionada ? 'mdi mdi-format-list-bulleted-type' : 'mdi mdi-domain'"
+    >
+      <template v-if="marcaSelecionada && podeTrocarMarca" #actions>
+        <button type="button" class="btn-trocar" @click="resetarSelecao">
+          <i class="mdi mdi-swap-horizontal"></i> Trocar Marca
+        </button>
+      </template>
+    </PageHeader>
 
+    <!-- Seleção de Marcas -->
     <div v-if="!marcaSelecionada" class="brand-grid-container">
-      <div v-if="isLoadingMarcas" class="loading-state">
-        <div class="spinner"></div> 
-        <p>Carregando as configurações...</p>
-      </div>
-      <div v-else-if="erroCarregamento" class="loading-state error-state" role="alert">
-        <i class="mdi mdi-alert-circle-outline"></i>
-        <p>{{ erroCarregamento }}</p>
-        <button type="button" class="btn-trocar" @click="carregarDadosIniciais">Tentar novamente</button>
-      </div>
+      <FeedbackState
+        v-if="isLoadingMarcas"
+        type="loading"
+        message="Carregando marcas e configurações..."
+      />
+
+      <FeedbackState
+        v-else-if="erroCarregamento"
+        type="error"
+        title="Não foi possível carregar as opções"
+        :message="erroCarregamento"
+        :show-retry="true"
+        @retry="carregarDadosIniciais"
+      />
+
       <div v-else class="brand-grid">
         <div v-for="marca in marcas" :key="marca.id" class="brand-card" @click="selecionarMarca(marca)">
           <div class="brand-logo-wrapper">
@@ -34,6 +45,7 @@
       </div>
     </div>
 
+    <!-- Formulário de Seleção de Modelo/Célula -->
     <div v-else class="form-container slide-in">
       <div class="card-formulario">
         <div class="header-marca">
@@ -44,16 +56,11 @@
             <span v-else class="mini-initial">
               {{ marcaSelecionada?.nome ? marcaSelecionada.nome.charAt(0) : '?' }}
             </span>
-
-            <span><strong>{{ marcaSelecionada.nome }}</strong></span>
+            <span>Marca selecionada: <strong>{{ marcaSelecionada.nome }}</strong></span>
           </div>
-          <button v-if="podeTrocarMarca" type="button" class="btn-trocar" @click="resetarSelecao">
-            <i class="mdi mdi-swap-horizontal"></i> Trocar Marca
-          </button>
         </div>
 
-        <form @submit.prevent="irParaFormulario">
-          
+        <form @submit.prevent="irParaFormulario" class="selection-form">
           <div class="form-group mb-3">
             <label for="setor">Setor da Inspeção:</label>
             <div class="select-wrapper">
@@ -78,7 +85,8 @@
 
           <div class="form-actions mt-5">
             <button type="submit" class="continuar-button" :disabled="isBotaoDesabilitado">
-              Continuar <i class="mdi mdi-arrow-right"></i>
+              <span>Continuar</span>
+              <i class="mdi mdi-arrow-right"></i>
             </button>
           </div>
         </form>
@@ -92,7 +100,11 @@ import VueSelect from 'vue3-select-component'
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
+import PageHeader from '../components/PageHeader.vue'
+import FeedbackState from '../components/FeedbackState.vue'
 import { obterPerfilLocal } from '../services/session'
+import { urlLogoMarca } from '../services/formatters'
+import { toast } from '../services/feedback'
 
 const router = useRouter()
 
@@ -184,7 +196,7 @@ async function carregarModelos(marca, setorId) {
 
   } catch (error) {
     console.error("Erro ao carregar modelos:", error);
-    alert('Erro ao carregar modelos.');
+    toast.error('Erro ao carregar os modelos disponíveis para esta marca e setor.');
   }
 }
 
@@ -198,7 +210,6 @@ function irParaFormulario() {
   if (isBotaoDesabilitado.value) return;
 
   const query = {
-    // 📌 CACHE BUSTING: Impede que WebViews do Android travem o layout ou cacheiem dados velhos
     cb: new Date().getTime() 
   };
   
@@ -210,17 +221,8 @@ function irParaFormulario() {
   router.push({ path: `/formulario/${form.value.modelo}`, query: query });
 }
 
-// Funções Auxiliares
-function tratarNomeImagem(nome) {
-  if (!nome) return 'sem-nome';
-  return nome.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-}
-
 function urlLogo(nome) {
-  return `${import.meta.env.BASE_URL}logos/${tratarNomeImagem(nome)}.png`;
+  return urlLogoMarca(nome);
 }
 
 function marcarErroImagem(id) { 
@@ -373,34 +375,55 @@ function resetarSelecao() {
 }
 
 .btn-trocar {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
-  padding: 8px 12px;
-  border-radius: 6px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.9rem;
-  display: flex;
+  font-size: 0.88rem;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  min-height: 38px;
+  transition: all 0.2s ease;
+}
+
+.btn-trocar:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #1e293b;
 }
 
 .continuar-button {
   width: 100%;
-  padding: 1.2rem;
-  font-size: 1.15rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  background: #2563eb;
-  color: #fff;
+  background: var(--primary, #2563eb);
+  color: #ffffff;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.2s ease;
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.continuar-button:hover:not(:disabled) {
+  background: var(--primary-hover, #1d4ed8);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .continuar-button:disabled {
   background: #cbd5e1;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
