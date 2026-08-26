@@ -16,8 +16,7 @@ const schemaMigrationsSql = (schema = 'checklist_app') => `
 const SCHEMA_MIGRATIONS_SQL = schemaMigrationsSql();
 
 const migrationNumber = (name) => Number(name.slice(0, name.indexOf('_')));
-const isSupportedMigration = (name) => name === '001_initial_schema.sql'
-  || /^(?:00[5-9]|0[1-9][0-9]|[1-9][0-9]{2,})_[a-z0-9_-]+\.sql$/i.test(name);
+const isSupportedMigration = (name) => /^\d{3,}_[a-z0-9_-]+\.sql$/i.test(name);
 
 const listMigrationFiles = (directory = MIGRATIONS_DIR) => fs.readdirSync(directory)
   .filter((name) => isSupportedMigration(name))

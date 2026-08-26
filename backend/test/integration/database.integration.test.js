@@ -11,10 +11,10 @@ if (!database.endsWith('_test')) throw new Error('Integração recusada fora de 
 const pool = createPool(process.env);
 after(async () => pool.end());
 
-test('baseline e migration incremental deixam o schema operacional', async () => {
+test('baseline consolidado deixa o schema operacional', async () => {
   const status = await statusDatabase({ pool, env: process.env });
   assert.equal(status.initialized, true);
-  assert.deepEqual(status.migrations.map(({ applied }) => applied), [true, true]);
+  assert.deepEqual(status.migrations.map(({ applied }) => applied), [true]);
 
   const column = await pool.query(`
     SELECT data_type, column_default

@@ -47,9 +47,9 @@ describe('fundação DB', () => {
     assert.equal(mensagemPostgres({ code: '23503', detail: 'private row' }), 'Registro relacionado não encontrado ou ainda utilizado.');
   });
 
-  test('descobre somente 001 e migrations futuras, preservando 002-004', () => {
+  test('descobre 001_initial_schema.sql como migration inicial consolidada', () => {
     const migrations = validateMigrationSet(listMigrationFiles());
-    assert.deepEqual(migrations.map(({ version }) => version), [1, 5]);
+    assert.deepEqual(migrations.map(({ version }) => version), [1]);
     assert.match(readMigrationSql(migrations[0]), /^CREATE SCHEMA checklist_app;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /^BEGIN;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /COMMIT;\s*$/);
@@ -68,9 +68,9 @@ describe('fundação DB', () => {
     assert.deepEqual(first.applied, ['001_initial_schema.sql']);
     await assert.rejects(initDatabase({ env }), /db:init recusado/);
     const migrated = await migrateDatabase({ env });
-    assert.deepEqual(migrated.applied, ['005_add_operational_indexes.sql']);
+    assert.deepEqual(migrated.applied, []);
     const status = await statusDatabase({ env });
     assert.equal(status.initialized, true);
-    assert.deepEqual(status.migrations.map((item) => item.applied), [true, true]);
+    assert.deepEqual(status.migrations.map((item) => item.applied), [true]);
   });
 });
