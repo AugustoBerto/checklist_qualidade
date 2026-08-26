@@ -34,6 +34,7 @@ import api from '../services/api'
 const modo = ref('lista'), perfis = ref([]), unidades = ref([]), setores = ref([]), celulas = ref([]), turnos = ref([])
 const erro = ref(''), sucesso = ref(''), salvando = ref(false)
 const vazio = () => ({ id: null, matricula: '', nome: '', papel: '', funcao: '', ativo: true, id_unidade_fk: '', id_setor_fk: '', id_celula_fk: '', id_turno_fk: '' })
+const form = reactive(vazio())
 const dados = (r) => r.data?.dados || r.data?.unidades || r.data?.setores || r.data?.celulas || r.data?.turnos || []
 const carregar = async () => { try { perfis.value = dados(await api.get('/perfis')) } catch { erro.value = 'Não foi possível carregar os perfis.' } }
 const dependencias = async () => {
@@ -46,6 +47,10 @@ const salvar = async () => {
   salvando.value = true; erro.value = ''; sucesso.value = ''
   try {
     const { nome, funcao, id, ...payload } = form
+    payload.id_unidade_fk = payload.id_unidade_fk ? Number(payload.id_unidade_fk) : null
+    payload.id_setor_fk = payload.id_setor_fk ? Number(payload.id_setor_fk) : null
+    payload.id_celula_fk = payload.id_celula_fk ? Number(payload.id_celula_fk) : null
+    payload.id_turno_fk = payload.id_turno_fk ? Number(payload.id_turno_fk) : null
     if (form.id) await api.put(`/perfis/${form.id}`, payload); else await api.post('/perfis', payload)
     sucesso.value = 'Perfil salvo.'; modo.value = 'lista'; await carregar()
   } catch (e) { erro.value = e.response?.data?.mensagem || 'Não foi possível salvar o perfil.' } finally { salvando.value = false }
