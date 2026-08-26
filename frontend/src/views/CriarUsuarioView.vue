@@ -1,48 +1,257 @@
 <template>
   <div class="page-container">
-    <div class="header-n">
-      <div><h1>Perfis operacionais</h1><p>Vincule uma matrícula existente no dass_auth ao Checklist.</p></div>
-      <button v-if="modo === 'lista'" class="btn-novo" @click="novo">Novo perfil</button>
-      <button v-else class="btn-voltar" @click="modo = 'lista'">Voltar</button>
+    <PageHeader
+      :title="modo === 'lista' ? 'Perfis Operacionais' : (form.id ? 'Editar Perfil Operacional' : 'Novo Perfil Operacional')"
+      :subtitle="modo === 'lista' ? 'Vincule matrículas do sistema dass_auth ao Checklist de Auditoria.' : 'Preencha as informações de vínculo do colaborador.'"
+      icon="mdi mdi-account-cog-outline"
+    >
+      <template #actions>
+        <button v-if="modo === 'lista'" class="btn-primary" @click="novo">
+          <i class="mdi mdi-account-plus"></i>
+          <span>Novo Perfil</span>
+        </button>
+        <button v-else class="btn-outline" @click="modo = 'lista'">
+          <i class="mdi mdi-arrow-left"></i>
+          <span>Voltar para Lista</span>
+        </button>
+      </template>
+    </PageHeader>
+
+    <div v-if="erro" class="alert error">
+      <i class="mdi mdi-alert-circle"></i>
+      <span>{{ erro }}</span>
     </div>
-    <p v-if="erro" class="alert error">{{ erro }}</p>
-    <p v-if="sucesso" class="alert success">{{ sucesso }}</p>
+    
+    <div v-if="sucesso" class="alert success">
+      <i class="mdi mdi-check-circle"></i>
+      <span>{{ sucesso }}</span>
+    </div>
+
+    <!-- Lista de Usuários -->
     <div v-if="modo === 'lista'" class="card">
-      <div class="table-container"><table class="data-table"><thead><tr><th>Nome</th><th>Matrícula</th><th>Papel</th><th>Status</th><th></th></tr></thead>
-        <tbody><tr v-for="perfil in perfis" :key="perfil.id"><td>{{ perfil.nome }}</td><td>{{ perfil.matricula }}</td><td>{{ perfil.papel }}</td><td>{{ perfil.ativo ? 'Ativo' : 'Inativo' }}</td><td><button @click="editar(perfil)">Editar</button></td></tr></tbody>
-      </table></div>
+      <div v-if="!carregando && perfis.length > 0" class="toolbar-search">
+        <div class="search-box">
+          <i class="mdi mdi-magnify search-icon"></i>
+          <input
+            type="text"
+            v-model="termoBusca"
+            placeholder="Buscar por nome, matrícula ou papel..."
+            class="input-search"
+          >
+          <button
+            v-if="termoBusca"
+            type="button"
+            class="clear-input-btn"
+            @click="termoBusca = ''"
+            title="Limpar busca"
+          >
+            <i class="mdi mdi-close"></i>
+          </button>
+        </div>
+      </div>
+
+      <FeedbackState
+        v-if="carregando"
+        type="loading"
+        message="Carregando perfis de usuários..."
+      />
+
+      <FeedbackState
+        v-else-if="perfis.length === 0"
+        type="empty"
+        title="Nenhum perfil cadastrado"
+        message="Cadastre o primeiro colaborador para atribuir permissões."
+      >
+        <template #action>
+          <button @click="novo" class="btn-primary">
+            <i class="mdi mdi-plus"></i> Cadastrar primeiro perfil
+          </button>
+        </template>
+      </FeedbackState>
+
+      <FeedbackState
+        v-else-if="perfisFiltrados.length === 0"
+        type="empty"
+        title="Nenhum colaborador encontrado"
+        :message="`Não encontramos resultados para '${termoBusca}'.`"
+      >
+        <template #action>
+          <button @click="termoBusca = ''" class="btn-outline">
+            <i class="mdi mdi-close"></i> Limpar filtro
+          </button>
+        </template>
+      </FeedbackState>
+
+      <div v-else class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nome / Colaborador</th>
+              <th>Matrícula</th>
+              <th>Papel</th>
+              <th>Status</th>
+              <th class="text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="perfil in perfisFiltrados" :key="perfil.id">
+              <td>
+                <div class="user-name-cell">
+                  <i class="mdi mdi-account-circle text-muted"></i>
+                  <strong>{{ perfil.nome }}</strong>
+                </div>
+              </td>
+              <td><code>{{ perfil.matricula }}</code></td>
+              <td>
+                <span class="badge" :class="perfil.papel === 'ADMIN' ? 'badge-admin' : 'badge-user'">
+                  {{ perfil.papel }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" :class="perfil.ativo ? 'badge-ativo' : 'badge-inativo'">
+                  {{ perfil.ativo ? 'Ativo' : 'Inativo' }}
+                </span>
+              </td>
+              <td class="text-right">
+                <button class="btn-editar" @click="editar(perfil)">
+                  <i class="mdi mdi-pencil"></i>
+                  <span>Editar</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-    <form v-else class="card form" @submit.prevent="salvar">
-      <label>Matrícula <input v-model.trim="form.matricula" required :disabled="Boolean(form.id)"></label>
-      <label v-if="form.id">Nome <input :value="form.nome" disabled></label>
-      <label>Papel <select v-model="form.papel" required><option value="" disabled>Selecione</option><option value="ADMIN">Administrador</option><option value="LIDER">Líder</option><option value="INSPETOR">Inspetor</option></select></label>
-      <label v-if="form.id">Função <input :value="form.funcao" disabled></label>
-      <label>Unidade <select v-model="form.id_unidade_fk"><option value="">Não definida</option><option v-for="u in unidades" :key="u.id" :value="u.id">{{ u.nome }}</option></select></label>
-      <label>Setor <select v-model="form.id_setor_fk"><option value="">Não definido</option><option v-for="s in setores" :key="s.id" :value="s.id">{{ s.nome }}</option></select></label>
-      <label>Célula <select v-model="form.id_celula_fk"><option value="">Não definida</option><option v-for="c in celulas" :key="c.id" :value="c.id">{{ c.nome }}</option></select></label>
-      <label>Turno <select v-model="form.id_turno_fk"><option value="">Não definido</option><option v-for="t in turnos" :key="t.id" :value="t.id">{{ t.nome }}</option></select></label>
-      <label v-if="form.id">Status <select v-model="form.ativo"><option :value="true">Ativo</option><option :value="false">Inativo</option></select></label>
-      <button class="btn-salvar" :disabled="salvando">{{ salvando ? 'Salvando...' : 'Salvar perfil' }}</button>
-    </form>
+
+    <!-- Formulário -->
+    <div v-else class="card form-card">
+      <form class="form-grid" @submit.prevent="salvar">
+        <div class="form-group">
+          <label>Matrícula (dass_auth) <span class="obrigatorio">*</span></label>
+          <input v-model.trim="form.matricula" required :disabled="Boolean(form.id)" class="input-base" placeholder="Ex: 12345">
+        </div>
+
+        <div class="form-group" v-if="form.id">
+          <label>Nome do Colaborador</label>
+          <input :value="form.nome" disabled class="input-base input-disabled">
+        </div>
+
+        <div class="form-group">
+          <label>Papel no Sistema <span class="obrigatorio">*</span></label>
+          <select v-model="form.papel" required class="input-base select-base">
+            <option value="" disabled>Selecione o papel...</option>
+            <option value="ADMIN">Administrador</option>
+            <option value="LIDER">Líder de Produção</option>
+            <option value="INSPETOR">Inspetor de Qualidade</option>
+          </select>
+        </div>
+
+        <div class="form-group" v-if="form.id">
+          <label>Função</label>
+          <input :value="form.funcao" disabled class="input-base input-disabled">
+        </div>
+
+        <div class="form-group">
+          <label>Unidade</label>
+          <select v-model="form.id_unidade_fk" class="input-base select-base">
+            <option value="">Não definida</option>
+            <option v-for="u in unidades" :key="u.id" :value="u.id">{{ u.nome }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Setor</label>
+          <select v-model="form.id_setor_fk" class="input-base select-base">
+            <option value="">Não definido</option>
+            <option v-for="s in setores" :key="s.id" :value="s.id">{{ s.nome }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Célula / Linha</label>
+          <select v-model="form.id_celula_fk" class="input-base select-base">
+            <option value="">Não definida</option>
+            <option v-for="c in celulas" :key="c.id" :value="c.id">{{ c.nome }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Turno</label>
+          <select v-model="form.id_turno_fk" class="input-base select-base">
+            <option value="">Não definido</option>
+            <option v-for="t in turnos" :key="t.id" :value="t.id">{{ t.nome }}</option>
+          </select>
+        </div>
+
+        <div class="form-group" v-if="form.id">
+          <label>Status</label>
+          <select v-model="form.ativo" class="input-base select-base">
+            <option :value="true">Ativo</option>
+            <option :value="false">Inativo</option>
+          </select>
+        </div>
+
+        <div class="form-actions-row">
+          <button type="button" @click="modo = 'lista'" class="btn-outline">Cancelar</button>
+          <button class="btn-primary" :disabled="salvando">
+            <i class="mdi" :class="salvando ? 'mdi-loading mdi-spin' : 'mdi-content-save'"></i>
+            <span>{{ salvando ? 'Salvando...' : 'Salvar Perfil' }}</span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 import api from '../services/api'
+import PageHeader from '../components/PageHeader.vue'
+import FeedbackState from '../components/FeedbackState.vue'
 
 const modo = ref('lista'), perfis = ref([]), unidades = ref([]), setores = ref([]), celulas = ref([]), turnos = ref([])
-const erro = ref(''), sucesso = ref(''), salvando = ref(false)
+const erro = ref(''), sucesso = ref(''), salvando = ref(false), carregando = ref(true)
+const termoBusca = ref('')
 const vazio = () => ({ id: null, matricula: '', nome: '', papel: '', funcao: '', ativo: true, id_unidade_fk: '', id_setor_fk: '', id_celula_fk: '', id_turno_fk: '' })
 const form = reactive(vazio())
+
+const perfisFiltrados = computed(() => {
+  if (!termoBusca.value.trim()) return perfis.value
+  const t = termoBusca.value.toLowerCase().trim()
+  return perfis.value.filter(p => 
+    (p.nome && p.nome.toLowerCase().includes(t)) ||
+    (p.matricula && String(p.matricula).toLowerCase().includes(t)) ||
+    (p.papel && p.papel.toLowerCase().includes(t))
+  )
+})
+
 const dados = (r) => r.data?.dados || r.data?.unidades || r.data?.setores || r.data?.celulas || r.data?.turnos || []
-const carregar = async () => { try { perfis.value = dados(await api.get('/perfis')) } catch { erro.value = 'Não foi possível carregar os perfis.' } }
+
+const carregar = async () => {
+  carregando.value = true
+  try {
+    perfis.value = dados(await api.get('/perfis'))
+  } catch {
+    erro.value = 'Não foi possível carregar os perfis.'
+  } finally {
+    carregando.value = false
+  }
+}
+
 const dependencias = async () => {
-  const [u, s, c, t] = await Promise.all([api.get('/cadastros/unidades'), api.get('/cadastros/setores'), api.get('/cadastros/celulas'), api.get('/cadastros/turnos')])
+  const [u, s, c, t] = await Promise.all([
+    api.get('/cadastros/unidades').catch(() => ({ data: [] })),
+    api.get('/cadastros/setores').catch(() => ({ data: [] })),
+    api.get('/cadastros/celulas').catch(() => ({ data: [] })),
+    api.get('/cadastros/turnos').catch(() => ({ data: [] }))
+  ])
   unidades.value = dados(u); setores.value = dados(s); celulas.value = dados(c); turnos.value = dados(t)
 }
-const novo = () => { Object.assign(form, vazio()); erro.value = ''; modo.value = 'formulario' }
-const editar = (perfil) => { Object.assign(form, vazio(), perfil); erro.value = ''; modo.value = 'formulario' }
+
+const novo = () => { Object.assign(form, vazio()); erro.value = ''; sucesso.value = ''; modo.value = 'formulario' }
+const editar = (perfil) => { Object.assign(form, vazio(), perfil); erro.value = ''; sucesso.value = ''; modo.value = 'formulario' }
+
 const salvar = async () => {
   salvando.value = true; erro.value = ''; sucesso.value = ''
   try {
@@ -52,25 +261,283 @@ const salvar = async () => {
     payload.id_celula_fk = payload.id_celula_fk ? Number(payload.id_celula_fk) : null
     payload.id_turno_fk = payload.id_turno_fk ? Number(payload.id_turno_fk) : null
     if (form.id) await api.put(`/perfis/${form.id}`, payload); else await api.post('/perfis', payload)
-    sucesso.value = 'Perfil salvo.'; modo.value = 'lista'; await carregar()
-  } catch (e) { erro.value = e.response?.data?.mensagem || 'Não foi possível salvar o perfil.' } finally { salvando.value = false }
+    sucesso.value = 'Perfil salvo com sucesso.'; modo.value = 'lista'; await carregar()
+  } catch (e) {
+    erro.value = e.response?.data?.mensagem || 'Não foi possível salvar o perfil.'
+  } finally {
+    salvando.value = false
+  }
 }
+
 onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 </script>
 
 <style scoped>
-.page-container { max-width: 1100px; margin: auto; padding: 2rem; }
-.header-n { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; }.header-n h1 { margin:0; }.header-n p { color:#666; }
-.card { background:#fff; border:1px solid #ddd; border-radius:8px; padding:1.5rem; }.data-table { width:100%; border-collapse:collapse; }.data-table th,.data-table td { padding:.75rem; border-bottom:1px solid #ddd; text-align:left; }
-.form { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:1rem; }.form label { display:grid; gap:.35rem; }.form input,.form select { padding:.55rem; }.btn-salvar { grid-column:1/-1; }.alert { padding:.75rem; border-radius:4px; }.error { background:#fee2e2; }.success { background:#dcfce7; }
+.page-container {
+  max-width: 1250px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-lg, 16px);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.toolbar-search {
+  margin-bottom: 1.25rem;
+}
+
+.search-box {
+  position: relative;
+  width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 1.2rem;
+}
+
+.input-search {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 2.4rem;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-md, 10px);
+  font-size: 0.95rem;
+  color: var(--text-primary, #0f172a);
+  background-color: #f8fafc;
+  box-sizing: border-box;
+  min-height: 44px;
+}
+
+.input-search:focus {
+  outline: none;
+  border-color: var(--primary, #2563eb);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.clear-input-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.clear-input-btn:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-md, 10px);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.data-table th, .data-table td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  vertical-align: middle;
+}
+
+.data-table th {
+  background: #f8fafc;
+  font-weight: 700;
+  color: #475569;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.data-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.user-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.text-muted {
+  color: #94a3b8;
+  font-size: 1.2rem;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: inline-flex;
+}
+
+.badge-admin { background: #faf5ff; color: #9333ea; }
+.badge-user { background: #eff6ff; color: #2563eb; }
+.badge-ativo { background: #ecfdf5; color: #10b981; }
+.badge-inativo { background: #fef2f2; color: #ef4444; }
+
+.text-right { text-align: right; }
+
+.btn-editar {
+  background: #eff6ff;
+  color: var(--primary, #2563eb);
+  border: 1px solid #bfdbfe;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+  min-height: 40px;
+}
+
+.btn-editar:hover {
+  background: var(--primary, #2563eb);
+  color: white;
+}
+
+/* Formulário */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.obrigatorio {
+  color: var(--danger, #ef4444);
+}
+
+.input-base {
+  padding: 0.8rem;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.input-base:focus {
+  outline: none;
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.input-disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.select-base {
+  background-color: white;
+  cursor: pointer;
+}
+
+.form-actions-row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+.btn-primary {
+  background: var(--primary, #2563eb);
+  color: white;
+  padding: 0.75rem 1.4rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: 0.2s;
+  min-height: 44px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover, #1d4ed8);
+}
+
+.btn-outline {
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  padding: 0.75rem 1.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-outline:hover { background: #f1f5f9; }
+
+.alert {
+  padding: 0.85rem 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.alert.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.alert.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+
 @media (max-width: 767px) {
-  .page-container { padding: 1rem; }
-  .header-n { align-items: stretch; flex-direction: column; gap: 1rem; }
-  .header-n > button { width: 100%; }
+  .page-container { padding: 1rem 0.5rem; }
   .card { padding: 1rem; }
-  .table-container { overflow-x: auto; }
-  .data-table { min-width: 560px; }
-  .form { grid-template-columns: 1fr; }
-  .btn-salvar { min-height: 44px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .data-table { min-width: 580px; }
+  .form-actions-row { flex-direction: column-reverse; }
+  .form-actions-row button { width: 100%; justify-content: center; }
 }
 </style>
