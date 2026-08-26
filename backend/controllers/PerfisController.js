@@ -1,7 +1,7 @@
 const db = require('../db');
 
 const PAPEIS = new Set(['ADMIN', 'LIDER', 'INSPETOR']);
-const DASS_COLABORADOR_BASE_URL = process.env.DASS_COLABORADOR_BASE_URL;
+const DASS_AUTH_BASE_URL = process.env.DASS_AUTH_BASE_URL || 'http://localhost:2123';
 
 const camposPerfil = `
     id, nome, matricula, papel, ativo, funcao,
@@ -16,12 +16,13 @@ const validarPerfil = (dados) => {
 };
 
 const buscarColaboradorCentral = async (matricula) => {
-    if (!DASS_COLABORADOR_BASE_URL) {
+    if (!DASS_AUTH_BASE_URL) {
         throw new Error('VALIDACAO_CENTRAL_NAO_CONFIGURADA');
     }
     let resposta;
     try {
-        resposta = await fetch(`${DASS_COLABORADOR_BASE_URL.replace(/\/$/, '')}/${encodeURIComponent(matricula)}`, { signal: AbortSignal.timeout(5000) });
+        const baseUrl = DASS_AUTH_BASE_URL.replace(/\/$/, '');
+        resposta = await fetch(`${baseUrl}/colaborador/${encodeURIComponent(matricula)}`, { signal: AbortSignal.timeout(5000) });
     } catch (error) {
         if (error.name === 'TimeoutError' || error.name === 'AbortError') throw new Error('VALIDACAO_CENTRAL_TIMEOUT');
         throw new Error('VALIDACAO_CENTRAL_INDISPONIVEL');
