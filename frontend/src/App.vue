@@ -43,11 +43,7 @@
             </template>
           </div>
 
-          <div v-if="usuarioLogado" class="user-info">
-            <div class="user-pill" :title="isAdmin ? 'Administrador' : 'Colaborador'">
-              <i class="mdi" :class="isAdmin ? 'mdi-shield-crown' : 'mdi-account-circle'"></i>
-              <span class="user-greeting">Olá, <strong>{{ nomeUsuario }}</strong></span>
-            </div>
+          <div v-if="usuarioLogado" class="user-actions">
             <button type="button" @click="fazerLogoff" class="logout-button" title="Encerrar Sessão">
               <i class="mdi mdi-logout"></i>
               <span>Sair</span>
@@ -66,6 +62,10 @@
         <p>&copy; {{ new Date().getFullYear() }} Grupo DASS &bull; Sistema de Gestão e Auditoria de Qualidade</p>
       </div>
     </footer>
+
+    <!-- 📌 Componentes Globais de Feedback / Popups -->
+    <ToastContainer />
+    <ConfirmDialog />
   </div>
 </template>
 
@@ -74,6 +74,8 @@ import { ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import localforage from 'localforage'
 import { encerrarSessao, obterPerfilLocal } from './services/session'
+import ToastContainer from './components/ToastContainer.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 
 localforage.config({
   name: 'AppLideranca',
@@ -174,22 +176,23 @@ body {
   align-items: center; 
   max-width: 1400px; 
   margin: 0 auto; 
-  padding: 0 1.5rem; 
-  height: 68px; 
-  gap: 1rem;
+  padding: 0 1.25rem; 
+  min-height: 64px;
+  height: auto; 
+  gap: 0.75rem;
 }
 
 /* LOGO */
 .logo-container { 
   display: flex; 
   align-items: center; 
-  gap: 0.85rem; 
+  gap: 0.75rem; 
   text-decoration: none;
   flex-shrink: 0;
 }
 
 .header-logo { 
-  height: 38px; 
+  height: 36px; 
   width: auto;
   object-fit: contain; 
 }
@@ -200,7 +203,7 @@ body {
 }
 
 .logo { 
-  font-size: 1.25rem; 
+  font-size: 1.2rem; 
   font-weight: 800; 
   margin: 0; 
   color: var(--text-primary); 
@@ -209,7 +212,7 @@ body {
 }
 
 .logo-subtitle {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
   font-weight: 600;
   text-transform: uppercase;
@@ -223,29 +226,37 @@ body {
   display: flex; 
   align-items: center; 
   justify-content: flex-end;
-  gap: 1.25rem; 
+  gap: 0.75rem; 
   flex-grow: 1;
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.nav-links::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-link { 
   color: var(--text-secondary); 
   text-decoration: none; 
   font-weight: 600; 
-  font-size: 0.95rem; 
-  padding: 0.55rem 0.95rem; 
+  font-size: 0.92rem; 
+  padding: 0.5rem 0.85rem; 
   border-radius: var(--radius-md); 
   transition: all 0.18s ease; 
   cursor: pointer; 
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  min-height: 42px;
+  gap: 0.4rem;
+  min-height: 40px;
+  white-space: nowrap;
   box-sizing: border-box;
 }
 
@@ -275,42 +286,12 @@ body {
   color: #ffffff !important;
 }
 
-/* USUÁRIO E LOGOUT */
-.user-info { 
+/* AÇÕES DO USUÁRIO E LOGOUT */
+.user-actions { 
   display: flex; 
   align-items: center; 
-  gap: 0.75rem; 
-  margin-left: 0.5rem; 
-  padding-left: 1rem; 
-  border-left: 1px solid var(--border-color); 
   flex-shrink: 0;
-}
-
-.user-pill {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  padding: 0.45rem 0.8rem;
-  border-radius: 9999px;
-  font-size: 0.88rem;
-  color: var(--text-secondary);
-}
-
-.user-pill i {
-  font-size: 1.1rem;
-  color: var(--primary);
-}
-
-.user-greeting { 
-  color: var(--text-primary); 
-  white-space: nowrap;
-}
-
-.user-greeting strong {
-  color: var(--text-primary);
-  font-weight: 700;
+  margin-left: 0.25rem;
 }
 
 .logout-button { 
@@ -318,7 +299,7 @@ body {
   color: var(--danger); 
   border: 1px solid #fecdd3; 
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.85rem;
+  padding: 0.5rem 0.9rem;
   font-weight: 600;
   font-size: 0.88rem;
   cursor: pointer;
@@ -326,7 +307,8 @@ body {
   align-items: center;
   gap: 0.35rem;
   transition: all 0.2s ease;
-  min-height: 38px;
+  min-height: 40px;
+  white-space: nowrap;
 }
 
 .logout-button:hover { 
@@ -339,8 +321,8 @@ body {
    MAIN CONTENT & FOOTER
    ========================================== */
 .main-content { 
-  min-height: calc(100vh - 68px - 60px); 
-  padding: 1.75rem; 
+  min-height: calc(100vh - 64px - 56px); 
+  padding: 1.5rem 1rem; 
   max-width: 1400px; 
   margin: 0 auto; 
   box-sizing: border-box;
@@ -349,10 +331,10 @@ body {
 .footer { 
   background: #ffffff; 
   border-top: 1px solid var(--border-color); 
-  padding: 1.25rem 0; 
+  padding: 1rem 0; 
   text-align: center; 
   color: var(--text-secondary); 
-  font-size: 0.85rem; 
+  font-size: 0.82rem; 
   font-weight: 500; 
 }
 
@@ -361,42 +343,28 @@ body {
    ========================================== */
 @media (max-width: 1080px) {
   .header-content {
-    padding: 0 1rem;
+    padding: 0 0.85rem;
     gap: 0.5rem;
   }
   .nav {
-    gap: 0.6rem;
+    gap: 0.5rem;
   }
   .nav-link {
-    padding: 0.5rem 0.7rem;
+    padding: 0.45rem 0.65rem;
     font-size: 0.88rem;
-    gap: 0.35rem;
+    gap: 0.3rem;
   }
   .nav-link i {
     font-size: 1.05rem;
-  }
-  .user-info {
-    padding-left: 0.6rem;
-    margin-left: 0.2rem;
-    gap: 0.5rem;
-  }
-  .user-pill {
-    padding: 0.4rem 0.65rem;
-    font-size: 0.82rem;
   }
 }
 
 /* TABLET PORTRAIT / MOBILE (< 768px) */
 @media (max-width: 768px) {
-  .header {
-    position: sticky;
-    top: 0;
-  }
   .header-content { 
     flex-direction: column; 
-    height: auto; 
-    padding: 0.65rem 0.85rem;
-    gap: 0.6rem;
+    padding: 0.6rem 0.85rem;
+    gap: 0.5rem;
   }
   .logo-container {
     width: 100%;
@@ -404,42 +372,27 @@ body {
   }
   .nav { 
     width: 100%; 
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
+    justify-content: space-between;
+    gap: 0.4rem;
   }
   .nav-links {
-    width: 100%;
+    flex-grow: 1;
     overflow-x: auto;
     padding-bottom: 2px;
     justify-content: flex-start;
-    -webkit-overflow-scrolling: touch;
   }
   .nav-link {
     flex-shrink: 0;
-    min-height: 44px;
-    padding: 0.55rem 0.85rem;
-    font-size: 0.9rem;
-  }
-  .user-info { 
-    margin-left: 0; 
-    padding-left: 0; 
-    border-left: none; 
-    border-top: 1px dashed var(--border-color);
-    padding-top: 0.45rem;
-    width: 100%; 
-    justify-content: space-between; 
-  }
-  .user-pill {
-    flex-grow: 1;
-    justify-content: center;
+    min-height: 40px;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.85rem;
   }
   .logout-button {
     min-height: 40px;
-    padding: 0.5rem 1rem;
+    padding: 0.45rem 0.75rem;
   }
   .main-content { 
-    padding: 1rem 0.75rem; 
+    padding: 1rem 0.5rem; 
   }
 }
 </style>
