@@ -34,8 +34,7 @@ import api from '../services/api'
 const modo = ref('lista'), perfis = ref([]), unidades = ref([]), setores = ref([]), celulas = ref([]), turnos = ref([])
 const erro = ref(''), sucesso = ref(''), salvando = ref(false)
 const vazio = () => ({ id: null, matricula: '', nome: '', papel: '', funcao: '', ativo: true, id_unidade_fk: '', id_setor_fk: '', id_celula_fk: '', id_turno_fk: '' })
-const form = reactive(vazio())
-const dados = (r) => r.data?.dados || r.data?.unidades || []
+const dados = (r) => r.data?.dados || r.data?.unidades || r.data?.setores || r.data?.celulas || r.data?.turnos || []
 const carregar = async () => { try { perfis.value = dados(await api.get('/perfis')) } catch { erro.value = 'Não foi possível carregar os perfis.' } }
 const dependencias = async () => {
   const [u, s, c, t] = await Promise.all([api.get('/cadastros/unidades'), api.get('/cadastros/setores'), api.get('/cadastros/celulas'), api.get('/cadastros/turnos')])

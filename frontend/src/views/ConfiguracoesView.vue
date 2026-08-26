@@ -188,7 +188,10 @@ const form = reactive({
   intervalo_fim: ''
 });
 
-const dadosAtuais = computed(() => dados[abaAtiva.value]);
+const dadosAtuais = computed(() => {
+  const lista = dados[abaAtiva.value] || [];
+  return lista.filter(item => item.ativo !== 0 && item.ativo !== false);
+});
 const abaInfo = computed(() => abas.find(a => a.id === abaAtiva.value));
 const nomeAbaAtiva = computed(() => abaInfo.value.titulo);
 const placeholderExemplo = computed(() => abaInfo.value.ex);
