@@ -107,10 +107,3 @@ export const dialog = {
     }
   }
 };
-
-export const useFeedback = () => ({
-  toastState,
-  dialogState,
-  toast,
-  dialog
-});

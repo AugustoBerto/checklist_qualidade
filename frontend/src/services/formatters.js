@@ -12,13 +12,6 @@ export const formatarDataHora = (dataString) => {
   });
 };
 
-export const formatarData = (dataString) => {
-  if (!dataString) return '--/--/----';
-  const data = new Date(dataString);
-  if (isNaN(data.getTime())) return '--/--/----';
-  return data.toLocaleDateString('pt-BR');
-};
-
 export const formatarHora = (horaString) => {
   if (!horaString) return '--:--';
   const str = String(horaString).trim();
