@@ -56,3 +56,19 @@
 ### Auto-review
 
 - O teste agora distingue a ordem real de validação e alcança a consulta de marca exclusivamente no caso aplicável; não houve mudança de produção.
+
+## Fix round 3 — integração real do UPSERT do catálogo
+
+- `backend/test/integration/database.integration.test.js`: adicionado cenário PostgreSQL protegido por `*_test` que cria marca/setor ativos, cria dois modelos distintos com a mesma categoria, exige 201 em ambos e confirma uma única categoria padrão ativa e as duas perguntas persistidas nos modelos.
+- Nenhum arquivo de produção foi alterado.
+
+### Comandos e resultados
+
+- `cd backend && npm run test:unit`: GREEN (`tests 5, pass 5, fail 0`).
+- `cd backend && npm run test:integration`: não iniciou os testes; Docker falhou ao acessar `/var/run/docker.sock` (`permission denied`).
+- A execução SQL do novo cenário permanece pendente até haver acesso ao banco descartável.
+
+### Auto-review
+
+- O teste usa nomes únicos (`Date.now()` + PID), consulta somente o banco configurado pelo runner e não depende de dados prévios.
+- A asserção de catálogo detecta duplicação; a consulta final exige exatamente uma pergunta por modelo/categoria.
