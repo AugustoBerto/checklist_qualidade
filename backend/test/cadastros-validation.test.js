@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { afterEach, test } = require('node:test');
 const db = require('../db');
 const cadastros = require('../controllers/CadastrosController');
+const perfis = require('../controllers/PerfisController');
 const dados = require('../controllers/DadosController');
 
 const originalConnect = db.connect;
@@ -92,7 +93,8 @@ test('atualizações convertem status booleano para colunas integer', async () =
 
   assert.equal(consultas[0].params[1], 1);
   assert.equal(consultas[1].params[1], 0);
-  assert.equal(consultas[2].params[3], 1);
+  const atualizacao = consultas.find(({ sql }) => /UPDATE celulas_producao/.test(sql));
+  assert.equal(atualizacao.params[3], 1);
 });
 
 test('criação e atualização rejeitam a mesma estrutura inválida antes de acessar o banco', async () => {
@@ -131,6 +133,7 @@ test('criação grava a marca canônica em id_marca_fk', async () => {
     async query(sql, params = []) {
       consultas.push({ sql, params });
       if (/SELECT id FROM marcas/.test(sql)) return { rows: [{ id: 7 }], rowCount: 1 };
+      if (/SELECT id FROM setores/.test(sql)) return { rows: [{ id: 3 }], rowCount: 1 };
       if (/INSERT INTO modelo/.test(sql)) return { rows: [{ id: 11 }], rowCount: 1 };
       if (/INSERT INTO categorias/.test(sql)) return { rows: [{ id: 12 }], rowCount: 1 };
       return { rows: [], rowCount: 1 };
@@ -170,6 +173,7 @@ test('atualização grava a marca canônica e exige ativo booleano', async () =>
     return {
       async query(sql, params = []) {
         if (/SELECT id FROM marcas/.test(sql)) return { rows: [{ id: 7 }], rowCount: 1 };
+        if (/SELECT id FROM setores/.test(sql)) return { rows: [{ id: 3 }], rowCount: 1 };
         if (/UPDATE modelo SET/.test(sql)) return { rows: [], rowCount: 1, sql, params };
         if (/SELECT id FROM categorias/.test(sql)) return { rows: [] };
         if (/INSERT INTO categorias/.test(sql)) return { rows: [{ id: 12 }], rowCount: 1 };
@@ -194,6 +198,7 @@ test('atualização grava a marca canônica e exige ativo booleano', async () =>
     async query(sql, params = []) {
       consultas.push({ sql, params });
       if (/SELECT id FROM marcas/.test(sql)) return { rows: [{ id: 7 }], rowCount: 1 };
+      if (/SELECT id FROM setores/.test(sql)) return { rows: [{ id: 3 }], rowCount: 1 };
       if (/UPDATE modelo SET/.test(sql)) return { rows: [], rowCount: 1 };
       if (/SELECT id FROM categorias/.test(sql)) return { rows: [] };
       if (/INSERT INTO categorias/.test(sql)) return { rows: [{ id: 12 }], rowCount: 1 };
@@ -313,4 +318,104 @@ test('atualização de categoria padrão persiste dados e exclusão inativa regi
   await cadastros.excluirCategoriaPadrao({ params: { id: 5 } }, resDelete);
   assert.equal(resDelete.statusCode, 200);
   assert.equal(inativacaoExecutada, true);
+});
+
+test('rejeita categorias cujos slugs colidem antes de escrever', async () => {
+  let conexoes = 0;
+  db.connect = async () => { conexoes += 1; throw new Error('não deveria conectar'); };
+  const res = resposta();
+
+  await cadastros.criarModelo({ body: {
+    nomeModelo: 'Modelo', id_marca_fk: 7, id_setor: 3,
+    categorias: {
+      'A B': { ctq: false, perguntas: ['Primeira'] },
+      A_B: { ctq: false, perguntas: ['Segunda'] },
+    },
+  } }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(conexoes, 0);
+});
+
+test('rejeita identificador de pergunta acima de 100 caracteres antes de escrever', async () => {
+  let conexoes = 0;
+  db.connect = async () => { conexoes += 1; throw new Error('não deveria conectar'); };
+  const res = resposta();
+
+  await cadastros.criarModelo({ body: {
+    nomeModelo: 'Modelo', id_marca_fk: 7, id_setor: 3,
+    categorias: { ['A'.repeat(100)]: { ctq: false, perguntas: ['Pergunta'] } },
+  } }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(conexoes, 0);
+});
+
+test('rejeita ctq textual no catálogo sem escrever', async () => {
+  let consultas = 0;
+  db.query = async () => { consultas += 1; throw new Error('não deveria consultar'); };
+  const res = resposta();
+
+  await cadastros.criarCategoriaPadrao({ body: { nome: 'Teste', ctq: 'false', perguntas: ['P'] } }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(consultas, 0);
+});
+
+test('rejeita setor inexistente ou inativo ao criar modelo antes do insert', async () => {
+  for (const setor of [{ rows: [], rowCount: 0 }, { rows: [], rowCount: 0 }]) {
+    const consultas = [];
+    db.connect = async () => ({
+      async query(sql, params = []) {
+        consultas.push({ sql, params });
+        if (/FROM marcas/.test(sql)) return { rows: [{ id: 7 }], rowCount: 1 };
+        if (/FROM setores/.test(sql)) return setor;
+        if (/^(BEGIN|ROLLBACK|COMMIT)$/.test(sql)) return { rows: [], rowCount: 0 };
+        throw new Error(`insert inesperado: ${sql}`);
+      },
+      release() {},
+    });
+    const res = resposta();
+
+    await cadastros.criarModelo({ body: { nomeModelo: 'Modelo', id_marca_fk: 7, id_setor: 3, categorias: categoriasValidas } }, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(consultas.some(({ sql }) => /INSERT INTO/.test(sql)), false);
+  }
+});
+
+test('rejeita célula com setor ou marca inexistente antes do insert', async () => {
+  for (const tabela of ['setores', 'marcas']) {
+    const consultas = [];
+    db.query = async (sql, params = []) => {
+      consultas.push({ sql, params });
+      if (new RegExp(`FROM ${tabela}`).test(sql)) return { rows: [], rowCount: 0 };
+      if (/FROM setores/.test(sql) || /FROM marcas/.test(sql)) return { rows: [{ id: 1 }], rowCount: 1 };
+      throw new Error(`insert inesperado: ${sql}`);
+    };
+    const res = resposta();
+
+    await cadastros.criarCelula({ body: { nome: 'Célula', id_setor_fk: 3, id_marca_fk: 7 } }, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(consultas.some(({ sql }) => /INSERT INTO/.test(sql)), false);
+  }
+});
+
+test('rejeita perfil com FK inválida sem inserir e preserva null explícito', async () => {
+  let inseriu = false;
+  db.query = async (sql) => {
+    if (/FROM unidades/.test(sql)) return { rows: [], rowCount: 0 };
+    if (/INSERT INTO usuarios/.test(sql)) inseriu = true;
+    return { rows: [{ id: 1 }], rowCount: 1 };
+  };
+  const res = resposta();
+
+  await perfis.criar({ body: {
+    matricula: '123', papel: 'INSPETOR', id_unidade_fk: 99,
+    id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
+  } }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(inseriu, false);
 });

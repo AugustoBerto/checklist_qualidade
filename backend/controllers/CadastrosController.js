@@ -1,7 +1,11 @@
 const db = require('../db');
 
 const nomeValido = (nome) => typeof nome === 'string' && nome.trim().length > 0 && nome.trim().length <= 255;
-const idValido = (id) => Number.isInteger(Number(id)) && Number(id) > 0;
+const idValido = (id) => {
+    const numero = Number(id);
+    return Number.isSafeInteger(numero) && numero > 0
+        && (typeof id === 'number' || typeof id === 'string' && /^\d+$/.test(id.trim()));
+};
 const normalizarNome = (nome) => nome.trim().toUpperCase();
 const MAX_LOGO_BYTES = 512 * 1024;
 const validarLogo = (valor) => {
@@ -17,24 +21,16 @@ const validarLogo = (valor) => {
     if (!logo.length || logo.length > MAX_LOGO_BYTES || !formatoValido) throw new Error('LOGO_INVALIDA');
     return { logo, mime };
 };
-const categoriasValidas = (categorias) => Boolean(
-    categorias
-    && typeof categorias === 'object'
-    && !Array.isArray(categorias)
-    && Object.keys(categorias).length
-    && Object.entries(categorias).every(([nomeCategoria, dados]) =>
-        nomeValido(nomeCategoria)
-        && Array.isArray(dados?.perguntas)
-        && dados.perguntas.length > 0
-        && dados.perguntas.every(nomeValido)
-    )
-);
-
 const obterMarcaId = (body) => body.id_marca_fk ?? body.nomeMarca;
 
 const validarMarca = async (client, idMarca) => {
     const { rows } = await client.query('SELECT id FROM marcas WHERE id = $1 FOR SHARE', [idMarca]);
     if (!rows.length) throw new Error('MARCA_INVALIDA');
+};
+
+const validarSetor = async (client, idSetor) => {
+    const { rows } = await client.query('SELECT id FROM setores WHERE id = $1 AND ativo = 1 FOR SHARE', [idSetor]);
+    if (!rows.length) throw new Error('SETOR_INVALIDO');
 };
 
 const slugify = (text) => {
@@ -43,29 +39,37 @@ const slugify = (text) => {
         .replace(/\s+/g, '_').replace(/[^\w-]+/g, '').replace(/--+/g, '_');
 };
 
+const categoriasValidas = (categorias) => {
+    if (!categorias || typeof categorias !== 'object' || Array.isArray(categorias) || !Object.keys(categorias).length) return false;
+    const identificacoes = new Set();
+    return Object.entries(categorias).every(([nomeCategoria, dados]) => {
+        if (!nomeValido(nomeCategoria)
+            || (dados?.ctq !== undefined && typeof dados.ctq !== 'boolean')
+            || !Array.isArray(dados?.perguntas)
+            || dados.perguntas.length === 0
+            || !dados.perguntas.every(nomeValido)) return false;
+        return dados.perguntas.every((_pergunta, index) => {
+            const identificacao = `${slugify(nomeCategoria)}_${index + 1}`;
+            if (identificacao.length > 100 || identificacoes.has(identificacao)) return false;
+            identificacoes.add(identificacao);
+            return true;
+        });
+    });
+};
+
 const sincronizarCategoriaPadrao = async (client, nomeCategoria, isCtq, arrayPerguntas) => {
-    try {
-        const nomeNorm = normalizarNome(nomeCategoria);
-        if (!nomeNorm) return;
-        const perguntasLimpas = Array.isArray(arrayPerguntas)
-            ? arrayPerguntas.map(p => String(p || '').trim()).filter(Boolean)
-            : [];
+    const nomeNorm = normalizarNome(nomeCategoria);
+    if (!nomeNorm) return;
+    const perguntasLimpas = Array.isArray(arrayPerguntas)
+        ? arrayPerguntas.map(p => String(p || '').trim()).filter(Boolean)
+        : [];
 
-        const existente = await client.query(
-            'SELECT id FROM categorias_padrao WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) AND ativo = 1',
-            [nomeNorm]
-        );
-
-        if (existente.rowCount === 0) {
-            await client.query(
-                `INSERT INTO categorias_padrao (nome, ctq, perguntas, ativo)
-                 VALUES ($1, $2, $3::jsonb, 1)`,
-                [nomeNorm, Boolean(isCtq), JSON.stringify(perguntasLimpas)]
-            );
-        }
-    } catch (err) {
-        console.warn('Aviso: falha ao sincronizar categoria padrão no catálogo:', err.message);
-    }
+    await client.query(
+        `INSERT INTO categorias_padrao (nome, ctq, perguntas, ativo)
+         VALUES ($1, $2, $3::jsonb, 1)
+         ON CONFLICT (LOWER(TRIM(nome))) WHERE ativo = 1 DO NOTHING`,
+        [nomeNorm, Boolean(isCtq), JSON.stringify(perguntasLimpas)]
+    );
 };
 
 exports.criarModelo = async (req, res) => {
@@ -80,15 +84,16 @@ exports.criarModelo = async (req, res) => {
 
     try {
         await client.query('BEGIN'); 
-        await validarMarca(client, idMarca);
+        await validarMarca(client, Number(idMarca));
+        await validarSetor(client, Number(id_setor));
 
         const sqlModelo = 'INSERT INTO modelo (nome, id_marca_fk, id_setor_fk) VALUES ($1, $2, $3) RETURNING id';
-        const resModelo = await client.query(sqlModelo, [nomeModelo.trim(), Number(idMarca), id_setor]);
+        const resModelo = await client.query(sqlModelo, [nomeModelo.trim(), Number(idMarca), Number(id_setor)]);
         const modeloId = resModelo.rows[0].id;
 
         for (const nomeCategoria in categorias) {
             const catData = categorias[nomeCategoria];
-            const isCtq = catData.ctq || false;
+            const isCtq = catData.ctq ?? false;
             const arrayPerguntas = catData.perguntas;
 
             await sincronizarCategoriaPadrao(client, nomeCategoria, isCtq, arrayPerguntas);
@@ -119,6 +124,7 @@ exports.criarModelo = async (req, res) => {
              return res.status(409).json({ sucesso: false, mensagem: `O modelo '${nomeModelo}' já existe.` });
         }
         if (error.message === 'MARCA_INVALIDA') return res.status(400).json({ sucesso: false, mensagem: 'A marca informada não existe.' });
+        if (error.message === 'SETOR_INVALIDO') return res.status(400).json({ sucesso: false, mensagem: 'O setor informado não existe ou está inativo.' });
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
     } finally {
         client.release(); 
@@ -215,11 +221,12 @@ exports.atualizarModelo = async (req, res) => {
 
     try {
         await client.query('BEGIN');
-        await validarMarca(client, idMarca);
+        await validarMarca(client, Number(idMarca));
+        await validarSetor(client, Number(id_setor));
 
         const modeloAtualizado = await client.query(
             'UPDATE modelo SET nome = $1, id_marca_fk = $2, ativo = $3, id_setor_fk = $4 WHERE id = $5',
-            [nomeModelo.trim(), Number(idMarca), ativo, id_setor, id]
+            [nomeModelo.trim(), Number(idMarca), ativo, Number(id_setor), id]
         );
         if (!modeloAtualizado.rowCount) {
             await client.query('ROLLBACK');
@@ -230,7 +237,7 @@ exports.atualizarModelo = async (req, res) => {
 
         for (const nomeCategoria in categorias) {
             const catData = categorias[nomeCategoria];
-            const isCtq = catData.ctq || false;
+            const isCtq = catData.ctq ?? false;
             const arrayPerguntas = catData.perguntas;
 
             await sincronizarCategoriaPadrao(client, nomeCategoria, isCtq, arrayPerguntas);
@@ -294,6 +301,7 @@ exports.atualizarModelo = async (req, res) => {
              return res.status(409).json({ sucesso: false, mensagem: `O modelo '${nomeModelo}' já existe.` });
         }
         if (error.message === 'MARCA_INVALIDA') return res.status(400).json({ sucesso: false, mensagem: 'A marca informada não existe.' });
+        if (error.message === 'SETOR_INVALIDO') return res.status(400).json({ sucesso: false, mensagem: 'O setor informado não existe ou está inativo.' });
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
     } finally {
         client.release();
@@ -451,19 +459,22 @@ exports.listarCelulas = async (req, res) => {
 exports.criarCelula = async (req, res) => {
     const { nome, id_setor_fk, id_marca_fk } = req.body;
     
-    if (!nomeValido(nome) || !idValido(id_setor_fk) || (id_marca_fk != null && !idValido(id_marca_fk))) {
+    if (!nomeValido(nome) || !idValido(id_setor_fk) || (id_marca_fk !== null && !idValido(id_marca_fk))) {
         return res.status(400).json({ sucesso: false, mensagem: 'Nome e Setor são obrigatórios.' });
     }
     
     try {
+        await validarSetor(db, Number(id_setor_fk));
+        if (id_marca_fk !== null) await validarMarca(db, Number(id_marca_fk));
         const query = `
             INSERT INTO celulas_producao (nome, id_setor_fk, id_marca_fk, ativo) 
             VALUES ($1, $2, $3, 1) RETURNING *
         `;
-        const { rows } = await db.query(query, [normalizarNome(nome), id_setor_fk, id_marca_fk || null]);
+        const { rows } = await db.query(query, [normalizarNome(nome), Number(id_setor_fk), id_marca_fk === null ? null : Number(id_marca_fk)]);
         res.status(201).json({ sucesso: true, mensagem: 'Célula criada!', celula: rows[0] });
     } catch (error) {
         console.error('Erro ao criar célula:', error);
+        if (error.message === 'MARCA_INVALIDA' || error.message === 'SETOR_INVALIDO') return res.status(400).json({ sucesso: false, mensagem: 'Setor ou marca inválidos.' });
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
     }
 };
@@ -471,19 +482,22 @@ exports.criarCelula = async (req, res) => {
 exports.atualizarCelula = async (req, res) => {
     const { id } = req.params;
     const { nome, id_setor_fk, id_marca_fk, ativo } = req.body;
-    if (!idValido(id) || !nomeValido(nome) || !idValido(id_setor_fk) || (id_marca_fk != null && !idValido(id_marca_fk)) || typeof ativo !== 'boolean') return res.status(400).json({ sucesso: false, mensagem: 'Dados da célula inválidos.' });
+    if (!idValido(id) || !nomeValido(nome) || !idValido(id_setor_fk) || (id_marca_fk !== null && !idValido(id_marca_fk)) || typeof ativo !== 'boolean') return res.status(400).json({ sucesso: false, mensagem: 'Dados da célula inválidos.' });
     
     try {
+        await validarSetor(db, Number(id_setor_fk));
+        if (id_marca_fk !== null) await validarMarca(db, Number(id_marca_fk));
         const query = `
             UPDATE celulas_producao 
             SET nome = $1, id_setor_fk = $2, id_marca_fk = $3, ativo = $4 
             WHERE id = $5 RETURNING *
         `;
-        const result = await db.query(query, [normalizarNome(nome), id_setor_fk, id_marca_fk || null, Number(ativo), id]);
+        const result = await db.query(query, [normalizarNome(nome), Number(id_setor_fk), id_marca_fk === null ? null : Number(id_marca_fk), Number(ativo), id]);
         if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Célula não encontrada.' });
         res.status(200).json({ sucesso: true, mensagem: 'Célula atualizada!', celula: result.rows[0] });
     } catch (error) {
         console.error('Erro ao atualizar célula:', error);
+        if (error.message === 'MARCA_INVALIDA' || error.message === 'SETOR_INVALIDO') return res.status(400).json({ sucesso: false, mensagem: 'Setor ou marca inválidos.' });
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
     }
 };
@@ -619,7 +633,7 @@ exports.listarCategoriasPadrao = async (req, res) => {
 
 exports.criarCategoriaPadrao = async (req, res) => {
     const { nome, ctq, perguntas } = req.body;
-    if (!nomeValido(nome)) {
+    if (!nomeValido(nome) || (ctq !== undefined && typeof ctq !== 'boolean')) {
         return res.status(400).json({ sucesso: false, mensagem: 'O nome da categoria é obrigatório.' });
     }
     const nomeNormalizado = normalizarNome(nome);
@@ -629,19 +643,16 @@ exports.criarCategoriaPadrao = async (req, res) => {
         : [];
 
     try {
-        const existente = await db.query(
-            'SELECT id FROM categorias_padrao WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) AND ativo = 1',
-            [nomeNormalizado]
-        );
-        if (existente.rowCount > 0) {
-            return res.status(409).json({ sucesso: false, mensagem: `Já existe uma categoria cadastrada com o nome '${nomeNormalizado}'.` });
-        }
-
         const { rows } = await db.query(
             `INSERT INTO categorias_padrao (nome, ctq, perguntas, ativo) 
-             VALUES ($1, $2, $3::jsonb, 1) RETURNING *`,
+             VALUES ($1, $2, $3::jsonb, 1)
+             ON CONFLICT (LOWER(TRIM(nome))) WHERE ativo = 1 DO NOTHING
+             RETURNING *`,
             [nomeNormalizado, isCtq, JSON.stringify(perguntasArray)]
         );
+        if (rows.length === 0) {
+            return res.status(409).json({ sucesso: false, mensagem: `Já existe uma categoria cadastrada com o nome '${nomeNormalizado}'.` });
+        }
         res.status(201).json({ sucesso: true, mensagem: 'Categoria cadastrada com sucesso!', categoria: rows[0] });
     } catch (error) {
         console.error('Erro ao criar categoria padrão:', error);
@@ -655,7 +666,7 @@ exports.criarCategoriaPadrao = async (req, res) => {
 exports.atualizarCategoriaPadrao = async (req, res) => {
     const { id } = req.params;
     const { nome, ctq, perguntas } = req.body;
-    if (!idValido(id) || !nomeValido(nome)) {
+    if (!idValido(id) || !nomeValido(nome) || (ctq !== undefined && typeof ctq !== 'boolean')) {
         return res.status(400).json({ sucesso: false, mensagem: 'ID e nome válido são obrigatórios.' });
     }
     const nomeNormalizado = normalizarNome(nome);

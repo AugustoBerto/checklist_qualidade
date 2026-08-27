@@ -9,7 +9,7 @@ const camposPerfil = `
 `;
 
 const validarPerfil = (dados) => {
-    if (!dados.matricula || !PAPEIS.has(dados.papel)) {
+    if (!dados || !dados.matricula || !PAPEIS.has(dados.papel)) {
         return 'Matrícula e papel válido são obrigatórios.';
     }
     return null;
@@ -30,7 +30,33 @@ const buscarColaboradorCentral = async (matricula) => {
     return corpo.data || null;
 };
 
-const normalizarIdFk = (id) => (id && Number.isInteger(Number(id)) && Number(id) > 0 ? Number(id) : null);
+const idValido = (id) => {
+    const numero = Number(id);
+    return Number.isSafeInteger(numero) && numero > 0
+        && (typeof id === 'number' || typeof id === 'string' && /^\d+$/.test(id.trim()));
+};
+const CAMPOS_FK = [
+    ['id_unidade_fk', 'unidades', true],
+    ['id_setor_fk', 'setores', true],
+    ['id_celula_fk', 'celulas_producao', true],
+    ['id_turno_fk', 'turnos', false],
+];
+const referenciasValidas = (dados) => CAMPOS_FK.every(([campo]) =>
+    Object.prototype.hasOwnProperty.call(dados, campo)
+    && (dados[campo] === null || idValido(dados[campo]))
+);
+const validarReferencias = async (executor, dados) => {
+    if (!referenciasValidas(dados)) throw new Error('FK_INVALIDA');
+    for (const [campo, tabela, ativa] of CAMPOS_FK) {
+        if (dados[campo] === null) continue;
+        const { rows } = await executor.query(
+            `SELECT id FROM ${tabela} WHERE id = $1${ativa ? ' AND ativo = 1' : ''} FOR SHARE`,
+            [Number(dados[campo])]
+        );
+        if (!rows.length) throw new Error('FK_INVALIDA');
+    }
+};
+const normalizarIdFk = (id) => (id === null ? null : Number(id));
 
 exports.me = async (req, res) => {
     res.json({ sucesso: true, perfil: req.usuario });
@@ -52,6 +78,7 @@ exports.criar = async (req, res) => {
 
     const { matricula, papel, id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk } = req.body;
     try {
+        await validarReferencias(db, req.body);
         const colaborador = await buscarColaboradorCentral(matricula);
         if (!colaborador) return res.status(400).json({ sucesso: false, mensagem: 'Matrícula não encontrada no dass_auth.' });
         const { rows } = await db.query(`
@@ -66,6 +93,7 @@ exports.criar = async (req, res) => {
     } catch (error) {
         console.error('Erro ao criar perfil:', error);
         if (error.code === '23505') return res.status(409).json({ sucesso: false, mensagem: 'Já existe um perfil para esta matrícula.' });
+        if (error.message === 'FK_INVALIDA') return res.status(400).json({ sucesso: false, mensagem: 'Uma referência informada não existe ou está inativa.' });
         if (error.message === 'VALIDACAO_CENTRAL_NAO_CONFIGURADA') return res.status(500).json({ sucesso: false, mensagem: 'A validação central não está configurada.' });
         if (error.message === 'VALIDACAO_CENTRAL_TIMEOUT') return res.status(504).json({ sucesso: false, mensagem: 'A validação central excedeu o tempo limite.' });
         if (error.message === 'VALIDACAO_CENTRAL_INDISPONIVEL') return res.status(503).json({ sucesso: false, mensagem: 'A validação central está indisponível.' });
@@ -74,12 +102,13 @@ exports.criar = async (req, res) => {
 };
 
 exports.atualizar = async (req, res) => {
-    if (!PAPEIS.has(req.body.papel)) {
+    if (!req.body || !PAPEIS.has(req.body.papel)) {
         return res.status(400).json({ sucesso: false, mensagem: 'Papel válido é obrigatório.' });
     }
 
     const { papel, ativo, id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk } = req.body;
     try {
+        await validarReferencias(db, req.body);
         const { rows } = await db.query(`
             UPDATE usuarios SET
                 papel = $1, ativo = $2,
@@ -92,6 +121,7 @@ exports.atualizar = async (req, res) => {
         res.json({ sucesso: true, perfil: rows[0] });
     } catch (error) {
         console.error('Erro ao atualizar perfil:', error);
+        if (error.message === 'FK_INVALIDA') return res.status(400).json({ sucesso: false, mensagem: 'Uma referência informada não existe ou está inativa.' });
         res.status(error.code === '23505' ? 409 : 500).json({ sucesso: false, mensagem: 'Não foi possível atualizar o perfil.' });
     }
 };
