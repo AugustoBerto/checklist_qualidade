@@ -64,22 +64,6 @@
             </button>
           </div>
         </nav>
-
-        <!-- Ações Rápidas Mobile / Tablet (<= 1080px) -->
-        <div class="header-mobile-actions">
-          <template v-if="usuarioLogado && perfilUsuario">
-            <button type="button" @click="toggleSidebar" class="mobile-user-pill" title="Ver Menu e Perfil">
-              <i class="mdi mdi-account-circle"></i>
-              <span class="mobile-user-name">{{ formatarNomeCurto(perfilUsuario.nome) }}</span>
-            </button>
-          </template>
-          <template v-else>
-            <router-link to="/login" class="btn-login-link mobile-login-quick" title="Fazer Login">
-              <i class="mdi mdi-login"></i>
-              <span>Entrar</span>
-            </router-link>
-          </template>
-        </div>
       </div>
     </header>
 
@@ -106,9 +90,6 @@
 
       <!-- Card do Colaborador Logado -->
       <div v-if="usuarioLogado && perfilUsuario" class="sidebar-user-card">
-        <div class="sidebar-avatar">
-          <i class="mdi mdi-account"></i>
-        </div>
         <div class="sidebar-user-details">
           <strong class="sidebar-user-name">{{ perfilUsuario.nome }}</strong>
           <div class="sidebar-user-meta">
@@ -166,21 +147,12 @@
           <i class="mdi mdi-logout"></i>
           <span>Encerrar Sessão</span>
         </button>
-        <div class="sidebar-footer-info">
-          <span>&copy; {{ new Date().getFullYear() }} Grupo DASS</span>
-        </div>
       </div>
     </aside>
 
     <main class="main-content">
       <router-view :key="$route.path" />
     </main>
-
-    <footer class="footer">
-      <div class="footer-content">
-        <p>&copy; {{ new Date().getFullYear() }} Grupo DASS &bull; Sistema de Gestão e Auditoria de Qualidade</p>
-      </div>
-    </footer>
 
     <!-- 📌 Componentes Globais de Feedback / Popups -->
     <ToastContainer />
@@ -403,20 +375,20 @@ body {
 }
 
 .logo { 
-  font-size: 1.2rem; 
-  font-weight: 800; 
+  font-size: 1.15rem; 
+  font-weight: 600; 
   margin: 0; 
   color: var(--text-primary); 
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
   line-height: 1.2;
 }
 
 .logo-subtitle {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.75px;
 }
 
 /* ==========================================
@@ -467,48 +439,6 @@ body {
   background: #fff1f2; 
   color: var(--primary); 
   font-weight: 700;
-}
-
-/* ==========================================
-   AÇÕES RÁPIDAS MOBILE NO HEADER (<= 1080px)
-   ========================================== */
-.header-mobile-actions {
-  display: none;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.mobile-user-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  cursor: pointer;
-  min-height: 38px;
-  transition: all 0.15s ease;
-}
-
-.mobile-user-pill i {
-  font-size: 1.2rem;
-  color: var(--primary);
-}
-
-.mobile-user-pill:hover,
-.mobile-user-pill:active {
-  background: #fff1f2;
-  border-color: var(--primary-border);
-}
-
-.mobile-login-quick {
-  min-height: 38px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.85rem;
 }
 
 /* ==========================================
@@ -636,17 +566,18 @@ body {
 
 .sidebar-app-title {
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--text-primary);
-  line-height: 1.1;
+  line-height: 1.2;
+  letter-spacing: -0.2px;
 }
 
 .sidebar-app-subtitle {
   font-size: 0.68rem;
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.75px;
 }
 
 .btn-close-sidebar {
@@ -853,31 +784,15 @@ body {
   border-color: var(--danger, #ef4444);
 }
 
-.sidebar-footer-info {
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-}
-
 /* ==========================================
-   MAIN CONTENT & FOOTER
+   MAIN CONTENT
    ========================================== */
 .main-content { 
-  min-height: calc(100vh - 64px - 56px); 
+  min-height: calc(100vh - 64px); 
   padding: 1.5rem 1rem; 
   max-width: 1400px; 
   margin: 0 auto; 
   box-sizing: border-box;
-}
-
-.footer { 
-  background: #ffffff; 
-  border-top: 1px solid var(--border-color); 
-  padding: 1rem 0; 
-  text-align: center; 
-  color: var(--text-secondary); 
-  font-size: 0.82rem; 
-  font-weight: 500; 
 }
 
 /* ==========================================
@@ -885,7 +800,6 @@ body {
    ========================================== */
 @media (min-width: 1081px) {
   .mobile-menu-btn,
-  .header-mobile-actions,
   .sidebar-backdrop,
   .sidebar-drawer {
     display: none !important;
@@ -899,10 +813,6 @@ body {
 
   .mobile-menu-btn {
     display: inline-flex !important;
-  }
-
-  .header-mobile-actions {
-    display: flex !important;
   }
 
   .header-content {
