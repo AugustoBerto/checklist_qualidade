@@ -14,7 +14,7 @@
         title="Criar Novo Usuário"
         description="Adicionar novos membros, definir permissões e gerenciar acessos ao sistema."
         icon="mdi mdi-account-plus-outline"
-        color="blue"
+        color="dass"
       />
 
       <ModuleCard
@@ -22,7 +22,7 @@
         title="Adicionar Novo Checklist"
         description="Criar novos modelos de auditoria e configurar as perguntas padrão das linhas."
         icon="mdi mdi-clipboard-plus-outline"
-        color="green"
+        color="dass"
       />
 
       <ModuleCard
@@ -30,7 +30,7 @@
         title="Configurar Base do Sistema"
         description="Gerenciar Células, Turnos, Unidades, Setores e Marcas."
         icon="mdi mdi-cogs"
-        color="purple"
+        color="dass"
       />
     </div>
   </div>
@@ -58,12 +58,12 @@ import ModuleCard from '../components/ModuleCard.vue'
 
 .header-icon {
   font-size: 3rem;
-  color: var(--primary, #2563eb);
+  color: var(--primary, #b1072c);
   margin-bottom: 0.75rem;
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  background: #eff6ff;
+  background: #fff1f2;
   width: 80px;
   height: 80px;
   border-radius: 50%;

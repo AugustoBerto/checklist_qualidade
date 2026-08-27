@@ -35,8 +35,8 @@ const props = defineProps({
   },
   color: {
     type: String,
-    default: 'blue',
-    validator: (val) => ['blue', 'green', 'purple', 'orange', 'red'].includes(val)
+    default: 'dass',
+    validator: (val) => ['dass', 'blue', 'green', 'purple', 'orange', 'red'].includes(val)
   }
 })
 
@@ -64,7 +64,7 @@ const colorClass = computed(() => `bg-${props.color}`)
 .module-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
-  border-color: var(--primary, #2563eb);
+  border-color: var(--primary, #b1072c);
 }
 
 .icon-wrapper {
@@ -79,11 +79,12 @@ const colorClass = computed(() => `bg-${props.color}`)
   flex-shrink: 0;
 }
 
-.bg-blue { background: #eff6ff; color: #2563eb; }
+.bg-dass { background: #fff1f2; color: #b1072c; }
+.bg-blue { background: #eff6ff; color: #b1072c; }
 .bg-green { background: #ecfdf5; color: #10b981; }
-.bg-purple { background: #faf5ff; color: #9333ea; }
+.bg-purple { background: #fff1f2; color: #b1072c; }
 .bg-orange { background: #fff7ed; color: #ea580c; }
-.bg-red { background: #fef2f2; color: #dc2626; }
+.bg-red { background: #fff1f2; color: #b1072c; }
 
 .module-info {
   flex-grow: 1;
@@ -113,7 +114,7 @@ const colorClass = computed(() => `bg-${props.color}`)
 }
 
 .module-card:hover .arrow-icon {
-  color: var(--primary, #2563eb);
+  color: var(--primary, #b1072c);
   transform: translateX(4px);
 }
 

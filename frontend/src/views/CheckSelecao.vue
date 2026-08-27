@@ -291,7 +291,7 @@ function resetarSelecao() {
 }
 
 .brand-card:hover {
-  border-color: #2563eb;
+  border-color: var(--primary, #b1072c);
   transform: translateY(-5px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
@@ -315,7 +315,7 @@ function resetarSelecao() {
   font-size: 2.5rem;
   font-weight: 800;
   color: #fff;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #b1072c 0%, #8f0523 100%);
   width: 100%;
   height: 100%;
   display: flex;
@@ -360,7 +360,7 @@ function resetarSelecao() {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--primary, #b1072c);
   color: white;
   display: flex;
   align-items: center;
@@ -401,7 +401,7 @@ function resetarSelecao() {
   padding: 1rem 1.5rem;
   font-size: 1.1rem;
   font-weight: 700;
-  background: var(--primary, #2563eb);
+  background: var(--primary, #b1072c);
   color: #ffffff;
   border: none;
   border-radius: 10px;
@@ -416,7 +416,7 @@ function resetarSelecao() {
 }
 
 .continuar-button:hover:not(:disabled) {
-  background: var(--primary-hover, #1d4ed8);
+  background: var(--primary-hover, #8f0523);
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
@@ -445,8 +445,8 @@ function resetarSelecao() {
 }
 
 .spinner {
-  border: 4px solid rgba(37, 99, 235, 0.1);
-  border-left-color: #2563eb;
+  border: 4px solid rgba(177, 7, 44, 0.15);
+  border-left-color: #b1072c;
   border-radius: 50%;
   width: 40px;
   height: 40px;

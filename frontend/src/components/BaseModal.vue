@@ -102,7 +102,7 @@ const fechar = () => {
 
 .modal-icon {
   font-size: 1.4rem;
-  color: var(--primary, #2563eb);
+  color: var(--primary, #b1072c);
 }
 
 .modal-title {

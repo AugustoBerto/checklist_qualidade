@@ -127,8 +127,8 @@ const confirmButtonClass = computed(() => {
 }
 
 .badge-primary {
-  background: #dbeafe;
-  color: #2563eb;
+  background: #fff1f2;
+  color: #b1072c;
 }
 
 .dialog-title {

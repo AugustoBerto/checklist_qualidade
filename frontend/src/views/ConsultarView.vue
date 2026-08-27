@@ -241,9 +241,9 @@ onMounted(buscarChecklists);
 
 .input-search:focus {
   outline: none;
-  border-color: var(--primary, #2563eb);
+  border-color: var(--primary, #b1072c);
   background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
 }
 
 .date-filters {
@@ -337,8 +337,8 @@ onMounted(buscarChecklists);
   gap: 4px;
   margin-top: 4px;
   font-size: 0.8rem;
-  color: var(--primary, #2563eb);
-  background: #eff6ff;
+  color: var(--primary, #b1072c);
+  background: #fff1f2;
   padding: 3px 8px;
   border-radius: 6px;
   font-weight: 600;
@@ -363,22 +363,22 @@ onMounted(buscarChecklists);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background-color: #eff6ff;
-  color: var(--primary, #2563eb);
+  background-color: #fff1f2;
+  color: var(--primary, #b1072c);
   text-decoration: none;
   padding: 0.55rem 1rem;
   border-radius: 8px;
   font-size: 0.9rem;
   font-weight: 700;
   transition: all 0.2s;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #fecdd3;
   min-height: 40px;
 }
 
 .btn-view:hover {
-  background-color: var(--primary, #2563eb);
+  background-color: var(--primary, #b1072c);
   color: #ffffff;
-  border-color: var(--primary, #2563eb);
+  border-color: var(--primary, #b1072c);
 }
 
 .pagination-bar {

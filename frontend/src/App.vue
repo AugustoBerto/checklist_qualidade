@@ -137,9 +137,12 @@ watch(() => router.currentRoute.value.path, verificarAuth);
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --border-color: #e2e8f0;
-  --primary: #2563eb;       
-  --primary-hover: #1d4ed8;
-  --accent: #3b82f6;        
+  --primary: #b1072c;       /* Vermelho Oficial Dass */
+  --primary-hover: #8f0523;
+  --primary-active: #70031a;
+  --primary-light: #fff1f2;
+  --primary-border: #fecdd3;
+  --accent: #c71940;        
   --danger: #ef4444;
   --danger-hover: #dc2626;
   --success: #10b981;
@@ -271,7 +274,7 @@ body {
 
 .nav-link.active,
 .nav-link.router-link-exact-active { 
-  background: #eff6ff; 
+  background: #fff1f2; 
   color: var(--primary); 
   font-weight: 700;
 }

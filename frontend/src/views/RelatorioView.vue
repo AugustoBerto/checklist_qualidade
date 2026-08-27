@@ -208,7 +208,7 @@ onUnmounted(() => {
 }
 
 .btn-primary {
-  background: var(--primary, #2563eb);
+  background: var(--primary, #b1072c);
   color: white;
   padding: 0.65rem 1.25rem;
   border-radius: 8px;
@@ -223,7 +223,7 @@ onUnmounted(() => {
 }
 
 .btn-primary:hover {
-  background: var(--primary-hover, #1d4ed8);
+  background: var(--primary-hover, #8f0523);
 }
 
 .btn-outline {

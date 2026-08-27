@@ -483,7 +483,7 @@ async function enviarFormulario() {
 
 .progresso-percent {
   font-weight: 800;
-  color: var(--primary, #2563eb);
+  color: var(--primary, #b1072c);
 }
 
 .progresso progress {
@@ -499,7 +499,7 @@ async function enviarFormulario() {
 }
 
 .progresso progress::-webkit-progress-value {
-  background-color: var(--primary, #2563eb);
+  background-color: var(--primary, #b1072c);
   border-radius: 999px;
 }
 
@@ -727,8 +727,8 @@ async function enviarFormulario() {
 }
 
 .btn-foto:hover {
-  border-color: var(--primary, #2563eb);
-  color: var(--primary, #2563eb);
+  border-color: var(--primary, #b1072c);
+  color: var(--primary, #b1072c);
 }
 
 .input-foto { display: none; }
@@ -824,7 +824,7 @@ async function enviarFormulario() {
 }
 
 .btn-enviar {
-  background-color: var(--primary, #2563eb);
+  background-color: var(--primary, #b1072c);
   color: white;
   border: none;
   padding: 1.1rem 2.5rem;
@@ -844,7 +844,7 @@ async function enviarFormulario() {
 }
 
 .btn-enviar:hover:not(:disabled) {
-  background-color: var(--primary-hover, #1d4ed8);
+  background-color: var(--primary-hover, #8f0523);
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }

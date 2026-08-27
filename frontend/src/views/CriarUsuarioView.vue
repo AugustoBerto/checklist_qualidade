@@ -372,9 +372,9 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 
 .input-search:focus {
   outline: none;
-  border-color: var(--primary, #2563eb);
+  border-color: var(--primary, #b1072c);
   background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
 }
 
 .clear-input-btn {
@@ -450,17 +450,17 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
   display: inline-flex;
 }
 
-.badge-admin { background: #faf5ff; color: #9333ea; }
-.badge-user { background: #eff6ff; color: #2563eb; }
+.badge-admin { background: #fff1f2; color: #b1072c; font-weight: 700; border: 1px solid #fecdd3; }
+.badge-user { background: #f1f5f9; color: #475569; }
 .badge-ativo { background: #ecfdf5; color: #10b981; }
 .badge-inativo { background: #fef2f2; color: #ef4444; }
 
 .text-right { text-align: right; }
 
 .btn-editar {
-  background: #eff6ff;
-  color: var(--primary, #2563eb);
-  border: 1px solid #bfdbfe;
+  background: #fff1f2;
+  color: var(--primary, #b1072c);
+  border: 1px solid #fecdd3;
   padding: 0.5rem 1rem;
   border-radius: 8px;
   font-weight: 600;
@@ -474,7 +474,7 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 }
 
 .btn-editar:hover {
-  background: var(--primary, #2563eb);
+  background: var(--primary, #b1072c);
   color: white;
 }
 
@@ -511,8 +511,8 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 
 .input-base:focus {
   outline: none;
-  border-color: var(--primary, #2563eb);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--primary, #b1072c);
+  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
 }
 
 .input-disabled {
@@ -537,7 +537,7 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 }
 
 .btn-primary {
-  background: var(--primary, #2563eb);
+  background: var(--primary, #b1072c);
   color: white;
   padding: 0.75rem 1.4rem;
   border: none;
@@ -552,7 +552,7 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover, #1d4ed8);
+  background: var(--primary-hover, #8f0523);
 }
 
 .btn-outline {

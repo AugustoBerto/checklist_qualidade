@@ -689,9 +689,9 @@ const salvarChecklist = async () => {
 
 .input-search:focus {
   outline: none;
-  border-color: var(--primary, #2563eb);
+  border-color: var(--primary, #b1072c);
   background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
 }
 
 .clear-input-btn {
@@ -755,11 +755,11 @@ const salvarChecklist = async () => {
 .badge-inativo { background: #e74c3c; }
 
 /* 📌 Estilo para a badge de Setor na Tabela */
-.badge-setor { background: #e0e7ff; color: #1d4ed8; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.badge-setor { background: #fff1f2; color: #b1072c; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
 
 .btn-editar, .btn-status { border: none; padding: 0.45rem 0.85rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s ease; min-height: 38px; }
-.btn-editar { background: #eff6ff; color: var(--primary, #2563eb); border: 1px solid #bfdbfe; }
-.btn-editar:hover { background: var(--primary, #2563eb); color: #ffffff; }
+.btn-editar { background: #fff1f2; color: var(--primary, #b1072c); border: 1px solid #fecdd3; }
+.btn-editar:hover { background: var(--primary, #b1072c); color: #ffffff; }
 .btn-inativar { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
 .btn-inativar:hover { background: #c2410c; color: #ffffff; }
 .btn-reativar { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
@@ -770,7 +770,7 @@ const salvarChecklist = async () => {
 .titulo-sessao { color: var(--text-primary, #0f172a); font-weight: 700; margin-bottom: 1.5rem; font-size: 1.25rem; margin-top: 2rem;}
 
 .referencia-box { background: #f8fafc; border: 1.5px dashed #cbd5e1; padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem; }
-.titulo-referencia { font-weight: 700; color: var(--primary, #2563eb); margin-bottom: 1rem; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;}
+.titulo-referencia { font-weight: 700; color: var(--primary, #b1072c); margin-bottom: 1rem; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;}
 .dica { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; font-style: italic; }
 
 .form-group-row { display: flex; gap: 1.5rem; margin-bottom: 1rem;}
@@ -779,16 +779,16 @@ const salvarChecklist = async () => {
 label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e; }
 
 .input-base { width: 100%; padding: 0.75rem 0.85rem; border: 1.5px solid var(--border-color, #cbd5e1); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border-color 0.2s; background-color: #fff; color: #333; }
-.input-base:focus { outline: none; border-color: var(--primary, #2563eb); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+.input-base:focus { outline: none; border-color: var(--primary, #b1072c); box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15); }
 
-.checkbox-group { margin-top: 1.5rem; display: flex; align-items: center; gap: 0.5rem; background-color: #f8fbff; padding: 1rem; border-radius: 8px; border: 1px solid #bfdbfe; }
-.checkbox-group input { width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary, #2563eb); }
+.checkbox-group { margin-top: 1.5rem; display: flex; align-items: center; gap: 0.5rem; background-color: #fff1f2; padding: 1rem; border-radius: 8px; border: 1px solid #fecdd3; }
+.checkbox-group input { width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary, #b1072c); }
 .checkbox-group label { margin: 0; cursor: pointer; }
 
 .divisor { border: 0; height: 1px; background: #e2e8f0; margin: 2rem 0; }
 .box-add-categoria { display: flex; gap: 0.5rem; margin-bottom: 2rem; }
-.btn-secundario { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.25rem; background-color: var(--primary, #2563eb); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap; min-height: 42px; transition: all 0.2s;}
-.btn-secundario:hover { background-color: var(--primary-hover, #1d4ed8); }
+.btn-secundario { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.25rem; background-color: var(--primary, #b1072c); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap; min-height: 42px; transition: all 0.2s;}
+.btn-secundario:hover { background-color: var(--primary-hover, #8f0523); }
 
 .categoria-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 1.5rem; padding: 1.5rem; background: #ffffff; box-shadow: var(--shadow-sm);}
 .categoria-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 0.8rem; margin-bottom: 1rem; }
@@ -810,16 +810,16 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 
 .input-editavel { border: 1px dashed transparent; background: transparent; padding: 0.45rem 0.6rem; font-family: inherit; color: #333; transition: all 0.2s; border-radius: 6px;}
 .input-editavel:hover { border-color: #cbd5e1; background: #fff; }
-.input-editavel:focus { outline: none; border: 1px solid var(--primary, #2563eb); background: #fff; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);}
+.input-editavel:focus { outline: none; border: 1px solid var(--primary, #b1072c); background: #fff; box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);}
 .titulo-cat { font-size: 1.15rem; font-weight: 700; color: #1e293b; flex: 1; margin-right: 1rem;}
 .texto-pergunta { flex: 1; font-size: 0.95rem; }
 
 .add-pergunta-box { display: flex; gap: 0.75rem; align-items: flex-start; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;}
-.btn-add-pergunta { padding: 0.65rem 1.2rem; background-color: #ffffff; color: var(--primary, #2563eb); border: 1.5px solid #bfdbfe; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; white-space: nowrap; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;}
-.btn-add-pergunta:hover { background-color: #eff6ff; border-color: var(--primary, #2563eb); }
+.btn-add-pergunta { padding: 0.65rem 1.2rem; background-color: #ffffff; color: var(--primary, #b1072c); border: 1.5px solid #fecdd3; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; white-space: nowrap; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;}
+.btn-add-pergunta:hover { background-color: #fff1f2; border-color: var(--primary, #b1072c); }
 
-.btn-principal { display: inline-flex; justify-content: center; align-items: center; gap: 0.5rem; width: 100%; padding: 1rem 1.5rem; background-color: var(--primary, #2563eb); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 1.1rem; font-weight: 700; margin-top: 1.5rem; min-height: 50px; transition: all 0.2s; box-shadow: var(--shadow-sm);}
-.btn-principal:hover:not(:disabled) { background-color: var(--primary-hover, #1d4ed8); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.btn-principal { display: inline-flex; justify-content: center; align-items: center; gap: 0.5rem; width: 100%; padding: 1rem 1.5rem; background-color: var(--primary, #b1072c); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 1.1rem; font-weight: 700; margin-top: 1.5rem; min-height: 50px; transition: all 0.2s; box-shadow: var(--shadow-sm);}
+.btn-principal:hover:not(:disabled) { background-color: var(--primary-hover, #8f0523); box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .btn-principal:disabled { background-color: #cbd5e1; cursor: not-allowed; }
 .error-message { background: #fef2f2; border-left: 4px solid #ef4444; padding: 1rem; color: #b91c1c; margin: 1rem 0; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; border-radius: 0 8px 8px 0;}
 

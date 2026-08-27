@@ -58,7 +58,7 @@ import { toastState, toast } from '../services/feedback';
   border-radius: 12px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   background: #ffffff;
-  border-left: 5px solid #2563eb;
+  border-left: 5px solid #b1072c;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -126,10 +126,10 @@ import { toastState, toast } from '../services/feedback';
 }
 
 .toast-info {
-  border-left-color: #2563eb;
+  border-left-color: #b1072c;
 }
 .toast-info .toast-icon {
-  color: #2563eb;
+  color: #b1072c;
 }
 
 /* 🎬 Animações Vue */

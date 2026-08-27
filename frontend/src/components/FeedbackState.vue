@@ -75,7 +75,7 @@ defineEmits(['retry'])
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border-left-color: var(--primary, #2563eb);
+  border-left-color: var(--primary, #b1072c);
   animation: spin 0.85s linear infinite;
   margin-bottom: 1.25rem;
 }
@@ -122,9 +122,9 @@ defineEmits(['retry'])
 
 .btn-retry {
   margin-top: 1.25rem;
-  background: #eff6ff;
-  color: var(--primary, #2563eb);
-  border: 1px solid #bfdbfe;
+  background: #fff1f2;
+  color: var(--primary, #b1072c);
+  border: 1px solid #fecdd3;
   padding: 0.6rem 1.25rem;
   border-radius: 8px;
   font-weight: 600;
@@ -138,8 +138,8 @@ defineEmits(['retry'])
 }
 
 .btn-retry:hover {
-  background: var(--primary, #2563eb);
+  background: var(--primary, #b1072c);
   color: white;
-  border-color: var(--primary, #2563eb);
+  border-color: var(--primary, #b1072c);
 }
 </style>

@@ -59,13 +59,13 @@ textarea {
 }
 
 .btn-primary {
-  background-color: var(--primary, #2563eb);
+  background-color: var(--primary, #b1072c);
   color: #ffffff;
   border: none;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-hover, #1d4ed8);
+  background-color: var(--primary-hover, #8f0523);
 }
 
 .btn-secondary {
@@ -145,9 +145,9 @@ select:focus,
 .select-base:focus,
 .select-filtro:focus {
   outline: none;
-  border-color: var(--primary, #2563eb);
+  border-color: var(--primary, #b1072c);
   background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
 }
 
 select:disabled,
@@ -178,7 +178,7 @@ select:disabled,
   --vs-background-color: #ffffff;
   --vs-disabled-background-color: #f1f5f9;
   --vs-outline-width: 3px;
-  --vs-outline-color: rgba(37, 99, 235, 0.12);
+  --vs-outline-color: rgba(177, 7, 44, 0.15);
   --vs-menu-offset-top: 6px;
   --vs-menu-height: 240px;
   --vs-menu-border: 1px solid var(--border-color, #e2e8f0);
@@ -188,12 +188,12 @@ select:disabled,
   --vs-menu-z-index: 50;
   --vs-option-padding: 9px 14px;
   --vs-option-font-size: 0.93rem;
-  --vs-option-hover-background-color: #eff6ff;
-  --vs-option-hover-text-color: #1d4ed8;
-  --vs-option-focused-background-color: #eff6ff;
-  --vs-option-focused-text-color: #1d4ed8;
-  --vs-option-selected-background-color: #dbeafe;
-  --vs-option-selected-text-color: #1e40af;
+  --vs-option-hover-background-color: #fff1f2;
+  --vs-option-hover-text-color: #b1072c;
+  --vs-option-focused-background-color: #fff1f2;
+  --vs-option-focused-text-color: #b1072c;
+  --vs-option-selected-background-color: #ffe4e6;
+  --vs-option-selected-text-color: #8f0523;
   --vs-option-disabled-text-color: #94a3b8;
   --vs-option-disabled-background-color: #f8fafc;
   --vs-indicator-icon-size: 18px;
@@ -217,7 +217,7 @@ select:disabled,
 }
 
 .vue-select .control.focused {
-  border-color: var(--primary, #2563eb) !important;
+  border-color: var(--primary, #b1072c) !important;
   box-shadow: 0 0 0 var(--vs-outline-width) var(--vs-outline-color) !important;
 }
 

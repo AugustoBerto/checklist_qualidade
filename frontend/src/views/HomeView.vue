@@ -14,7 +14,7 @@
         title="Preencher Checklist"
         description="Iniciar uma nova auditoria nas linhas de produção e registrar não conformidades."
         icon="mdi mdi-clipboard-text-outline"
-        color="blue"
+        color="dass"
       />
 
       <ModuleCard
@@ -22,7 +22,7 @@
         title="Consultar Histórico"
         description="Visualizar relatórios anteriores e pesquisar checklists realizados."
         icon="mdi mdi-text-box-search-outline"
-        color="green"
+        color="dass"
       />
 
       <ModuleCard
@@ -31,7 +31,7 @@
         title="Painel Administrativo"
         description="Gestão de usuários, criação de formulários e configurações da base do sistema."
         icon="mdi mdi-cog-outline"
-        color="purple"
+        color="dass"
       />
     </div>
   </div>
@@ -63,12 +63,12 @@ const isAdmin = computed(() => obterPerfilLocal()?.papel === 'ADMIN')
 
 .header-icon {
   font-size: 3rem;
-  color: var(--primary, #2563eb);
+  color: var(--primary, #b1072c);
   margin-bottom: 0.75rem;
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  background: #eff6ff;
+  background: #fff1f2;
   width: 80px;
   height: 80px;
   border-radius: 50%;

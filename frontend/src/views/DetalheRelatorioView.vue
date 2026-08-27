@@ -227,21 +227,21 @@ onMounted(buscarDados);
 .report-id { color: #64748b; font-size: 0.9rem; font-weight: 600; }
 .header-actions { display: flex; gap: 10px; flex-shrink: 0; }
 .btn-print { 
-  background: var(--primary, #2563eb); 
+  background: var(--primary, #b1072c); 
   color: white; 
   border: none; 
   padding: 0.65rem 1.25rem; 
   border-radius: 8px; 
   font-weight: 600; 
   cursor: pointer; 
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 42px;
-  transition: all 0.2s ease;
+  display: inline-flex; 
+  align-items: center; 
+  gap: 6px; 
+  min-height: 42px; 
+  transition: all 0.2s ease; 
 }
 .btn-print:hover { 
-  background: var(--primary-hover, #1d4ed8); 
+  background: var(--primary-hover, #8f0523); 
 }
 
 .btn-close { 
@@ -329,8 +329,8 @@ onMounted(buscarDados);
 .image-modal-content { position: relative; background: transparent; padding: 0; max-width: 90%; text-align: center;}
 .expanded-image { max-height: 80vh; max-width: 100%; border: 4px solid white; border-radius: 8px;}
 .modal-close-button { position: absolute; top: -40px; right: -40px; color: white; background: none; border: none; font-size: 3rem; cursor: pointer; }
-.modal-print-button { margin-top: 15px; background: var(--primary, #2563eb); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;}
-.modal-print-button:hover { background: var(--primary-hover, #1d4ed8); }
+.modal-print-button { margin-top: 15px; background: var(--primary, #b1072c); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;}
+.modal-print-button:hover { background: var(--primary-hover, #8f0523); }
 @media print {
   .report-fullscreen-wrapper { position: relative; padding: 0; background: white; width: 100%; height: auto; overflow: visible; }
   .report-sheet { box-shadow: none; padding: 0; width: 100%; }
