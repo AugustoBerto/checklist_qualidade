@@ -1,30 +1,21 @@
 <template>
-  <div class="page-container">
-    <PageHeader
-      :title="modoAtual === 'lista' ? 'Gestão de Modelos de Checklist' : (form.id ? 'Editar Modelo de Checklist' : 'Criar Novo Modelo de Checklist')"
-      :subtitle="modoAtual === 'lista' ? 'Crie, clone, edite e gerencie os formulários de inspeção de qualidade.' : 'Configure as categorias e perguntas do checklist.'"
-      icon="mdi mdi-clipboard-text-outline"
-    >
-      <template #actions>
-        <router-link v-if="modoAtual === 'lista'" to="/configuracoes" class="btn-outline" title="Voltar ao Painel Gerencial">
-          <i class="mdi mdi-arrow-left"></i>
-          <span>Painel Gerencial</span>
-        </router-link>
-        <button v-if="modoAtual === 'lista'" class="btn-primary" @click="abrirCriacao">
-          <i class="mdi mdi-plus-box"></i>
-          <span>Novo Modelo</span>
-        </button>
-        <button v-else class="btn-outline" @click="voltarParaLista">
-          <i class="mdi mdi-arrow-left"></i>
-          <span>Voltar para Lista</span>
-        </button>
-      </template>
-    </PageHeader>
-
+  <div class="tab-module">
     <div v-if="erroGlobal" class="alert error"><i class="mdi mdi-alert-circle"></i> {{ erroGlobal }}</div>
     <div v-if="sucessoGlobal" class="alert success"><i class="mdi mdi-check-circle"></i> {{ sucessoGlobal }}</div>
 
+    <!-- Lista de Modelos -->
     <div v-if="modoAtual === 'lista'" class="card card-admin">
+      <div class="tab-header-row">
+        <div class="tab-header-info">
+          <h3>Modelos de Checklist</h3>
+          <p>Crie, clone, edite e gerencie os formulários de inspeção de qualidade.</p>
+        </div>
+        <button class="btn-primary btn-novo" @click="abrirCriacao">
+          <i class="mdi mdi-plus-box"></i>
+          <span>Novo Modelo</span>
+        </button>
+      </div>
+
       <TableToolbar
         v-model="filtroTexto"
         placeholder="Buscar por nome ou ID do modelo..."
@@ -104,7 +95,7 @@
                 <button 
                   class="btn-status" 
                   :class="modelo.ativo ? 'btn-inativar' : 'btn-reativar'" 
-                  @click="alternarStatusModelo(modelo)"
+                  @click="alternarStatus(modelo)"
                   :title="modelo.ativo ? 'Inativar este modelo' : 'Reativar este modelo'"
                 >
                   <i class="mdi" :class="modelo.ativo ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"></i>
@@ -117,8 +108,15 @@
       </DataTable>
     </div>
 
+    <!-- Formulário de Criação / Edição -->
     <div v-else class="card form-card">
-      <h2 class="titulo">{{ form.id ? 'Editar Modelo de Checklist' : 'Criar Novo Modelo de Checklist' }}</h2>
+      <div class="form-header-row">
+        <h3>{{ form.id ? 'Editar Modelo de Checklist' : 'Criar Novo Modelo de Checklist' }}</h3>
+        <button class="btn-outline" @click="voltarParaLista">
+          <i class="mdi mdi-arrow-left"></i>
+          <span>Voltar para Lista</span>
+        </button>
+      </div>
       
       <form @submit.prevent="salvarChecklist">
         
@@ -148,7 +146,7 @@
 
         <div class="form-group-row">
           <div class="form-group w-33">
-            <label for="idSetor">Setor Responsável:</label>
+            <label for="idSetor">Setor Responsável: <span class="obrigatorio">*</span></label>
             <VueSelect 
               v-model="form.idSetor" 
               :options="setoresOptions" 
@@ -156,7 +154,7 @@
             />
           </div>
           <div class="form-group w-33">
-            <label for="nomeMarca">Marca do Modelo:</label>
+            <label for="nomeMarca">Marca do Modelo: <span class="obrigatorio">*</span></label>
             <VueSelect 
               v-model="form.nomeMarca" 
               :options="marcasOptions" 
@@ -164,7 +162,7 @@
             />
           </div>
           <div class="form-group w-33">
-            <label for="nomeModelo">Nome do Modelo:</label>
+            <label for="nomeModelo">Nome do Modelo: <span class="obrigatorio">*</span></label>
             <input type="text" id="nomeModelo" v-model="form.nomeModelo" placeholder="Ex: Auditoria de Costura V2" class="input-base" required>
           </div>
         </div>
@@ -290,11 +288,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import VueSelect from 'vue3-select-component';
-import api from '../services/api';
-import PageHeader from '../components/PageHeader.vue';
-import TableToolbar from '../components/TableToolbar.vue';
-import DataTable from '../components/DataTable.vue';
-import { toast, dialog } from '../services/feedback';
+import api from '../../services/api';
+import TableToolbar from '../TableToolbar.vue';
+import DataTable from '../DataTable.vue';
+import { toast, dialog } from '../../services/feedback';
 
 const modoAtual = ref('lista'); 
 const marcasOptions = ref([]);
@@ -389,6 +386,15 @@ const marcaReferencia = ref(null);
 const modeloReferencia = ref(null);
 const opcoesModelosReferencia = ref([]);
 
+const extrairArrayDeDados = (respostaData) => {
+  if (Array.isArray(respostaData)) return respostaData;
+  if (respostaData.dados && Array.isArray(respostaData.dados)) return respostaData.dados;
+  if (respostaData.modelos) return respostaData.modelos;
+  if (respostaData.setores) return respostaData.setores;
+  if (respostaData.marcas) return respostaData.marcas;
+  return Object.values(respostaData).find(val => Array.isArray(val)) || [];
+};
+
 // ==========================================
 // 1. CARREGAMENTO INICIAL
 // ==========================================
@@ -400,9 +406,9 @@ const carregarDadosIniciais = async () => {
       api.get('/cadastros/categorias-padrao')
     ]);
     
-    marcasOptions.value = resMarcas.data.dados.map(item => ({ label: item.nome, value: item.id }));
-    setoresOptions.value = resSetores.data.dados.map(item => ({ label: item.nome, value: item.id }));
-    categoriasPadrao.value = resCategorias.data.dados;
+    marcasOptions.value = extrairArrayDeDados(resMarcas.data).map(item => ({ label: item.nome, value: item.id }));
+    setoresOptions.value = extrairArrayDeDados(resSetores.data).map(item => ({ label: item.nome, value: item.id }));
+    categoriasPadrao.value = extrairArrayDeDados(resCategorias.data);
     
     await carregarModelosTabela();
   } catch (error) {
@@ -415,7 +421,7 @@ const carregarModelosTabela = async () => {
   isLoadingTabela.value = true;
   try {
     const res = await api.get('/cadastros/modelos');
-    modelosLista.value = res.data.dados;
+    modelosLista.value = extrairArrayDeDados(res.data);
   } catch (error) {
     erroGlobal.value = 'Erro ao listar modelos.';
   } finally {
@@ -428,7 +434,6 @@ onMounted(carregarDadosIniciais);
 // ==========================================
 // 2. CONTROLO DE ECRÃS E TRADUÇÃO DE IDS
 // ==========================================
-// 📌 FUNÇÃO PARA TRADUZIR O ID DO SETOR PARA O NOME NA TABELA
 const obterNomeSetor = (idSetor) => {
   if (!idSetor) return 'Sem Setor';
   const setorEncontrado = setoresOptions.value.find(s => String(s.value) === String(idSetor));
@@ -541,19 +546,19 @@ watch(modeloReferencia, async (novoValor) => {
     const res = await api.get(`/cadastros/modelos/${novoValor}`);
     
     if (res.data?.sucesso) {
-        const catsBanco = res.data.modelo.categorias || {};
-        
-        categoriasUI.value = Object.keys(catsBanco).map(nomeCat => ({
-            nome: nomeCat, 
-            ctq: catsBanco[nomeCat].ctq || false,
-            novaPergunta: '',
-            perguntas: catsBanco[nomeCat].perguntas.map(texto => ({ texto }))
-        }));
+      const catsBanco = res.data.modelo.categorias || {};
+      
+      categoriasUI.value = Object.keys(catsBanco).map(nomeCat => ({
+        nome: nomeCat, 
+        ctq: catsBanco[nomeCat].ctq || false,
+        novaPergunta: '',
+        perguntas: catsBanco[nomeCat].perguntas.map(texto => ({ texto }))
+      }));
 
-        if (marcaReferencia.value && !form.nomeMarca) form.nomeMarca = marcaReferencia.value;
-        
-        const obj = opcoesModelosReferencia.value.find(m => m.value === novoValor);
-        if (obj && !form.nomeModelo) form.nomeModelo = `${obj.label} (Cópia)`;
+      if (marcaReferencia.value && !form.nomeMarca) form.nomeMarca = marcaReferencia.value;
+      
+      const obj = opcoesModelosReferencia.value.find(m => m.value === novoValor);
+      if (obj && !form.nomeModelo) form.nomeModelo = `${obj.label} (Cópia)`;
     }
   } catch (error) {
     toast.error("Erro ao buscar as perguntas deste modelo de referência.");
@@ -687,104 +692,83 @@ const salvarChecklist = async () => {
 </script>
 
 <style scoped>
-.page-container { padding: 2rem; background-color: #f4f7f6; min-height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; }
-.header-n { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-.header-titles h1 { margin: 0; color: #2c3e50; font-size: 1.8rem; display: flex; align-items: center; gap: 10px; }
-.header-titles p { margin: 0.5rem 0 0 0; color: #7f8c8d; }
+.tab-module {
+  width: 100%;
+}
 
-.btn-novo, .btn-voltar { padding: 0.6rem 1.2rem; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; display: flex; gap: 0.5rem; align-items: center; transition: 0.2s;}
-.btn-novo { background: #27ae60; }
-.btn-novo:hover { background: #219653; }
-.btn-voltar { background: #7f8c8d; }
-.btn-voltar:hover { background: #626c6d; }
+.card-admin, .form-card {
+  background: white;
+  padding: 1.75rem;
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
 
-.alert { padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;}
+.tab-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.tab-header-info h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.tab-header-info p {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #64748b);
+}
+
+.form-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  gap: 1rem;
+}
+
+.form-header-row h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.alert { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;}
 .error { background: #fdeaea; color: #e74c3c; border: 1px solid #fadbd8; }
 .success { background: #eafaf1; color: #27ae60; border: 1px solid #d5f5e3; }
 
-.card-admin { background: white; padding: 2rem; border-radius: var(--radius-lg, 16px); box-shadow: var(--shadow-sm); border: 1px solid var(--border-color, #e2e8f0); }
-
-/* ==========================================
-   TOOLBAR DE FILTROS DINÂMICOS
-   ========================================== */
-.toolbar-filtros {
-  margin-bottom: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.search-box {
-  position: relative;
+.select-filtro {
   width: 100%;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  font-size: 1.2rem;
-}
-
-.input-search {
-  width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 2.4rem;
-  border: 1.5px solid var(--border-color, #e2e8f0);
-  border-radius: var(--radius-md, 10px);
-  font-size: 0.95rem;
-  color: var(--text-primary, #0f172a);
-  background-color: #f8fafc;
-  box-sizing: border-box;
-  min-height: 44px;
-}
-
-.input-search:focus {
+  padding: 0.65rem 0.85rem;
+  border: 1.5px solid var(--border-color, #cbd5e1);
+  border-radius: 8px;
+  background-color: #fff;
+  color: #334155;
+  font-size: 0.9rem;
+  min-height: 42px;
   outline: none;
-  border-color: var(--primary, #b1072c);
-  background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
-}
-
-.clear-input-btn {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: #94a3b8;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  transition: all 0.2s;
 }
 
-.clear-input-btn:hover {
-  color: #ef4444;
-  background: #fee2e2;
-}
-
-.filtros-selecao {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+.select-filtro:focus {
+  border-color: var(--primary, #b1072c);
 }
 
 .filtro-item {
   flex: 1;
   min-width: 160px;
-}
-
-.btn-limpar-filtros {
-  min-height: 42px;
-  padding: 0.65rem 1rem;
 }
 
 .filtros-resumo {
@@ -808,7 +792,6 @@ const salvarChecklist = async () => {
 .badge-ativo { background: #27ae60; }
 .badge-inativo { background: #e74c3c; }
 
-/* 📌 Estilo para a badge de Setor na Tabela */
 .badge-setor { background: #fff1f2; color: #b1072c; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
 
 .btn-editar, .btn-status { border: none; padding: 0.45rem 0.85rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s ease; min-height: 38px; }
@@ -819,8 +802,6 @@ const salvarChecklist = async () => {
 .btn-reativar { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
 .btn-reativar:hover { background: #047857; color: #ffffff; }
 
-.form-card { max-width: 900px; margin: auto; background: #ffffff; padding: 2.5rem; border-radius: var(--radius-lg, 16px); box-shadow: var(--shadow-sm); border: 1px solid var(--border-color, #e2e8f0); }
-.titulo { color: var(--text-primary, #0f172a); font-weight: 700; margin-bottom: 1.5rem; font-size: 1.5rem; }
 .titulo-sessao { color: var(--text-primary, #0f172a); font-weight: 700; margin-bottom: 1.5rem; font-size: 1.25rem; margin-top: 2rem;}
 
 .referencia-box { background: #f8fafc; border: 1.5px dashed #cbd5e1; padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem; }
@@ -830,7 +811,8 @@ const salvarChecklist = async () => {
 .form-group-row { display: flex; gap: 1.5rem; margin-bottom: 1rem;}
 .w-50 { flex: 1; }
 .w-33 { flex: 1; min-width: 0; }
-label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e; }
+label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e; font-size: 0.9rem; }
+.obrigatorio { color: #ef4444; }
 
 .input-base { width: 100%; padding: 0.75rem 0.85rem; border: 1.5px solid var(--border-color, #cbd5e1); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border-color 0.2s; background-color: #fff; color: #333; }
 .input-base:focus { outline: none; border-color: var(--primary, #b1072c); box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15); }
@@ -960,20 +942,51 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 .btn-add-pergunta { padding: 0.65rem 1.2rem; background-color: #ffffff; color: var(--primary, #b1072c); border: 1.5px solid #fecdd3; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; white-space: nowrap; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;}
 .btn-add-pergunta:hover { background-color: #fff1f2; border-color: var(--primary, #b1072c); }
 
+.btn-primary {
+  background: var(--primary, #b1072c);
+  color: white;
+  padding: 0.75rem 1.4rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: 0.2s;
+  min-height: 44px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover, #8f0523);
+}
+
+.btn-outline {
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  padding: 0.75rem 1.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-outline:hover { background: #f1f5f9; }
+
 .btn-principal { display: inline-flex; justify-content: center; align-items: center; gap: 0.5rem; width: 100%; padding: 1rem 1.5rem; background-color: var(--primary, #b1072c); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 1.1rem; font-weight: 700; margin-top: 1.5rem; min-height: 50px; transition: all 0.2s; box-shadow: var(--shadow-sm);}
 .btn-principal:hover:not(:disabled) { background-color: var(--primary-hover, #8f0523); box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .btn-principal:disabled { background-color: #cbd5e1; cursor: not-allowed; }
 .error-message { background: #fef2f2; border-left: 4px solid #ef4444; padding: 1rem; color: #b91c1c; margin: 1rem 0; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; border-radius: 0 8px 8px 0;}
 
 @media (max-width: 767px) {
-  .page-container { padding: 1rem; }
-  .header-n { align-items: stretch; flex-direction: column; gap: 1rem; }
-  .header-titles h1 { font-size: 1.35rem; }
-  .header-actions, .header-actions > button { width: 100%; }
-  .header-actions > button { justify-content: center; }
   .card-admin, .form-card { padding: 1rem; }
-  .table-container { overflow-x: auto; }
-  .data-table { min-width: 700px; }
+  .tab-header-row { flex-direction: column; align-items: stretch; }
+  .tab-header-row button { width: 100%; justify-content: center; }
   .form-group-row, .box-add-categoria, .categoria-header, .add-pergunta-box { flex-direction: column; }
   .import-controls { flex-direction: column; align-items: stretch; }
   .btn-importar { width: 100%; justify-content: center; }

@@ -1,26 +1,5 @@
 <template>
-  <div class="page-container">
-    <PageHeader
-      :title="modo === 'lista' ? 'Perfis Operacionais' : (form.id ? 'Editar Perfil Operacional' : 'Novo Perfil Operacional')"
-      :subtitle="modo === 'lista' ? 'Vincule matrículas do sistema dass_auth ao Checklist de Auditoria.' : 'Preencha as informações de vínculo do colaborador.'"
-      icon="mdi mdi-account-cog-outline"
-    >
-      <template #actions>
-        <router-link v-if="modo === 'lista'" to="/configuracoes" class="btn-outline" title="Voltar ao Painel Gerencial">
-          <i class="mdi mdi-arrow-left"></i>
-          <span>Painel Gerencial</span>
-        </router-link>
-        <button v-if="modo === 'lista'" class="btn-primary" @click="novo">
-          <i class="mdi mdi-account-plus"></i>
-          <span>Novo Perfil</span>
-        </button>
-        <button v-else class="btn-outline" @click="modo = 'lista'">
-          <i class="mdi mdi-arrow-left"></i>
-          <span>Voltar para Lista</span>
-        </button>
-      </template>
-    </PageHeader>
-
+  <div class="tab-module">
     <div v-if="erro" class="alert error">
       <i class="mdi mdi-alert-circle"></i>
       <span>{{ erro }}</span>
@@ -33,6 +12,17 @@
 
     <!-- Lista de Usuários -->
     <div v-if="modo === 'lista'" class="card">
+      <div class="tab-header-row">
+        <div class="tab-header-info">
+          <h3>Perfis Operacionais</h3>
+          <p>Vincule matrículas do sistema dass_auth e atribua permissões de acesso.</p>
+        </div>
+        <button class="btn-primary btn-novo" @click="novo">
+          <i class="mdi mdi-account-plus"></i>
+          <span>Novo Perfil</span>
+        </button>
+      </div>
+
       <TableToolbar
         v-model="termoBusca"
         placeholder="Buscar por nome, matrícula ou papel..."
@@ -90,6 +80,14 @@
 
     <!-- Formulário -->
     <div v-else class="card form-card">
+      <div class="form-header-row">
+        <h3>{{ form.id ? 'Editar Perfil Operacional' : 'Novo Perfil Operacional' }}</h3>
+        <button class="btn-outline" @click="modo = 'lista'">
+          <i class="mdi mdi-arrow-left"></i>
+          <span>Voltar para Lista</span>
+        </button>
+      </div>
+
       <form class="form-grid" @submit.prevent="salvar">
         <div class="form-group">
           <label>Matrícula (dass_auth) <span class="obrigatorio">*</span></label>
@@ -181,10 +179,9 @@
 <script setup>
 import { onMounted, reactive, ref, computed } from 'vue'
 import VueSelect from 'vue3-select-component'
-import api from '../services/api'
-import PageHeader from '../components/PageHeader.vue'
-import TableToolbar from '../components/TableToolbar.vue'
-import DataTable from '../components/DataTable.vue'
+import api from '../../services/api'
+import TableToolbar from '../TableToolbar.vue'
+import DataTable from '../DataTable.vue'
 
 const modo = ref('lista'), perfis = ref([]), unidades = ref([]), setores = ref([]), celulas = ref([]), turnos = ref([])
 const erro = ref(''), sucesso = ref(''), salvando = ref(false), carregando = ref(true)
@@ -291,10 +288,8 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 </script>
 
 <style scoped>
-.page-container {
-  max-width: 1250px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem;
+.tab-module {
+  width: 100%;
 }
 
 .card {
@@ -305,95 +300,45 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
   box-shadow: var(--shadow-sm);
 }
 
-.toolbar-search {
-  margin-bottom: 1.25rem;
-}
-
-.search-box {
-  position: relative;
-  width: 100%;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  font-size: 1.2rem;
-}
-
-.input-search {
-  width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 2.4rem;
-  border: 1.5px solid var(--border-color, #e2e8f0);
-  border-radius: var(--radius-md, 10px);
-  font-size: 0.95rem;
-  color: var(--text-primary, #0f172a);
-  background-color: #f8fafc;
-  box-sizing: border-box;
-  min-height: 44px;
-}
-
-.input-search:focus {
-  outline: none;
-  border-color: var(--primary, #b1072c);
-  background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
-}
-
-.clear-input-btn {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 50%;
-  display: inline-flex;
+.tab-header-row {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-
-.clear-input-btn:hover {
-  color: #ef4444;
-  background: #fee2e2;
-}
-
-.table-container {
-  overflow-x: auto;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: var(--radius-md, 10px);
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.data-table th, .data-table td {
-  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-color, #e2e8f0);
-  vertical-align: middle;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.data-table th {
-  background: #f8fafc;
+.tab-header-info h3 {
+  margin: 0;
+  font-size: 1.2rem;
   font-weight: 700;
-  color: #475569;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--text-primary, #0f172a);
 }
 
-.data-table tbody tr:hover {
-  background-color: #f8fafc;
+.tab-header-info p {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #64748b);
+}
+
+.form-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  gap: 1rem;
+}
+
+.form-header-row h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
 }
 
 .user-name-cell {
@@ -420,22 +365,32 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 .badge-ativo { background: #ecfdf5; color: #10b981; }
 .badge-inativo { background: #fef2f2; color: #ef4444; }
 
-.text-right { text-align: right; }
+.col-matricula code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.col-acoes {
+  text-align: right;
+  width: 120px;
+}
 
 .btn-editar {
   background: #fff1f2;
   color: var(--primary, #b1072c);
   border: 1px solid #fecdd3;
-  padding: 0.5rem 1rem;
+  padding: 0.45rem 0.85rem;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   transition: all 0.2s;
-  min-height: 40px;
+  min-height: 38px;
 }
 
 .btn-editar:hover {
@@ -484,11 +439,6 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
   background: #f1f5f9;
   color: #64748b;
   cursor: not-allowed;
-}
-
-.select-base {
-  background-color: white;
-  cursor: pointer;
 }
 
 .form-actions-row {
@@ -551,10 +501,10 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 .alert.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
 
 @media (max-width: 767px) {
-  .page-container { padding: 1rem 0.5rem; }
   .card { padding: 1rem; }
+  .tab-header-row { flex-direction: column; align-items: stretch; }
+  .tab-header-row button { width: 100%; justify-content: center; }
   .form-grid { grid-template-columns: 1fr; }
-  .data-table { min-width: 580px; }
   .form-actions-row { flex-direction: column-reverse; }
   .form-actions-row button { width: 100%; justify-content: center; }
 }

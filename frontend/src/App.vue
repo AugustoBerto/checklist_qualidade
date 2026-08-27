@@ -36,7 +36,7 @@
                 <i class="mdi mdi-history"></i>
                 <span>Histórico</span>
               </router-link>
-              <router-link v-if="isAdmin" to="/administrador" active-class="active" class="nav-link">
+              <router-link v-if="isAdmin" to="/configuracoes" active-class="active" class="nav-link">
                 <i class="mdi mdi-cog-outline"></i>
                 <span>Painel Gerencial</span>
               </router-link>
@@ -272,11 +272,6 @@ body {
   background: #fff1f2; 
   color: var(--primary); 
   font-weight: 700;
-}
-
-.btn-login-link {
-  background: var(--primary);
-  color: #ffffff !important;
 }
 
 .btn-login-link:hover {

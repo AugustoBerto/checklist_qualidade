@@ -24,21 +24,15 @@ const routes = [
   },
   {
     path: '/usuarios/novo',
-    name: 'CriarUsuario',
-    component: () => import('../views/CriarUsuarioView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    redirect: '/configuracoes?aba=usuarios'
   },
   {
     path: '/modelos/novo',
-    name: 'CriarModelo',
-    component: () => import('../views/CriarModeloView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    redirect: '/configuracoes?aba=modelos'
   },
   {
     path: '/administrador',
-    name: 'Administrador',
-    component: () => import('../views/AdministradorView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    redirect: '/configuracoes'
   },
   {
     path: '/configuracoes',

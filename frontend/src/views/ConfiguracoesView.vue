@@ -1,12 +1,17 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Configurações Globais"
-      subtitle="Gerencie as estruturas fundamentais para os checklists e relatórios."
-      icon="mdi mdi-cogs"
+      title="Painel Gerencial"
+      subtitle="Gerencie as estruturas fundamentais, cadastros de base, usuários e modelos de checklist."
+      icon="mdi mdi-cog-outline"
     >
       <template #actions>
-        <button @click="abrirModal()" class="btn-primary">
+        <button
+          v-if="abaInfo && abaInfo.tipo !== 'custom'"
+          @click="abrirModal()"
+          class="btn-primary"
+          title="Adicionar Novo Registro na Aba Ativa"
+        >
           <i class="mdi mdi-plus"></i>
           <span>Novo Registro</span>
         </button>
@@ -26,7 +31,14 @@
       </button>
     </div>
 
-    <div class="card">
+    <!-- Módulo de Modelos de Checklist -->
+    <ModelosTab v-if="abaAtiva === 'modelos'" />
+
+    <!-- Módulo de Usuários & Perfis -->
+    <UsuariosTab v-else-if="abaAtiva === 'usuarios'" />
+
+    <!-- Módulos de Cadastros de Base -->
+    <div v-else class="card">
       <TableToolbar
         v-model="termoBusca"
         :placeholder="`Buscar em ${nomeAbaAtiva.toLowerCase()}...`"
@@ -248,26 +260,44 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import VueSelect from 'vue3-select-component';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
 import BaseModal from '../components/BaseModal.vue';
 import TableToolbar from '../components/TableToolbar.vue';
 import DataTable from '../components/DataTable.vue';
+import ModelosTab from '../components/admin/ModelosTab.vue';
+import UsuariosTab from '../components/admin/UsuariosTab.vue';
 import { formatarHora, urlLogoMarca } from '../services/formatters';
 import { toast, dialog } from '../services/feedback';
 
+const route = useRoute();
+const router = useRouter();
+
 const abas = [
+  { id: 'modelos', titulo: 'Modelos de Checklist', icone: 'mdi mdi-clipboard-text-outline', tipo: 'custom' },
+  { id: 'categorias', titulo: 'Categorias', icone: 'mdi mdi-shape-outline', endpoint: '/cadastros/categorias-padrao', ex: 'Costura Lateral' },
+  { id: 'marcas', titulo: 'Marcas', icone: 'mdi mdi-tag-multiple', endpoint: '/cadastros/marcas', ex: 'Umbro / Fila' },
   { id: 'unidades', titulo: 'Unidades', icone: 'mdi mdi-domain', endpoint: '/cadastros/unidades', ex: 'Matriz Itapipoca' },
   { id: 'setores', titulo: 'Setores', icone: 'mdi mdi-office-building', endpoint: '/cadastros/setores', ex: 'Corte / Costura' },
   { id: 'celulas', titulo: 'Células', icone: 'mdi mdi-factory', endpoint: '/cadastros/celulas', ex: 'Célula 01' },
-  { id: 'marcas', titulo: 'Marcas', icone: 'mdi mdi-tag-multiple', endpoint: '/cadastros/marcas', ex: 'Umbro / Fila' },
-  { id: 'categorias', titulo: 'Categorias', icone: 'mdi mdi-shape-outline', endpoint: '/cadastros/categorias-padrao', ex: 'Costura Lateral' },
-  { id: 'turnos', titulo: 'Turnos', icone: 'mdi mdi-clock-outline', endpoint: '/cadastros/turnos', ex: '1º Turno' }
+  { id: 'turnos', titulo: 'Turnos', icone: 'mdi mdi-clock-outline', endpoint: '/cadastros/turnos', ex: '1º Turno' },
+  { id: 'usuarios', titulo: 'Usuários & Perfis', icone: 'mdi mdi-account-cog-outline', tipo: 'custom' }
 ];
 
-const abaAtiva = ref('unidades');
+const abaAtiva = ref(route.query.aba && abas.some(a => a.id === route.query.aba) ? String(route.query.aba) : 'modelos');
+
+watch(() => route.query.aba, (novaAba) => {
+  if (novaAba && abas.some(a => a.id === novaAba) && novaAba !== abaAtiva.value) {
+    abaAtiva.value = String(novaAba);
+    if (abaInfo.value?.tipo !== 'custom') {
+      buscarDados();
+    }
+  }
+});
+
 const isLoading = ref(true);
 const salvando = ref(false);
 const showModal = ref(false);
@@ -324,13 +354,23 @@ const nomeAbaAtiva = computed(() => abaInfo.value?.titulo || '');
 const placeholderExemplo = computed(() => abaInfo.value?.ex || '');
 const endpointAtivo = computed(() => abaInfo.value?.endpoint || '');
 
+const extrairArrayDeDados = (respostaData) => {
+  if (Array.isArray(respostaData)) return respostaData;
+  if (respostaData.dados && Array.isArray(respostaData.dados)) return respostaData.dados;
+  if (respostaData.rows && Array.isArray(respostaData.rows)) return respostaData.rows;
+  const possivelArray = Object.values(respostaData).find(val => Array.isArray(val));
+  return possivelArray || [];
+};
+
 const buscarDados = async (forcarRefresh = false) => {
-  if (!forcarRefresh && dados[abaAtiva.value].length > 0) return;
+  if (abaInfo.value?.tipo === 'custom') return;
+  if (!endpointAtivo.value) return;
+  if (!forcarRefresh && dados[abaAtiva.value]?.length > 0) return;
 
   isLoading.value = true;
   try {
     const res = await api.get(endpointAtivo.value);
-    dados[abaAtiva.value] = res.data.dados;
+    dados[abaAtiva.value] = extrairArrayDeDados(res.data);
   } catch (err) {
     console.error(`Erro ao carregar ${abaAtiva.value}:`, err);
   } finally {
@@ -342,11 +382,11 @@ const carregarDependenciasCelulas = async () => {
   try {
     if (dados.setores.length === 0) {
       const res = await api.get('/cadastros/setores');
-      dados.setores = res.data.dados;
+      dados.setores = extrairArrayDeDados(res.data);
     }
     if (dados.marcas.length === 0) {
       const res = await api.get('/cadastros/marcas');
-      dados.marcas = res.data.dados;
+      dados.marcas = extrairArrayDeDados(res.data);
     }
   } catch (err) {
     console.error('Erro ao carregar dependências para células:', err);
@@ -356,7 +396,10 @@ const carregarDependenciasCelulas = async () => {
 const mudarAba = (idAba) => {
   abaAtiva.value = idAba;
   termoBusca.value = '';
-  buscarDados(); 
+  router.replace({ query: { ...route.query, aba: idAba } });
+  if (abaInfo.value?.tipo !== 'custom') {
+    buscarDados();
+  }
 };
 
 const adicionarPerguntaModal = () => {
@@ -514,7 +557,11 @@ const excluirItem = async (id) => {
   }
 };
 
-onMounted(() => buscarDados(true));
+onMounted(() => {
+  if (abaInfo.value?.tipo !== 'custom') {
+    buscarDados(true);
+  }
+});
 </script>
 
 <style scoped>
@@ -838,6 +885,31 @@ onMounted(() => buscarDados(true));
 }
 
 .btn-outline:hover { background: #f1f5f9; }
+
+.btn-header-link {
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  padding: 0.75rem 1.15rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  min-height: 44px;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.btn-header-link:hover {
+  background: #f8fafc;
+  border-color: var(--primary, #b1072c);
+  color: var(--primary, #b1072c);
+  transform: translateY(-1px);
+}
 
 @media (max-width: 767px) {
   .page-container { padding: 1rem 0.5rem; }

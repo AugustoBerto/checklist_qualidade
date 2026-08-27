@@ -27,9 +27,9 @@
 
       <ModuleCard
         v-if="isAdmin"
-        to="/administrador"
-        title="Painel Administrativo"
-        description="Gestão de usuários, criação de formulários e configurações da base do sistema."
+        to="/configuracoes"
+        title="Painel Gerencial"
+        description="Gestão de usuários, modelos de checklist e configurações de base do sistema."
         icon="mdi mdi-cog-outline"
         color="dass"
       />
