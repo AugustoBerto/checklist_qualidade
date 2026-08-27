@@ -207,4 +207,40 @@ defineEmits(['retry', 'change-page']);
 :deep(tbody tr:last-child td) {
   border-bottom: none;
 }
+
+@media (max-width: 768px) {
+  :deep(th) {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  :deep(td) {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.88rem;
+  }
+
+  :deep(th.col-id),
+  :deep(td.col-id) {
+    width: 60px;
+    min-width: 60px;
+  }
+
+  :deep(th.col-acoes),
+  :deep(th.text-right),
+  :deep(td.col-acoes),
+  :deep(td.text-right) {
+    width: 120px;
+    min-width: 120px;
+    padding: 0.5rem 0.6rem;
+  }
+
+  :deep(.btn-editar),
+  :deep(.btn-status),
+  :deep(.btn-view),
+  :deep(.btn-excluir) {
+    min-height: 38px;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.82rem;
+  }
+}
 </style>

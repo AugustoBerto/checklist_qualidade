@@ -500,10 +500,12 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 .alert.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 .alert.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .card { padding: 1rem; }
   .tab-header-row { flex-direction: column; align-items: stretch; }
   .tab-header-row button { width: 100%; justify-content: center; }
+  .form-header-row { flex-direction: column; align-items: stretch; }
+  .form-header-row button { width: 100%; justify-content: center; }
   .form-grid { grid-template-columns: 1fr; }
   .form-actions-row { flex-direction: column-reverse; }
   .form-actions-row button { width: 100%; justify-content: center; }

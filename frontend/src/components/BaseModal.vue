@@ -149,17 +149,27 @@ const fechar = () => {
 }
 
 @media (max-width: 768px) {
+  .modal-backdrop {
+    padding: 0.5rem;
+  }
   .modal-card {
-    max-height: 94vh;
+    max-height: 95vh;
+    border-radius: 12px;
   }
   .modal-header {
-    padding: 1rem 1.25rem;
+    padding: 1rem 1.15rem;
   }
   .modal-body {
-    padding: 1.25rem 1rem;
+    padding: 1.15rem 1rem;
   }
   .modal-footer {
     padding: 0.85rem 1rem;
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+  .modal-footer > * {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

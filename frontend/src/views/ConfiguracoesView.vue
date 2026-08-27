@@ -18,7 +18,8 @@
       </template>
     </PageHeader>
 
-    <div class="tabs-container">
+    <!-- Navegação por Abas (Desktop) -->
+    <div class="tabs-container desktop-tabs">
       <button 
         v-for="aba in abas" 
         :key="aba.id" 
@@ -29,6 +30,23 @@
         <i :class="aba.icone"></i>
         <span>{{ aba.titulo }}</span>
       </button>
+    </div>
+
+    <!-- Seletor de Abas em Dropdown (Mobile) -->
+    <div class="tabs-mobile-dropdown">
+      <label class="tabs-mobile-label">
+        <i class="mdi mdi-layers-outline"></i>
+        <span>Seção Ativa:</span>
+      </label>
+      <div class="tabs-select-wrapper">
+        <i :class="abaInfo?.icone || 'mdi mdi-cog-outline'" class="select-active-icon"></i>
+        <select :value="abaAtiva" @change="mudarAba($event.target.value)" class="tabs-select-input">
+          <option v-for="aba in abas" :key="aba.id" :value="aba.id">
+            {{ aba.titulo }}
+          </option>
+        </select>
+        <i class="mdi mdi-chevron-down select-chevron"></i>
+      </div>
     </div>
 
     <!-- Módulo de Modelos de Checklist -->
@@ -572,9 +590,9 @@ onMounted(() => {
 }
 
 /* ==========================================
-   NAVEGAÇÃO POR ABAS
+   NAVEGAÇÃO POR ABAS (DESKTOP)
    ========================================== */
-.tabs-container {
+.tabs-container.desktop-tabs {
   display: flex;
   gap: 8px;
   margin-bottom: 1.5rem;
@@ -610,6 +628,78 @@ onMounted(() => {
   background: var(--primary, #b1072c);
   color: white;
   box-shadow: 0 4px 6px rgba(177, 7, 44, 0.2);
+}
+
+/* ==========================================
+   SELETOR DE ABAS MOBILE (DROPDOWN)
+   ========================================== */
+.tabs-mobile-dropdown {
+  display: none;
+  margin-bottom: 1.25rem;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-md, 12px);
+  padding: 0.85rem 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.tabs-mobile-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 0.5rem;
+}
+
+.tabs-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.select-active-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 1.25rem;
+  color: var(--primary, #b1072c);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tabs-select-input {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 2.6rem;
+  border: 1.5px solid var(--border-color, #cbd5e1);
+  border-radius: 8px;
+  background-color: #f8fafc;
+  color: var(--text-primary, #0f172a);
+  font-size: 0.98rem;
+  font-weight: 600;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  min-height: 46px;
+  transition: all 0.2s ease;
+}
+
+.tabs-select-input:focus {
+  outline: none;
+  border-color: var(--primary, #b1072c);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
+}
+
+.select-chevron {
+  position: absolute;
+  right: 12px;
+  font-size: 1.35rem;
+  color: #64748b;
+  pointer-events: none;
 }
 
 /* ==========================================
@@ -911,9 +1001,28 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
-@media (max-width: 767px) {
-  .page-container { padding: 1rem 0.5rem; }
-  .data-table { min-width: 580px; }
-  .time-row { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .tabs-container.desktop-tabs {
+    display: none;
+  }
+  .tabs-mobile-dropdown {
+    display: block;
+  }
+  .page-container {
+    padding: 1rem 0.5rem;
+  }
+  .card {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+  .data-table {
+    min-width: 560px;
+  }
+  .time-row {
+    grid-template-columns: 1fr;
+  }
+  .perguntas-manager-box {
+    padding: 0.85rem;
+  }
 }
 </style>

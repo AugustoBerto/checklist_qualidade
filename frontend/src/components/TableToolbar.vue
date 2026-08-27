@@ -197,10 +197,12 @@ const onClearSearch = () => {
   .table-toolbar {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.75rem;
   }
   .toolbar-left {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.65rem;
   }
   .search-box {
     max-width: 100%;
@@ -210,6 +212,11 @@ const onClearSearch = () => {
     flex-direction: column;
     align-items: stretch;
     width: 100%;
+    gap: 0.65rem;
+  }
+  .btn-limpar-filtros {
+    width: 100%;
+    justify-content: center;
   }
   .toolbar-actions {
     width: 100%;

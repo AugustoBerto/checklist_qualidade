@@ -270,8 +270,18 @@ onMounted(buscarChecklists);
 }
 
 @media (max-width: 768px) {
-  .card { padding: 1rem; }
-  .date-filters { width: 100%; justify-content: space-between; }
-  .input-date { flex: 1; }
+  .page-container { padding: 1rem 0.5rem; }
+  .card { padding: 1rem; border-radius: 12px; }
+  .date-filters {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .input-date {
+    flex: 1;
+    min-width: 0;
+    min-height: 42px;
+  }
 }
 </style>

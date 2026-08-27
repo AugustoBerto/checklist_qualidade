@@ -983,10 +983,13 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 .btn-principal:disabled { background-color: #cbd5e1; cursor: not-allowed; }
 .error-message { background: #fef2f2; border-left: 4px solid #ef4444; padding: 1rem; color: #b91c1c; margin: 1rem 0; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; border-radius: 0 8px 8px 0;}
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .card-admin, .form-card { padding: 1rem; }
   .tab-header-row { flex-direction: column; align-items: stretch; }
   .tab-header-row button { width: 100%; justify-content: center; }
+  .form-header-row { flex-direction: column; align-items: stretch; }
+  .form-header-row button { width: 100%; justify-content: center; }
+  .filtro-item { width: 100%; min-width: 100%; }
   .form-group-row, .box-add-categoria, .categoria-header, .add-pergunta-box { flex-direction: column; }
   .import-controls { flex-direction: column; align-items: stretch; }
   .btn-importar { width: 100%; justify-content: center; }
@@ -994,7 +997,7 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
   .w-50, .w-33 { width: 100%; }
   .checkbox-group { align-items: flex-start; }
   .categoria-header-left { width: 100%; }
-  .categoria-header-actions { width: 100%; justify-content: flex-start; }
+  .categoria-header-actions { width: 100%; justify-content: stretch; }
   .btn-toggle-ctq, .btn-excluir-categoria { flex: 1; justify-content: center; }
   .titulo-cat { width: 100%; }
   .btn-secundario, .btn-add-pergunta { justify-content: center; width: 100%; }
