@@ -277,10 +277,9 @@ test('criação de categoria padrão valida nome e recusa duplicatas com 409', a
   await cadastros.criarCategoriaPadrao({ body: { nome: '   ' } }, resSemNome);
   assert.equal(resSemNome.statusCode, 400);
 
-  db.query = async (sql) => {
-    if (/SELECT id FROM categorias_padrao/.test(sql)) {
-      return { rows: [{ id: 1 }], rowCount: 1 };
-    }
+  const consultas = [];
+  db.query = async (sql, params) => {
+    consultas.push({ sql, params });
     return { rows: [], rowCount: 0 };
   };
 
@@ -288,6 +287,10 @@ test('criação de categoria padrão valida nome e recusa duplicatas com 409', a
   await cadastros.criarCategoriaPadrao({ body: { nome: 'Costura', ctq: true, perguntas: ['P1'] } }, resDuplicado);
   assert.equal(resDuplicado.statusCode, 409);
   assert.match(resDuplicado.body.mensagem, /Já existe uma categoria cadastrada/);
+  assert.equal(consultas.length, 1);
+  assert.match(consultas[0].sql, /INSERT INTO categorias_padrao/);
+  assert.match(consultas[0].sql, /ON CONFLICT \(LOWER\(TRIM\(nome\)\)\) WHERE ativo = 1 DO NOTHING/i);
+  assert.doesNotMatch(consultas[0].sql, /SELECT/i);
 });
 
 test('atualização de categoria padrão persiste dados e exclusão inativa registro', async () => {
@@ -363,13 +366,16 @@ test('rejeita ctq textual no catálogo sem escrever', async () => {
 });
 
 test('rejeita setor inexistente ou inativo ao criar modelo antes do insert', async () => {
-  for (const setor of [{ rows: [], rowCount: 0 }, { rows: [], rowCount: 0 }]) {
+  for (const setor of [{ id: 3, ativo: 0 }, null]) {
     const consultas = [];
     db.connect = async () => ({
       async query(sql, params = []) {
         consultas.push({ sql, params });
         if (/FROM marcas/.test(sql)) return { rows: [{ id: 7 }], rowCount: 1 };
-        if (/FROM setores/.test(sql)) return setor;
+        if (/FROM setores/.test(sql)) {
+          assert.match(sql, /ativo\s*=\s*1/);
+          return setor && !/ativo\s*=\s*1/.test(sql) ? { rows: [setor], rowCount: 1 } : { rows: [], rowCount: 0 };
+        }
         if (/^(BEGIN|ROLLBACK|COMMIT)$/.test(sql)) return { rows: [], rowCount: 0 };
         throw new Error(`insert inesperado: ${sql}`);
       },
@@ -384,13 +390,22 @@ test('rejeita setor inexistente ou inativo ao criar modelo antes do insert', asy
   }
 });
 
-test('rejeita célula com setor ou marca inexistente antes do insert', async () => {
-  for (const tabela of ['setores', 'marcas']) {
+test('rejeita célula com setor inativo ou marca inexistente antes do insert', async () => {
+  for (const caso of [
+    { tabela: 'setores', setor: { id: 3, ativo: 0 }, marca: { id: 7 } },
+    { tabela: 'marcas', setor: { id: 3, ativo: 1 }, marca: null },
+  ]) {
     const consultas = [];
     db.query = async (sql, params = []) => {
       consultas.push({ sql, params });
-      if (new RegExp(`FROM ${tabela}`).test(sql)) return { rows: [], rowCount: 0 };
-      if (/FROM setores/.test(sql) || /FROM marcas/.test(sql)) return { rows: [{ id: 1 }], rowCount: 1 };
+      if (/FROM setores/.test(sql)) {
+        assert.match(sql, /ativo\s*=\s*1/);
+        return !/ativo\s*=\s*1/.test(sql) ? { rows: [caso.setor], rowCount: 1 } : { rows: [], rowCount: 0 };
+      }
+      if (/FROM marcas/.test(sql)) {
+        assert.doesNotMatch(sql, /ativo/);
+        return caso.marca ? { rows: [caso.marca], rowCount: 1 } : { rows: [], rowCount: 0 };
+      }
       throw new Error(`insert inesperado: ${sql}`);
     };
     const res = resposta();
@@ -402,20 +417,89 @@ test('rejeita célula com setor ou marca inexistente antes do insert', async () 
   }
 });
 
-test('rejeita perfil com FK inválida sem inserir e preserva null explícito', async () => {
-  let inseriu = false;
-  db.query = async (sql) => {
-    if (/FROM unidades/.test(sql)) return { rows: [], rowCount: 0 };
-    if (/INSERT INTO usuarios/.test(sql)) inseriu = true;
-    return { rows: [{ id: 1 }], rowCount: 1 };
+test('rejeita setor inativo ou marca inexistente ao atualizar célula', async () => {
+  for (const caso of [
+    { setor: { id: 3, ativo: 0 }, marca: { id: 7 }, marcaId: 7 },
+    { setor: { id: 3, ativo: 1 }, marca: null, marcaId: 7 },
+  ]) {
+    const consultas = [];
+    db.query = async (sql, params = []) => {
+      consultas.push({ sql, params });
+      if (/FROM setores/.test(sql)) {
+        assert.match(sql, /ativo\s*=\s*1/);
+        return caso.setor.ativo === 1 ? { rows: [caso.setor], rowCount: 1 } : { rows: [], rowCount: 0 };
+      }
+      if (/FROM marcas/.test(sql)) {
+        assert.doesNotMatch(sql, /ativo/);
+        return caso.marca ? { rows: [caso.marca], rowCount: 1 } : { rows: [], rowCount: 0 };
+      }
+      throw new Error(`update inesperado: ${sql}`);
+    };
+    const res = resposta();
+
+    await cadastros.atualizarCelula({ params: { id: 12 }, body: {
+      nome: 'Célula', id_setor_fk: 3, id_marca_fk: caso.marcaId, ativo: true,
+    } }, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(consultas.some(({ sql }) => /UPDATE celulas_producao/.test(sql)), false);
+  }
+});
+
+test('rejeita perfil com FK de setor, célula ou turno inválida sem inserir', async () => {
+  for (const caso of [
+    { campo: 'id_unidade_fk', tabela: 'unidades', registro: null },
+    { campo: 'id_setor_fk', tabela: 'setores', registro: { id: 99, ativo: 0 } },
+    { campo: 'id_celula_fk', tabela: 'celulas_producao', registro: { id: 99, ativo: 0 } },
+    { campo: 'id_turno_fk', tabela: 'turnos', registro: null },
+  ]) {
+    const { campo, tabela, registro } = caso;
+    let inseriu = false;
+    const consultas = [];
+    db.query = async (sql, params) => {
+      consultas.push({ sql, params });
+      if (new RegExp(`FROM ${tabela}`).test(sql)) {
+        if (!registro || /ativo\s*=\s*1/.test(sql)) return { rows: [], rowCount: 0 };
+        return { rows: [registro], rowCount: 1 };
+      }
+      if (/INSERT INTO usuarios/.test(sql)) inseriu = true;
+      return { rows: [{ id: 1 }], rowCount: 1 };
+    };
+    const res = resposta();
+
+    await perfis.criar({ body: {
+      matricula: '123', papel: 'INSPETOR', id_unidade_fk: null,
+      id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
+      [campo]: 99,
+    } }, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(inseriu, false);
+    if (campo === 'id_unidade_fk' || campo === 'id_setor_fk' || campo === 'id_celula_fk') assert.match(consultas[0].sql, /ativo\s*=\s*1/);
+    else assert.doesNotMatch(consultas[0].sql, /ativo/);
+  }
+});
+
+test('perfil aceita FKs nulas explicitamente e persiste null', async () => {
+  const originalFetch = global.fetch;
+  const consultas = [];
+  global.fetch = async () => ({ status: 200, ok: true, async json() { return { data: { nome: 'Pessoa', funcao: 'Função' } }; } });
+  db.query = async (sql, params = []) => {
+    consultas.push({ sql, params });
+    if (/INSERT INTO usuarios/.test(sql)) return { rows: [{ id: 1, matricula: '123' }], rowCount: 1 };
+    return { rows: [], rowCount: 0 };
   };
-  const res = resposta();
 
-  await perfis.criar({ body: {
-    matricula: '123', papel: 'INSPETOR', id_unidade_fk: 99,
-    id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
-  } }, res);
-
-  assert.equal(res.statusCode, 400);
-  assert.equal(inseriu, false);
+  try {
+    const res = resposta();
+    await perfis.criar({ body: {
+      matricula: '123', papel: 'INSPETOR', id_unidade_fk: null,
+      id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
+    } }, res);
+    const insert = consultas.find(({ sql }) => /INSERT INTO usuarios/.test(sql));
+    assert.equal(res.statusCode, 201);
+    assert.deepEqual(insert.params.slice(-4), [null, null, null, null]);
+  } finally {
+    global.fetch = originalFetch;
+  }
 });

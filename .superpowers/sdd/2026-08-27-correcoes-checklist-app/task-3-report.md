@@ -26,3 +26,18 @@
 - O schema não possui `marcas.ativo`; marcas são validadas por existência. Setores, unidades e células são validados com `ativo = 1`; turnos não possuem `ativo` e são validados por existência.
 - Integração PostgreSQL não foi executada: Docker está instalado, mas a sessão não tem permissão para acessar `/var/run/docker.sock`. A sintaxe SQL do `ON CONFLICT` fica para a execução de integração autorizada.
 - Nenhuma dependência, arquivo frontend ou migração foi alterado.
+
+## Fix round 1 — qualidade dos testes
+
+- `backend/test/cadastros-validation.test.js`: o caso de setor agora representa explicitamente registro inativo e só retorna a linha quando o predicado `ativo = 1` é removido; os casos de célula cobrem criação e atualização, setor inativo e marca inexistente sem presumir `marcas.ativo`; perfis cobrem FKs inválidas/inativas de unidade, setor, célula e turno, incluindo os predicados aplicáveis e a ausência de `ativo` em turnos; o teste de `null` verifica os quatro parâmetros no INSERT; o teste de catálogo exige `INSERT ... ON CONFLICT ... DO NOTHING` e ausência de SELECT.
+
+### Comandos e resultados
+
+- `cd backend && node --test --test-concurrency=1 test/cadastros-validation.test.js`: GREEN (`tests 1, pass 1, fail 0`; o runner agrega o arquivo; execução direta confirmou 21 testes, 21 pass).
+- `cd backend && npm run test:unit`: GREEN (`tests 5, pass 5, fail 0`).
+- Integração PostgreSQL continua pendente: Docker sem permissão para `/var/run/docker.sock` nesta sessão.
+
+### Auto-review
+
+- Cada caso de referência verifica comportamento de produção além do status: SQL de atividade, ausência/presença de predicado, ausência de INSERT/UPDATE e parâmetros nulos.
+- Nenhuma alteração de produção foi necessária neste round; nenhum mock simula mais o SELECT antigo do catálogo.
