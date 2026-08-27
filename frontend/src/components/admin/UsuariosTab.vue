@@ -12,17 +12,6 @@
 
     <!-- Lista de Usuários -->
     <div v-if="modo === 'lista'" class="card">
-      <div class="tab-header-row">
-        <div class="tab-header-info">
-          <h3>Perfis Operacionais</h3>
-          <p>Vincule matrículas do sistema dass_auth e atribua permissões de acesso.</p>
-        </div>
-        <button class="btn-primary btn-novo" @click="novo">
-          <i class="mdi mdi-account-plus"></i>
-          <span>Novo Perfil</span>
-        </button>
-      </div>
-
       <TableToolbar
         v-model="termoBusca"
         placeholder="Buscar por nome, matrícula ou papel..."
@@ -90,10 +79,6 @@
     <div v-else class="card form-card">
       <div class="form-header-row">
         <h3>{{ form.id ? 'Editar Perfil Operacional' : 'Novo Perfil Operacional' }}</h3>
-        <button class="btn-outline" @click="modo = 'lista'">
-          <i class="mdi mdi-arrow-left"></i>
-          <span>Voltar para Lista</span>
-        </button>
       </div>
 
       <form class="form-grid" @submit.prevent="salvar">
@@ -185,13 +170,19 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, computed } from 'vue'
+import { onMounted, reactive, ref, computed, watch } from 'vue'
 import VueSelect from 'vue3-select-component'
 import api from '../../services/api'
 import TableToolbar from '../TableToolbar.vue'
 import DataTable from '../DataTable.vue'
 
+const emit = defineEmits(['update:modo'])
+
 const modo = ref('lista'), perfis = ref([]), unidades = ref([]), setores = ref([]), celulas = ref([]), turnos = ref([])
+
+watch(modo, (novoModo) => {
+  emit('update:modo', novoModo)
+})
 const erro = ref(''), sucesso = ref(''), salvando = ref(false), carregando = ref(true)
 const termoBusca = ref('')
 const vazio = () => ({ id: null, matricula: '', nome: '', papel: '', funcao: '', ativo: true, id_unidade_fk: '', id_setor_fk: '', id_celula_fk: '', id_turno_fk: '' })
@@ -293,6 +284,12 @@ const salvar = async () => {
 }
 
 onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
+
+defineExpose({
+  modo,
+  novo,
+  voltarParaLista: () => { modo.value = 'lista'; }
+})
 </script>
 
 <style scoped>

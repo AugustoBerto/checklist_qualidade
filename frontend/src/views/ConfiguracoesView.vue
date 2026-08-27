@@ -7,13 +7,22 @@
     >
       <template #actions>
         <button
-          v-if="abaInfo && abaInfo.tipo !== 'custom'"
-          @click="abrirModal()"
+          v-if="modoAbaAtual === 'lista'"
+          @click="executarAcaoCriacaoAba"
           class="btn-primary"
-          title="Adicionar Novo Registro na Aba Ativa"
+          :title="`Adicionar ${rotuloBotaoNovo}`"
         >
           <i class="mdi mdi-plus"></i>
-          <span>Novo Registro</span>
+          <span>{{ rotuloBotaoNovo }}</span>
+        </button>
+        <button
+          v-else
+          @click="voltarAbaParaLista"
+          class="btn-outline"
+          title="Voltar para a listagem"
+        >
+          <i class="mdi mdi-arrow-left"></i>
+          <span>Voltar para Lista</span>
         </button>
       </template>
     </PageHeader>
@@ -23,7 +32,7 @@
       <button 
         v-for="aba in abas" 
         :key="aba.id" 
-        @click="mudarAba(aba.id)"
+        @click="mudarAba(aba.id)" 
         class="tab-btn" 
         :class="{ active: abaAtiva === aba.id }"
       >
@@ -50,10 +59,18 @@
     </div>
 
     <!-- Módulo de Modelos de Checklist -->
-    <ModelosTab v-if="abaAtiva === 'modelos'" />
+    <ModelosTab
+      v-if="abaAtiva === 'modelos'"
+      ref="modelosTabRef"
+      @update:modo="modoModelos = $event"
+    />
 
     <!-- Módulo de Usuários & Perfis -->
-    <UsuariosTab v-else-if="abaAtiva === 'usuarios'" />
+    <UsuariosTab
+      v-else-if="abaAtiva === 'usuarios'"
+      ref="usuariosTabRef"
+      @update:modo="modoUsuarios = $event"
+    />
 
     <!-- Módulos de Cadastros de Base -->
     <div v-else class="card">
@@ -435,8 +452,57 @@ const carregarDependenciasCelulas = async () => {
   }
 };
 
+const modelosTabRef = ref(null);
+const usuariosTabRef = ref(null);
+const modoModelos = ref('lista');
+const modoUsuarios = ref('lista');
+
+const modoAbaAtual = computed(() => {
+  if (abaAtiva.value === 'modelos') return modoModelos.value;
+  if (abaAtiva.value === 'usuarios') return modoUsuarios.value;
+  return 'lista';
+});
+
+const rotuloBotaoNovo = computed(() => {
+  switch (abaAtiva.value) {
+    case 'modelos': return 'Novo Modelo';
+    case 'usuarios': return 'Novo Perfil';
+    case 'unidades': return 'Nova Unidade';
+    case 'setores': return 'Novo Setor';
+    case 'celulas': return 'Nova Célula';
+    case 'marcas': return 'Nova Marca';
+    case 'categorias': return 'Nova Categoria';
+    case 'turnos': return 'Novo Turno';
+    default: return 'Novo Registro';
+  }
+});
+
+const executarAcaoCriacaoAba = () => {
+  if (abaAtiva.value === 'modelos') {
+    modelosTabRef.value?.abrirCriacao();
+    modoModelos.value = 'formulario';
+  } else if (abaAtiva.value === 'usuarios') {
+    usuariosTabRef.value?.novo();
+    modoUsuarios.value = 'formulario';
+  } else {
+    abrirModal();
+  }
+};
+
+const voltarAbaParaLista = () => {
+  if (abaAtiva.value === 'modelos') {
+    modelosTabRef.value?.voltarParaLista();
+    modoModelos.value = 'lista';
+  } else if (abaAtiva.value === 'usuarios') {
+    usuariosTabRef.value?.voltarParaLista();
+    modoUsuarios.value = 'lista';
+  }
+};
+
 const mudarAba = (idAba) => {
   abaAtiva.value = idAba;
+  modoModelos.value = 'lista';
+  modoUsuarios.value = 'lista';
   termoBusca.value = '';
   router.replace({ query: { ...route.query, aba: idAba } });
   if (abaInfo.value?.tipo !== 'custom') {

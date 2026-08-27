@@ -5,17 +5,6 @@
 
     <!-- Lista de Modelos -->
     <div v-if="modoAtual === 'lista'" class="card card-admin">
-      <div class="tab-header-row">
-        <div class="tab-header-info">
-          <h3>Modelos de Checklist</h3>
-          <p>Crie, clone, edite e gerencie os formulários de inspeção de qualidade.</p>
-        </div>
-        <button class="btn-primary btn-novo" @click="abrirCriacao">
-          <i class="mdi mdi-plus-box"></i>
-          <span>Novo Modelo</span>
-        </button>
-      </div>
-
       <TableToolbar
         v-model="filtroTexto"
         placeholder="Buscar por nome ou ID do modelo..."
@@ -50,10 +39,6 @@
           </div>
         </template>
       </TableToolbar>
-
-      <div v-if="!isLoadingTabela && modelosLista.length > 0" class="filtros-resumo">
-        <span>Exibindo <strong>{{ modelosFiltrados.length }}</strong> de <strong>{{ modelosLista.length }}</strong> modelos</span>
-      </div>
 
       <DataTable
         :items="modelosFiltrados"
@@ -113,12 +98,6 @@
       <div class="form-header-row">
         <div class="form-header-left">
           <h3>{{ form.id ? 'Editar Modelo de Checklist' : 'Criar Novo Modelo de Checklist' }}</h3>
-        </div>
-        <div class="form-header-actions">
-          <button class="btn-outline" @click="voltarParaLista">
-            <i class="mdi mdi-arrow-left"></i>
-            <span>Voltar para Lista</span>
-          </button>
         </div>
       </div>
       
@@ -295,10 +274,14 @@ import VueSelect from 'vue3-select-component';
 import api from '../../services/api';
 import TableToolbar from '../TableToolbar.vue';
 import DataTable from '../DataTable.vue';
-import { toast, dialog } from '../../services/feedback';
+const emit = defineEmits(['update:modo']);
 
 const modoAtual = ref('lista'); 
 const marcasOptions = ref([]);
+
+watch(modoAtual, (novoModo) => {
+  emit('update:modo', novoModo);
+});
 const setoresOptions = ref([]); 
 const modelosLista = ref([]);
 const erroGlobal = ref('');
@@ -670,6 +653,12 @@ const salvarChecklist = async () => {
     isLoadingForm.value = false;
   }
 };
+
+defineExpose({
+  modoAtual,
+  abrirCriacao,
+  voltarParaLista
+});
 </script>
 
 <style scoped>
