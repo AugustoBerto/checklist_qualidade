@@ -32,7 +32,7 @@ try {
   run('docker', [...compose, 'up', '-d', '--wait']);
   run(process.execPath, ['scripts/db.js', 'init']);
   run(process.execPath, ['scripts/db.js', 'migrate']);
-  run(process.execPath, ['--test', '--test-concurrency=1', 'test/integration/database.integration.test.js']);
+  run(process.execPath, ['--test', '--test-concurrency=1', 'test/db-foundation.test.js', 'test/integration/database.integration.test.js']);
 } finally {
   if (started) run('docker', [...compose, 'down', '-v', '--remove-orphans']);
 }
