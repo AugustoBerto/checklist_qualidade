@@ -14,38 +14,34 @@
     <div v-if="modo === 'lista'" class="card">
       <TableToolbar
         v-model="termoBusca"
-        search-label="Buscar Colaborador"
         placeholder="Buscar por nome, matrícula ou função..."
         :has-active-filters="temFiltrosAtivos"
         @clear="limparFiltros"
       >
         <template #filters>
           <div class="filtro-item">
-            <label class="filter-field-label">Papel</label>
-            <select v-model="filtroPapel" class="filter-select">
-              <option value="">Todos os Papéis</option>
+            <select v-model="filtroPapel" class="filter-select" title="Filtrar por Papel">
+              <option value="">Papel: Todos</option>
               <option v-for="p in opcoesPapel" :key="p.value" :value="p.value">
-                {{ p.label }}
+                Papel: {{ p.label }}
               </option>
             </select>
           </div>
 
           <div class="filtro-item">
-            <label class="filter-field-label">Setor</label>
-            <select v-model="filtroSetor" class="filter-select">
-              <option value="">Todos os Setores</option>
+            <select v-model="filtroSetor" class="filter-select" title="Filtrar por Setor">
+              <option value="">Setor: Todos</option>
               <option v-for="s in setores" :key="s.id" :value="s.id">
-                {{ s.nome }}
+                Setor: {{ s.nome }}
               </option>
             </select>
           </div>
 
           <div class="filtro-item">
-            <label class="filter-field-label">Status</label>
-            <select v-model="filtroStatus" class="filter-select">
-              <option value="todos">Todos os Status</option>
-              <option value="ativos">Apenas Ativos</option>
-              <option value="inativos">Apenas Inativos</option>
+            <select v-model="filtroStatus" class="filter-select" title="Filtrar por Status">
+              <option value="todos">Status: Todos</option>
+              <option value="ativos">Status: Apenas Ativos</option>
+              <option value="inativos">Status: Apenas Inativos</option>
             </select>
           </div>
         </template>

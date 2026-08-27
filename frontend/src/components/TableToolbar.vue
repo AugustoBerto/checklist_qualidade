@@ -3,7 +3,6 @@
     <div class="toolbar-left">
       <!-- Campo de Busca Textual -->
       <div v-if="showSearch" class="search-box">
-        <label v-if="searchLabel" class="filter-field-label">{{ searchLabel }}</label>
         <div class="search-input-wrapper">
           <i class="mdi mdi-magnify search-icon"></i>
           <input
@@ -60,10 +59,6 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  searchLabel: {
-    type: String,
-    default: ''
-  },
   placeholder: {
     type: String,
     default: 'Buscar...'
@@ -109,14 +104,14 @@ const onClearSearch = () => {
   margin-bottom: 1.25rem;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
 .toolbar-left {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
   flex: 1;
@@ -126,7 +121,6 @@ const onClearSearch = () => {
 .search-box {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
   flex: 1;
   min-width: 240px;
   max-width: 380px;
@@ -152,7 +146,7 @@ const onClearSearch = () => {
   padding: 0.65rem 2.2rem 0.65rem 2.4rem;
   border: 1.5px solid var(--border-color, #cbd5e1);
   border-radius: var(--radius-md, 8px);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   color: var(--text-primary, #0f172a);
   background-color: #f8fafc;
   box-sizing: border-box;
@@ -190,7 +184,7 @@ const onClearSearch = () => {
 
 .filters-group {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
@@ -222,15 +216,24 @@ const onClearSearch = () => {
 :deep(.filter-select),
 :deep(.select-filtro) {
   min-height: 42px;
-  padding: 0.6rem 0.85rem;
+  padding: 0.6rem 2.4rem 0.6rem 0.85rem;
   border: 1.5px solid var(--border-color, #cbd5e1);
   border-radius: var(--radius-md, 8px);
   font-size: 0.88rem;
+  font-weight: 500;
   color: var(--text-primary, #0f172a);
   background-color: #f8fafc;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'%3e%3cpath d='M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.2rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   cursor: pointer;
   box-sizing: border-box;
   font-family: inherit;
+  min-width: 155px;
   transition: all 0.15s ease;
 }
 
@@ -251,24 +254,12 @@ const onClearSearch = () => {
 :deep(.filter-field),
 :deep(.filtro-item) {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 140px;
-}
-
-:deep(.filter-field-label),
-.filter-field-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  line-height: 1.2;
+  align-items: center;
 }
 
 .toolbar-actions {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.75rem;
   flex-shrink: 0;
 }

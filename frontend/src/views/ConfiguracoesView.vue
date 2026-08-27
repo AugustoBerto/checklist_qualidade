@@ -76,27 +76,24 @@
     <div v-else class="card">
       <TableToolbar
         v-model="termoBusca"
-        :search-label="`Buscar em ${nomeAbaAtiva.toLowerCase()}`"
         :placeholder="`Buscar em ${nomeAbaAtiva.toLowerCase()}...`"
         :has-active-filters="temFiltrosBaseAtivos"
         @clear="limparFiltrosBase"
       >
         <template v-if="abaAtiva === 'celulas'" #filters>
           <div class="filtro-item">
-            <label class="filter-field-label">Setor</label>
-            <select v-model="filtroBaseSetor" class="filter-select">
-              <option value="">Todos os Setores</option>
+            <select v-model="filtroBaseSetor" class="filter-select" title="Filtrar por Setor">
+              <option value="">Setor: Todos</option>
               <option v-for="s in dados.setores" :key="s.id" :value="s.id">
-                {{ s.nome }}
+                Setor: {{ s.nome }}
               </option>
             </select>
           </div>
           <div class="filtro-item">
-            <label class="filter-field-label">Marca</label>
-            <select v-model="filtroBaseMarca" class="filter-select">
-              <option value="">Todas as Marcas</option>
+            <select v-model="filtroBaseMarca" class="filter-select" title="Filtrar por Marca">
+              <option value="">Marca: Todas</option>
               <option v-for="m in dados.marcas" :key="m.id" :value="m.id">
-                {{ m.nome }}
+                Marca: {{ m.nome }}
               </option>
             </select>
           </div>
@@ -104,11 +101,10 @@
 
         <template v-else-if="abaAtiva === 'categorias'" #filters>
           <div class="filtro-item">
-            <label class="filter-field-label">Tipo de Processo</label>
-            <select v-model="filtroBaseTipo" class="filter-select">
-              <option value="todos">Todos os Tipos</option>
-              <option value="ctq">Apenas CTQ (Crítico)</option>
-              <option value="padrao">Apenas Processo Padrão</option>
+            <select v-model="filtroBaseTipo" class="filter-select" title="Filtrar por Processo">
+              <option value="todos">Processo: Todos</option>
+              <option value="ctq">Processo: Apenas CTQ</option>
+              <option value="padrao">Processo: Apenas Padrão</option>
             </select>
           </div>
         </template>

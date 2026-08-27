@@ -12,7 +12,6 @@
         <!-- Linha Superior: Busca Ampla + Botão Limpar Filtros -->
         <div class="toolbar-search-row">
           <div class="search-box">
-            <label class="filter-field-label">Busca Global</label>
             <div class="search-input-wrapper">
               <i class="mdi mdi-magnify search-icon"></i>
               <input
@@ -50,40 +49,36 @@
         <div class="toolbar-filters-grid">
           <!-- Filtro por Setor -->
           <div class="filter-field">
-            <label class="filter-field-label">Setor</label>
             <select v-model="filtros.setorId" class="filter-select" title="Filtrar por Setor">
-              <option value="">Todos os Setores</option>
+              <option value="">Setor: Todos</option>
               <option v-for="s in setoresOptions" :key="s.id" :value="s.id">
-                {{ s.nome }}
+                Setor: {{ s.nome }}
               </option>
             </select>
           </div>
 
           <!-- Filtro por Modelo -->
           <div class="filter-field">
-            <label class="filter-field-label">Modelo</label>
             <select v-model="filtros.modeloId" class="filter-select" title="Filtrar por Modelo">
-              <option value="">Todos os Modelos</option>
+              <option value="">Modelo: Todos</option>
               <option v-for="m in modelosOptions" :key="m.id" :value="m.id">
-                {{ m.nome }}
+                Modelo: {{ m.nome }}
               </option>
             </select>
           </div>
 
           <!-- Filtro por Célula / Linha -->
           <div class="filter-field">
-            <label class="filter-field-label">Célula / Linha</label>
             <select v-model="filtros.celulaId" class="filter-select" title="Filtrar por Célula / Linha">
-              <option value="">Todas as Células</option>
+              <option value="">Célula: Todas</option>
               <option v-for="c in celulasFiltradas" :key="c.id" :value="c.id">
-                {{ c.nome }}
+                Célula: {{ c.nome }}
               </option>
             </select>
           </div>
 
           <!-- Filtro de Período (Datas) -->
           <div class="filter-field filter-field-periodo">
-            <label class="filter-field-label">Período de Envio</label>
             <div class="date-range-box">
               <input type="date" v-model="filtros.dataInicio" class="input-date" title="Data Inicial">
               <span class="date-separator">até</span>
@@ -360,7 +355,7 @@ onMounted(() => {
 
 .toolbar-search-row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.75rem;
   width: 100%;
 }
@@ -368,7 +363,6 @@ onMounted(() => {
 .search-box {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
   flex: 1;
 }
 
@@ -392,7 +386,7 @@ onMounted(() => {
   padding: 0.65rem 2.2rem 0.65rem 2.4rem;
   border: 1.5px solid var(--border-color, #cbd5e1);
   border-radius: var(--radius-md, 8px);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--text-primary, #0f172a);
   background-color: #f8fafc;
   box-sizing: border-box;
@@ -454,34 +448,33 @@ onMounted(() => {
 .toolbar-filters-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(180px, 1fr)) minmax(280px, auto);
-  gap: 0.85rem;
-  align-items: end;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .filter-field {
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  align-items: center;
   min-width: 0;
-}
-
-.filter-field-label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
 }
 
 .filter-select {
   width: 100%;
-  padding: 0.6rem 0.85rem;
+  padding: 0.6rem 2.4rem 0.6rem 0.85rem;
   border: 1.5px solid var(--border-color, #cbd5e1);
   border-radius: var(--radius-md, 8px);
   font-size: 0.88rem;
+  font-weight: 500;
   color: var(--text-primary, #0f172a);
   background-color: #f8fafc;
-  min-height: 40px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'%3e%3cpath d='M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.2rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  min-height: 42px;
   cursor: pointer;
   box-sizing: border-box;
   font-family: inherit;
@@ -504,16 +497,17 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  width: 100%;
 }
 
 .input-date {
-  padding: 0.55rem 0.7rem;
+  padding: 0.6rem 0.75rem;
   border: 1.5px solid var(--border-color, #cbd5e1);
   border-radius: var(--radius-md, 8px);
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   color: var(--text-primary, #0f172a);
   background-color: #f8fafc;
-  min-height: 40px;
+  min-height: 42px;
   box-sizing: border-box;
   font-family: inherit;
   flex: 1;
