@@ -76,10 +76,43 @@
     <div v-else class="card">
       <TableToolbar
         v-model="termoBusca"
+        :search-label="`Buscar em ${nomeAbaAtiva.toLowerCase()}`"
         :placeholder="`Buscar em ${nomeAbaAtiva.toLowerCase()}...`"
-        :has-active-filters="Boolean(termoBusca)"
-        @clear="termoBusca = ''"
-      />
+        :has-active-filters="temFiltrosBaseAtivos"
+        @clear="limparFiltrosBase"
+      >
+        <template v-if="abaAtiva === 'celulas'" #filters>
+          <div class="filtro-item">
+            <label class="filter-field-label">Setor</label>
+            <select v-model="filtroBaseSetor" class="filter-select">
+              <option value="">Todos os Setores</option>
+              <option v-for="s in dados.setores" :key="s.id" :value="s.id">
+                {{ s.nome }}
+              </option>
+            </select>
+          </div>
+          <div class="filtro-item">
+            <label class="filter-field-label">Marca</label>
+            <select v-model="filtroBaseMarca" class="filter-select">
+              <option value="">Todas as Marcas</option>
+              <option v-for="m in dados.marcas" :key="m.id" :value="m.id">
+                {{ m.nome }}
+              </option>
+            </select>
+          </div>
+        </template>
+
+        <template v-else-if="abaAtiva === 'categorias'" #filters>
+          <div class="filtro-item">
+            <label class="filter-field-label">Tipo de Processo</label>
+            <select v-model="filtroBaseTipo" class="filter-select">
+              <option value="todos">Todos os Tipos</option>
+              <option value="ctq">Apenas CTQ (Crítico)</option>
+              <option value="padrao">Apenas Processo Padrão</option>
+            </select>
+          </div>
+        </template>
+      </TableToolbar>
 
       <DataTable
         :items="dadosFiltrados"
@@ -364,6 +397,24 @@ const isLoading = ref(true);
 const salvando = ref(false);
 const showModal = ref(false);
 const termoBusca = ref('');
+const filtroBaseSetor = ref('');
+const filtroBaseMarca = ref('');
+const filtroBaseTipo = ref('todos');
+
+const temFiltrosBaseAtivos = computed(() => {
+  return Boolean(
+    termoBusca.value.trim() ||
+    (abaAtiva.value === 'celulas' && (filtroBaseSetor.value || filtroBaseMarca.value)) ||
+    (abaAtiva.value === 'categorias' && filtroBaseTipo.value !== 'todos')
+  );
+});
+
+const limparFiltrosBase = () => {
+  termoBusca.value = '';
+  filtroBaseSetor.value = '';
+  filtroBaseMarca.value = '';
+  filtroBaseTipo.value = 'todos';
+};
 
 const dados = reactive({
   unidades: [],
@@ -399,7 +450,25 @@ const dadosAtuais = computed(() => {
 });
 
 const dadosFiltrados = computed(() => {
-  const lista = dadosAtuais.value;
+  let lista = dadosAtuais.value;
+
+  // Filtros contextuais
+  if (abaAtiva.value === 'celulas') {
+    if (filtroBaseSetor.value) {
+      lista = lista.filter(item => String(item.id_setor_fk) === String(filtroBaseSetor.value));
+    }
+    if (filtroBaseMarca.value) {
+      lista = lista.filter(item => String(item.id_marca_fk) === String(filtroBaseMarca.value));
+    }
+  } else if (abaAtiva.value === 'categorias') {
+    if (filtroBaseTipo.value === 'ctq') {
+      lista = lista.filter(item => Boolean(item.ctq));
+    } else if (filtroBaseTipo.value === 'padrao') {
+      lista = lista.filter(item => !item.ctq);
+    }
+  }
+
+  // Filtro textual
   if (!termoBusca.value.trim()) return lista;
   const t = termoBusca.value.toLowerCase().trim();
   return lista.filter(item => {
@@ -518,7 +587,7 @@ const mudarAba = (idAba) => {
   modoModelos.value = 'lista';
   modoUsuarios.value = 'lista';
   fecharModal();
-  termoBusca.value = '';
+  limparFiltrosBase();
   router.replace({ query: { ...route.query, aba: idAba } });
   if (abaInfo.value?.tipo !== 'custom') {
     buscarDados();

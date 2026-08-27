@@ -14,17 +14,49 @@
     <div v-if="modo === 'lista'" class="card">
       <TableToolbar
         v-model="termoBusca"
-        placeholder="Buscar por nome, matrícula ou papel..."
-        :has-active-filters="Boolean(termoBusca)"
-        @clear="termoBusca = ''"
-      />
+        search-label="Buscar Colaborador"
+        placeholder="Buscar por nome, matrícula ou função..."
+        :has-active-filters="temFiltrosAtivos"
+        @clear="limparFiltros"
+      >
+        <template #filters>
+          <div class="filtro-item">
+            <label class="filter-field-label">Papel</label>
+            <select v-model="filtroPapel" class="filter-select">
+              <option value="">Todos os Papéis</option>
+              <option v-for="p in opcoesPapel" :key="p.value" :value="p.value">
+                {{ p.label }}
+              </option>
+            </select>
+          </div>
+
+          <div class="filtro-item">
+            <label class="filter-field-label">Setor</label>
+            <select v-model="filtroSetor" class="filter-select">
+              <option value="">Todos os Setores</option>
+              <option v-for="s in setores" :key="s.id" :value="s.id">
+                {{ s.nome }}
+              </option>
+            </select>
+          </div>
+
+          <div class="filtro-item">
+            <label class="filter-field-label">Status</label>
+            <select v-model="filtroStatus" class="filter-select">
+              <option value="todos">Todos os Status</option>
+              <option value="ativos">Apenas Ativos</option>
+              <option value="inativos">Apenas Inativos</option>
+            </select>
+          </div>
+        </template>
+      </TableToolbar>
 
       <DataTable
         :items="perfisFiltrados"
         :is-loading="carregando"
         loading-message="Carregando perfis de usuários..."
         empty-title="Nenhum perfil encontrado"
-        :empty-message="termoBusca ? `Não encontramos resultados para '${termoBusca}'.` : 'Cadastre o primeiro colaborador para atribuir permissões.'"
+        :empty-message="temFiltrosAtivos ? 'Nenhum perfil de usuário corresponde aos filtros selecionados.' : 'Cadastre o primeiro colaborador para atribuir permissões.'"
         empty-icon="mdi mdi-account-search-outline"
       >
         <template #header>
@@ -203,6 +235,26 @@ watch(modo, (novoModo) => {
 })
 const erro = ref(''), sucesso = ref(''), salvando = ref(false), carregando = ref(true)
 const termoBusca = ref('')
+const filtroPapel = ref('')
+const filtroStatus = ref('todos')
+const filtroSetor = ref('')
+
+const temFiltrosAtivos = computed(() => {
+  return Boolean(
+    termoBusca.value.trim() ||
+    filtroPapel.value !== '' ||
+    filtroStatus.value !== 'todos' ||
+    filtroSetor.value !== ''
+  )
+})
+
+const limparFiltros = () => {
+  termoBusca.value = ''
+  filtroPapel.value = ''
+  filtroStatus.value = 'todos'
+  filtroSetor.value = ''
+}
+
 const vazio = () => ({ id: null, matricula: '', nome: '', papel: '', funcao: '', ativo: true, id_unidade_fk: '', id_setor_fk: '', id_celula_fk: '', id_turno_fk: '' })
 const form = reactive(vazio())
 
@@ -230,13 +282,30 @@ const opcoesStatus = [
 ]
 
 const perfisFiltrados = computed(() => {
-  if (!termoBusca.value.trim()) return perfis.value
-  const t = termoBusca.value.toLowerCase().trim()
-  return perfis.value.filter(p => 
-    (p.nome && p.nome.toLowerCase().includes(t)) ||
-    (p.matricula && String(p.matricula).toLowerCase().includes(t)) ||
-    (p.papel && p.papel.toLowerCase().includes(t))
-  )
+  return perfis.value.filter(p => {
+    // 1. Filtro textual
+    if (termoBusca.value.trim()) {
+      const t = termoBusca.value.toLowerCase().trim()
+      const match = (p.nome && p.nome.toLowerCase().includes(t)) ||
+        (p.matricula && String(p.matricula).toLowerCase().includes(t)) ||
+        (p.papel && p.papel.toLowerCase().includes(t)) ||
+        (p.funcao && p.funcao.toLowerCase().includes(t)) ||
+        (p.nome_setor && p.nome_setor.toLowerCase().includes(t))
+      if (!match) return false
+    }
+    // 2. Filtro de papel
+    if (filtroPapel.value && p.papel !== filtroPapel.value) {
+      return false
+    }
+    // 3. Filtro de status
+    if (filtroStatus.value === 'ativos' && !p.ativo) return false
+    if (filtroStatus.value === 'inativos' && p.ativo) return false
+    // 4. Filtro de setor
+    if (filtroSetor.value && String(p.id_setor_fk) !== String(filtroSetor.value)) {
+      return false
+    }
+    return true
+  })
 })
 
 const dados = (r) => r.data?.dados || []

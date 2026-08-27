@@ -3,23 +3,26 @@
     <div class="toolbar-left">
       <!-- Campo de Busca Textual -->
       <div v-if="showSearch" class="search-box">
-        <i class="mdi mdi-magnify search-icon"></i>
-        <input
-          type="text"
-          :value="modelValue"
-          @input="onInput"
-          :placeholder="placeholder"
-          class="input-search"
-        >
-        <button
-          v-if="modelValue"
-          type="button"
-          class="clear-input-btn"
-          @click="onClearSearch"
-          title="Limpar busca"
-        >
-          <i class="mdi mdi-close"></i>
-        </button>
+        <label v-if="searchLabel" class="filter-field-label">{{ searchLabel }}</label>
+        <div class="search-input-wrapper">
+          <i class="mdi mdi-magnify search-icon"></i>
+          <input
+            type="text"
+            :value="modelValue"
+            @input="onInput"
+            :placeholder="placeholder"
+            class="input-search"
+          >
+          <button
+            v-if="modelValue"
+            type="button"
+            class="clear-input-btn"
+            @click="onClearSearch"
+            title="Limpar busca"
+          >
+            <i class="mdi mdi-close"></i>
+          </button>
+        </div>
       </div>
 
       <!-- Filtros Adicionais (Dropdowns, Datas, etc.) -->
@@ -54,6 +57,10 @@ let debounceTimer = null;
 
 const props = defineProps({
   modelValue: {
+    type: String,
+    default: ''
+  },
+  searchLabel: {
     type: String,
     default: ''
   },
@@ -102,14 +109,14 @@ const onClearSearch = () => {
   margin-bottom: 1.25rem;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   gap: 1rem;
   flex-wrap: wrap;
 }
 
 .toolbar-left {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
   flex: 1;
@@ -117,10 +124,17 @@ const onClearSearch = () => {
 }
 
 .search-box {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
   flex: 1;
   min-width: 240px;
   max-width: 380px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 100%;
 }
 
 .search-icon {
@@ -130,6 +144,7 @@ const onClearSearch = () => {
   transform: translateY(-50%);
   color: #94a3b8;
   font-size: 1.2rem;
+  pointer-events: none;
 }
 
 .input-search {
@@ -137,7 +152,7 @@ const onClearSearch = () => {
   padding: 0.65rem 2.2rem 0.65rem 2.4rem;
   border: 1.5px solid var(--border-color, #cbd5e1);
   border-radius: var(--radius-md, 8px);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: var(--text-primary, #0f172a);
   background-color: #f8fafc;
   box-sizing: border-box;
@@ -149,7 +164,7 @@ const onClearSearch = () => {
   outline: none;
   border-color: var(--primary, #b1072c);
   background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
+  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.12);
 }
 
 .clear-input-btn {
@@ -175,7 +190,7 @@ const onClearSearch = () => {
 
 .filters-group {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
@@ -184,11 +199,76 @@ const onClearSearch = () => {
   min-height: 42px;
   padding: 0.6rem 1rem;
   font-size: 0.88rem;
+  background: #f8fafc;
+  border: 1.5px solid var(--border-color, #cbd5e1);
+  color: #475569;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.btn-limpar-filtros:hover {
+  background: #fee2e2;
+  color: var(--danger, #ef4444);
+  border-color: #fca5a5;
+}
+
+/* ESTILOS UNIVERSAIS DE FILTROS SLOTTED */
+:deep(.filter-select),
+:deep(.select-filtro) {
+  min-height: 42px;
+  padding: 0.6rem 0.85rem;
+  border: 1.5px solid var(--border-color, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.88rem;
+  color: var(--text-primary, #0f172a);
+  background-color: #f8fafc;
+  cursor: pointer;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+:deep(.filter-select:hover),
+:deep(.select-filtro:hover) {
+  background-color: #ffffff;
+  border-color: #94a3b8;
+}
+
+:deep(.filter-select:focus),
+:deep(.select-filtro:focus) {
+  outline: none;
+  border-color: var(--primary, #b1072c);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.12);
+}
+
+:deep(.filter-field),
+:deep(.filtro-item) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 140px;
+}
+
+:deep(.filter-field-label),
+.filter-field-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  line-height: 1.2;
 }
 
 .toolbar-actions {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.75rem;
   flex-shrink: 0;
 }
@@ -213,6 +293,13 @@ const onClearSearch = () => {
     align-items: stretch;
     width: 100%;
     gap: 0.65rem;
+  }
+  :deep(.filter-field),
+  :deep(.filtro-item),
+  :deep(.filter-select),
+  :deep(.select-filtro) {
+    width: 100%;
+    min-width: 0;
   }
   .btn-limpar-filtros {
     width: 100%;

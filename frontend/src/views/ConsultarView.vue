@@ -12,23 +12,26 @@
         <!-- Linha Superior: Busca Ampla + Botão Limpar Filtros -->
         <div class="toolbar-search-row">
           <div class="search-box">
-            <i class="mdi mdi-magnify search-icon"></i>
-            <input
-              type="text"
-              v-model="filtros.busca"
-              @input="onInputBusca"
-              placeholder="Buscar por modelo, responsável, setor ou célula..."
-              class="input-search"
-            >
-            <button
-              v-if="filtros.busca"
-              type="button"
-              class="clear-input-btn"
-              @click="limparBusca"
-              title="Limpar busca"
-            >
-              <i class="mdi mdi-close"></i>
-            </button>
+            <label class="filter-field-label">Busca Global</label>
+            <div class="search-input-wrapper">
+              <i class="mdi mdi-magnify search-icon"></i>
+              <input
+                type="text"
+                v-model="filtros.busca"
+                @input="onInputBusca"
+                placeholder="Buscar por modelo, responsável, setor ou célula..."
+                class="input-search"
+              >
+              <button
+                v-if="filtros.busca"
+                type="button"
+                class="clear-input-btn"
+                @click="limparBusca"
+                title="Limpar busca"
+              >
+                <i class="mdi mdi-close"></i>
+              </button>
+            </div>
           </div>
 
           <button
@@ -357,14 +360,21 @@ onMounted(() => {
 
 .toolbar-search-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.75rem;
   width: 100%;
 }
 
 .search-box {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
   flex: 1;
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 100%;
 }
 
 .search-icon {
@@ -374,6 +384,7 @@ onMounted(() => {
   transform: translateY(-50%);
   color: #94a3b8;
   font-size: 1.2rem;
+  pointer-events: none;
 }
 
 .input-search {
