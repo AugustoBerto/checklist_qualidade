@@ -1,4 +1,5 @@
 const db = require('../db');
+const { withTransaction } = require('../database/transaction');
 
 const nomeValido = (nome) => typeof nome === 'string' && nome.trim().length > 0 && nome.trim().length <= 255;
 const idValido = (id) => {
@@ -464,13 +465,14 @@ exports.criarCelula = async (req, res) => {
     }
     
     try {
-        await validarSetor(db, Number(id_setor_fk));
-        if (id_marca_fk !== null) await validarMarca(db, Number(id_marca_fk));
-        const query = `
-            INSERT INTO celulas_producao (nome, id_setor_fk, id_marca_fk, ativo) 
-            VALUES ($1, $2, $3, 1) RETURNING *
-        `;
-        const { rows } = await db.query(query, [normalizarNome(nome), Number(id_setor_fk), id_marca_fk === null ? null : Number(id_marca_fk)]);
+        const { rows } = await withTransaction(db, async (client) => {
+            await validarSetor(client, Number(id_setor_fk));
+            if (id_marca_fk !== null) await validarMarca(client, Number(id_marca_fk));
+            return client.query(`
+                INSERT INTO celulas_producao (nome, id_setor_fk, id_marca_fk, ativo)
+                VALUES ($1, $2, $3, 1) RETURNING *
+            `, [normalizarNome(nome), Number(id_setor_fk), id_marca_fk === null ? null : Number(id_marca_fk)]);
+        });
         res.status(201).json({ sucesso: true, mensagem: 'Célula criada!', celula: rows[0] });
     } catch (error) {
         console.error('Erro ao criar célula:', error);
@@ -485,14 +487,15 @@ exports.atualizarCelula = async (req, res) => {
     if (!idValido(id) || !nomeValido(nome) || !idValido(id_setor_fk) || (id_marca_fk !== null && !idValido(id_marca_fk)) || typeof ativo !== 'boolean') return res.status(400).json({ sucesso: false, mensagem: 'Dados da célula inválidos.' });
     
     try {
-        await validarSetor(db, Number(id_setor_fk));
-        if (id_marca_fk !== null) await validarMarca(db, Number(id_marca_fk));
-        const query = `
-            UPDATE celulas_producao 
-            SET nome = $1, id_setor_fk = $2, id_marca_fk = $3, ativo = $4 
-            WHERE id = $5 RETURNING *
-        `;
-        const result = await db.query(query, [normalizarNome(nome), Number(id_setor_fk), id_marca_fk === null ? null : Number(id_marca_fk), Number(ativo), id]);
+        const result = await withTransaction(db, async (client) => {
+            await validarSetor(client, Number(id_setor_fk));
+            if (id_marca_fk !== null) await validarMarca(client, Number(id_marca_fk));
+            return client.query(`
+                UPDATE celulas_producao
+                SET nome = $1, id_setor_fk = $2, id_marca_fk = $3, ativo = $4
+                WHERE id = $5 RETURNING *
+            `, [normalizarNome(nome), Number(id_setor_fk), id_marca_fk === null ? null : Number(id_marca_fk), Number(ativo), id]);
+        });
         if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Célula não encontrada.' });
         res.status(200).json({ sucesso: true, mensagem: 'Célula atualizada!', celula: result.rows[0] });
     } catch (error) {
@@ -696,7 +699,7 @@ exports.atualizarCategoriaPadrao = async (req, res) => {
         res.status(200).json({ sucesso: true, mensagem: 'Categoria atualizada com sucesso!', categoria: result.rows[0] });
     } catch (error) {
         console.error('Erro ao atualizar categoria padrão:', error);
-        res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao atualizar categoria.' });
+        res.status(error.code === '23505' ? 409 : 500).json({ sucesso: false, mensagem: 'Erro interno ao atualizar categoria.' });
     }
 };
 

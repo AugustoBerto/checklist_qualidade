@@ -66,9 +66,7 @@ test('criação de modelos sincroniza categoria padrão concorrente com UPSERT',
   const nomesModelo = [`MODELO TASK3 A ${sufixo}`, `MODELO TASK3 B ${sufixo}`];
   const marca = (await pool.query('INSERT INTO marcas (nome) VALUES ($1) RETURNING id', [nomeMarca])).rows[0];
   const setor = (await pool.query('INSERT INTO setores (nome, ativo) VALUES ($1, 1) RETURNING id', [nomeSetor])).rows[0];
-  const respostas = [];
-
-  for (const [indice, nomeModelo] of nomesModelo.entries()) {
+  const respostas = await Promise.all(nomesModelo.map(async (nomeModelo, indice) => {
     const res = resposta();
     await cadastros.criarModelo({ body: {
       nomeModelo,
@@ -76,8 +74,8 @@ test('criação de modelos sincroniza categoria padrão concorrente com UPSERT',
       id_setor: setor.id,
       categorias: { [nomeCategoria]: { ctq: false, perguntas: [`Pergunta TASK3 ${indice + 1}`] } },
     } }, res);
-    respostas.push(res);
-  }
+    return res;
+  }));
 
   assert.deepEqual(respostas.map(({ statusCode }) => statusCode), [201, 201]);
 

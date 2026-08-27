@@ -1,4 +1,5 @@
 const db = require('../db');
+const { withTransaction } = require('../database/transaction');
 
 const PAPEIS = new Set(['ADMIN', 'LIDER', 'INSPETOR']);
 const DASS_AUTH_BASE_URL = process.env.DASS_AUTH_BASE_URL || 'http://localhost:2123';
@@ -78,17 +79,19 @@ exports.criar = async (req, res) => {
 
     const { matricula, papel, id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk } = req.body;
     try {
-        await validarReferencias(db, req.body);
         const colaborador = await buscarColaboradorCentral(matricula);
         if (!colaborador) return res.status(400).json({ sucesso: false, mensagem: 'Matrícula não encontrada no dass_auth.' });
-        const { rows } = await db.query(`
-            INSERT INTO usuarios (
-                nome, matricula, papel, ativo, funcao,
-                id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk
-            ) VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8)
-            RETURNING ${camposPerfil}
-        `, [colaborador.nome || null, matricula, papel, colaborador.funcao || null,
-            normalizarIdFk(id_unidade_fk), normalizarIdFk(id_setor_fk), normalizarIdFk(id_celula_fk), normalizarIdFk(id_turno_fk)]);
+        const { rows } = await withTransaction(db, async (client) => {
+            await validarReferencias(client, req.body);
+            return client.query(`
+                INSERT INTO usuarios (
+                    nome, matricula, papel, ativo, funcao,
+                    id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk
+                ) VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8)
+                RETURNING ${camposPerfil}
+            `, [colaborador.nome || null, matricula, papel, colaborador.funcao || null,
+                normalizarIdFk(id_unidade_fk), normalizarIdFk(id_setor_fk), normalizarIdFk(id_celula_fk), normalizarIdFk(id_turno_fk)]);
+        });
         res.status(201).json({ sucesso: true, perfil: rows[0] });
     } catch (error) {
         console.error('Erro ao criar perfil:', error);
@@ -108,15 +111,17 @@ exports.atualizar = async (req, res) => {
 
     const { papel, ativo, id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk } = req.body;
     try {
-        await validarReferencias(db, req.body);
-        const { rows } = await db.query(`
-            UPDATE usuarios SET
-                papel = $1, ativo = $2,
-                id_unidade_fk = $3, id_setor_fk = $4, id_celula_fk = $5, id_turno_fk = $6
-            WHERE id = $7
-            RETURNING ${camposPerfil}
-        `, [papel, ativo === false || ativo === 0 ? 0 : 1,
-            normalizarIdFk(id_unidade_fk), normalizarIdFk(id_setor_fk), normalizarIdFk(id_celula_fk), normalizarIdFk(id_turno_fk), req.params.id]);
+        const { rows } = await withTransaction(db, async (client) => {
+            await validarReferencias(client, req.body);
+            return client.query(`
+                UPDATE usuarios SET
+                    papel = $1, ativo = $2,
+                    id_unidade_fk = $3, id_setor_fk = $4, id_celula_fk = $5, id_turno_fk = $6
+                WHERE id = $7
+                RETURNING ${camposPerfil}
+            `, [papel, ativo === false || ativo === 0 ? 0 : 1,
+                normalizarIdFk(id_unidade_fk), normalizarIdFk(id_setor_fk), normalizarIdFk(id_celula_fk), normalizarIdFk(id_turno_fk), req.params.id]);
+        });
         if (rows.length === 0) return res.status(404).json({ sucesso: false, mensagem: 'Perfil não encontrado.' });
         res.json({ sucesso: true, perfil: rows[0] });
     } catch (error) {
