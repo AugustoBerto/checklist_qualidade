@@ -176,12 +176,30 @@ import api from '../../services/api'
 import TableToolbar from '../TableToolbar.vue'
 import DataTable from '../DataTable.vue'
 
+const props = defineProps({
+  modo: {
+    type: String,
+    default: 'lista'
+  }
+})
+
 const emit = defineEmits(['update:modo'])
 
-const modo = ref('lista'), perfis = ref([]), unidades = ref([]), setores = ref([]), celulas = ref([]), turnos = ref([])
+const modo = ref(props.modo || 'lista'), perfis = ref([]), unidades = ref([]), setores = ref([]), celulas = ref([]), turnos = ref([])
+
+watch(() => props.modo, (novoModo) => {
+  if (novoModo && novoModo !== modo.value) {
+    modo.value = novoModo
+    if (novoModo === 'lista') {
+      carregar()
+    }
+  }
+})
 
 watch(modo, (novoModo) => {
-  emit('update:modo', novoModo)
+  if (novoModo !== props.modo) {
+    emit('update:modo', novoModo)
+  }
 })
 const erro = ref(''), sucesso = ref(''), salvando = ref(false), carregando = ref(true)
 const termoBusca = ref('')

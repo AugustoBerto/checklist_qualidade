@@ -62,14 +62,14 @@
     <ModelosTab
       v-if="abaAtiva === 'modelos'"
       ref="modelosTabRef"
-      @update:modo="modoModelos = $event"
+      v-model:modo="modoModelos"
     />
 
     <!-- Módulo de Usuários & Perfis -->
     <UsuariosTab
       v-else-if="abaAtiva === 'usuarios'"
       ref="usuariosTabRef"
-      @update:modo="modoUsuarios = $event"
+      v-model:modo="modoUsuarios"
     />
 
     <!-- Módulos de Cadastros de Base -->
@@ -351,6 +351,9 @@ const abaAtiva = ref(route.query.aba && abas.some(a => a.id === route.query.aba)
 watch(() => route.query.aba, (novaAba) => {
   if (novaAba && abas.some(a => a.id === novaAba) && novaAba !== abaAtiva.value) {
     abaAtiva.value = String(novaAba);
+    modoModelos.value = 'lista';
+    modoUsuarios.value = 'lista';
+    fecharModal();
     if (abaInfo.value?.tipo !== 'custom') {
       buscarDados();
     }
@@ -500,9 +503,21 @@ const voltarAbaParaLista = () => {
 };
 
 const mudarAba = (idAba) => {
+  if (idAba === abaAtiva.value) {
+    if (idAba === 'modelos' && modoModelos.value !== 'lista') {
+      modoModelos.value = 'lista';
+      modelosTabRef.value?.voltarParaLista();
+    } else if (idAba === 'usuarios' && modoUsuarios.value !== 'lista') {
+      modoUsuarios.value = 'lista';
+      usuariosTabRef.value?.voltarParaLista();
+    }
+    return;
+  }
+
   abaAtiva.value = idAba;
   modoModelos.value = 'lista';
   modoUsuarios.value = 'lista';
+  fecharModal();
   termoBusca.value = '';
   router.replace({ query: { ...route.query, aba: idAba } });
   if (abaInfo.value?.tipo !== 'custom') {

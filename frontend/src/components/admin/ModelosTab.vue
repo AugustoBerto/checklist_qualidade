@@ -274,13 +274,31 @@ import VueSelect from 'vue3-select-component';
 import api from '../../services/api';
 import TableToolbar from '../TableToolbar.vue';
 import DataTable from '../DataTable.vue';
+const props = defineProps({
+  modo: {
+    type: String,
+    default: 'lista'
+  }
+});
+
 const emit = defineEmits(['update:modo']);
 
-const modoAtual = ref('lista'); 
+const modoAtual = ref(props.modo || 'lista'); 
 const marcasOptions = ref([]);
 
+watch(() => props.modo, (novoModo) => {
+  if (novoModo && novoModo !== modoAtual.value) {
+    modoAtual.value = novoModo;
+    if (novoModo === 'lista') {
+      carregarModelosTabela();
+    }
+  }
+});
+
 watch(modoAtual, (novoModo) => {
-  emit('update:modo', novoModo);
+  if (novoModo !== props.modo) {
+    emit('update:modo', novoModo);
+  }
 });
 const setoresOptions = ref([]); 
 const modelosLista = ref([]);
