@@ -34,4 +34,9 @@ router.post('/turnos', autorizar('ADMIN'), CadastrosController.criarTurno);
 router.put('/turnos/:id', autorizar('ADMIN'), CadastrosController.atualizarTurno);
 router.delete('/turnos/:id', autorizar('ADMIN'), CadastrosController.excluirTurno);
 
+router.get('/categorias-padrao', autorizar(), CadastrosController.listarCategoriasPadrao);
+router.post('/categorias-padrao', autorizar('ADMIN'), CadastrosController.criarCategoriaPadrao);
+router.put('/categorias-padrao/:id', autorizar('ADMIN'), CadastrosController.atualizarCategoriaPadrao);
+router.delete('/categorias-padrao/:id', autorizar('ADMIN'), CadastrosController.excluirCategoriaPadrao);
+
 module.exports = router;

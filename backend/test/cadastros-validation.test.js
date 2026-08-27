@@ -192,3 +192,51 @@ test('listagem preserva marca como ID ou texto legado e expõe o nome separadame
   assert.match(consulta, /COALESCE\(m\.id_marca_fk::text, m\.marca\) AS marca/);
   assert.match(consulta, /ma\.nome AS nome_marca/);
 });
+
+test('criação de categoria padrão valida nome e recusa duplicatas com 409', async () => {
+  const resSemNome = resposta();
+  await cadastros.criarCategoriaPadrao({ body: { nome: '   ' } }, resSemNome);
+  assert.equal(resSemNome.statusCode, 400);
+
+  db.query = async (sql) => {
+    if (/SELECT id FROM categorias_padrao/.test(sql)) {
+      return { rows: [{ id: 1 }], rowCount: 1 };
+    }
+    return { rows: [], rowCount: 0 };
+  };
+
+  const resDuplicado = resposta();
+  await cadastros.criarCategoriaPadrao({ body: { nome: 'Costura', ctq: true, perguntas: ['P1'] } }, resDuplicado);
+  assert.equal(resDuplicado.statusCode, 409);
+  assert.match(resDuplicado.body.mensagem, /Já existe uma categoria cadastrada/);
+});
+
+test('atualização de categoria padrão persiste dados e exclusão inativa registro', async () => {
+  let updateExecutado = false;
+  let inativacaoExecutada = false;
+
+  db.query = async (sql, params) => {
+    if (/SELECT id FROM categorias_padrao/.test(sql)) {
+      return { rows: [], rowCount: 0 };
+    }
+    if (/UPDATE categorias_padrao\s+SET nome =/i.test(sql)) {
+      updateExecutado = true;
+      return { rows: [{ id: 5, nome: params[0], ctq: params[1], perguntas: JSON.parse(params[2]) }], rowCount: 1 };
+    }
+    if (/UPDATE categorias_padrao\s+SET ativo = 0/i.test(sql)) {
+      inativacaoExecutada = true;
+      return { rows: [{ id: 5 }], rowCount: 1 };
+    }
+    return { rows: [] };
+  };
+
+  const resUpdate = resposta();
+  await cadastros.atualizarCategoriaPadrao({ params: { id: 5 }, body: { nome: 'Acabamento', ctq: false, perguntas: ['Item 1'] } }, resUpdate);
+  assert.equal(resUpdate.statusCode, 200);
+  assert.equal(updateExecutado, true);
+
+  const resDelete = resposta();
+  await cadastros.excluirCategoriaPadrao({ params: { id: 5 } }, resDelete);
+  assert.equal(resDelete.statusCode, 200);
+  assert.equal(inativacaoExecutada, true);
+});

@@ -48,9 +48,9 @@ describe('fundação DB', () => {
     assert.equal(mensagemPostgres({ code: '23503', detail: 'private row' }), 'Registro relacionado não encontrado ou ainda utilizado.');
   });
 
-  test('descobre as migrations 001 e 002 em ordem', () => {
+  test('descobre as migrations 001, 002 e 003 em ordem', () => {
     const migrations = validateMigrationSet(listMigrationFiles());
-    assert.deepEqual(migrations.map(({ version }) => version), [1, 2]);
+    assert.deepEqual(migrations.map(({ version }) => version), [1, 2, 3]);
     assert.match(readMigrationSql(migrations[0]), /^CREATE SCHEMA checklist_app;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /^BEGIN;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /COMMIT;\s*$/);

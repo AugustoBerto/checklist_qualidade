@@ -29,6 +29,31 @@ const slugify = (text) => {
         .replace(/\s+/g, '_').replace(/[^\w-]+/g, '').replace(/--+/g, '_');
 };
 
+const sincronizarCategoriaPadrao = async (client, nomeCategoria, isCtq, arrayPerguntas) => {
+    try {
+        const nomeNorm = normalizarNome(nomeCategoria);
+        if (!nomeNorm) return;
+        const perguntasLimpas = Array.isArray(arrayPerguntas)
+            ? arrayPerguntas.map(p => String(p || '').trim()).filter(Boolean)
+            : [];
+
+        const existente = await client.query(
+            'SELECT id FROM categorias_padrao WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) AND ativo = 1',
+            [nomeNorm]
+        );
+
+        if (existente.rowCount === 0) {
+            await client.query(
+                `INSERT INTO categorias_padrao (nome, ctq, perguntas, ativo)
+                 VALUES ($1, $2, $3::jsonb, 1)`,
+                [nomeNorm, Boolean(isCtq), JSON.stringify(perguntasLimpas)]
+            );
+        }
+    } catch (err) {
+        console.warn('Aviso: falha ao sincronizar categoria padrão no catálogo:', err.message);
+    }
+};
+
 exports.criarModelo = async (req, res) => {
     const { nomeModelo, categorias, id_setor } = req.body;
     const idMarca = obterMarcaId(req.body);
@@ -51,6 +76,8 @@ exports.criarModelo = async (req, res) => {
             const catData = categorias[nomeCategoria];
             const isCtq = catData.ctq || false;
             const arrayPerguntas = catData.perguntas;
+
+            await sincronizarCategoriaPadrao(client, nomeCategoria, isCtq, arrayPerguntas);
 
             const sqlCategoria = 'INSERT INTO categorias (categoria, id_modelo, ctq) VALUES ($1, $2, $3) RETURNING id';
             const resCategoria = await client.query(sqlCategoria, [nomeCategoria, modeloId, isCtq]);
@@ -191,6 +218,8 @@ exports.atualizarModelo = async (req, res) => {
             const catData = categorias[nomeCategoria];
             const isCtq = catData.ctq || false;
             const arrayPerguntas = catData.perguntas;
+
+            await sincronizarCategoriaPadrao(client, nomeCategoria, isCtq, arrayPerguntas);
 
             let categoriaId;
             const resCat = await client.query('SELECT id FROM categorias WHERE categoria = $1 AND id_modelo = $2', [nomeCategoria, id]);
@@ -533,5 +562,106 @@ exports.excluirTurno = async (req, res) => {
         res.status(200).json({ sucesso: true, mensagem: 'Turno removido com sucesso.' });
     } catch (error) {
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao remover. O turno pode estar vinculado a utilizadores.' });
+    }
+};
+
+exports.listarCategoriasPadrao = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT id, nome, ctq, perguntas, ativo, "ultimaAlteracao"
+            FROM categorias_padrao
+            WHERE ativo = 1
+            ORDER BY nome ASC
+        `);
+        res.status(200).json({ sucesso: true, dados: rows });
+    } catch (error) {
+        console.error('Erro ao listar categorias padrão:', error);
+        res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao listar categorias.' });
+    }
+};
+
+exports.criarCategoriaPadrao = async (req, res) => {
+    const { nome, ctq, perguntas } = req.body;
+    if (!nomeValido(nome)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'O nome da categoria é obrigatório.' });
+    }
+    const nomeNormalizado = normalizarNome(nome);
+    const isCtq = Boolean(ctq);
+    const perguntasArray = Array.isArray(perguntas) 
+        ? perguntas.map(p => String(p || '').trim()).filter(Boolean)
+        : [];
+
+    try {
+        const existente = await db.query(
+            'SELECT id FROM categorias_padrao WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) AND ativo = 1',
+            [nomeNormalizado]
+        );
+        if (existente.rowCount > 0) {
+            return res.status(409).json({ sucesso: false, mensagem: `Já existe uma categoria cadastrada com o nome '${nomeNormalizado}'.` });
+        }
+
+        const { rows } = await db.query(
+            `INSERT INTO categorias_padrao (nome, ctq, perguntas, ativo) 
+             VALUES ($1, $2, $3::jsonb, 1) RETURNING *`,
+            [nomeNormalizado, isCtq, JSON.stringify(perguntasArray)]
+        );
+        res.status(201).json({ sucesso: true, mensagem: 'Categoria cadastrada com sucesso!', categoria: rows[0] });
+    } catch (error) {
+        console.error('Erro ao criar categoria padrão:', error);
+        if (error.code === '23505') {
+            return res.status(409).json({ sucesso: false, mensagem: 'Esta categoria já existe no catálogo.' });
+        }
+        res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao criar categoria.' });
+    }
+};
+
+exports.atualizarCategoriaPadrao = async (req, res) => {
+    const { id } = req.params;
+    const { nome, ctq, perguntas } = req.body;
+    if (!idValido(id) || !nomeValido(nome)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'ID e nome válido são obrigatórios.' });
+    }
+    const nomeNormalizado = normalizarNome(nome);
+    const isCtq = Boolean(ctq);
+    const perguntasArray = Array.isArray(perguntas) 
+        ? perguntas.map(p => String(p || '').trim()).filter(Boolean)
+        : [];
+
+    try {
+        const duplicado = await db.query(
+            'SELECT id FROM categorias_padrao WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) AND id != $2 AND ativo = 1',
+            [nomeNormalizado, id]
+        );
+        if (duplicado.rowCount > 0) {
+            return res.status(409).json({ sucesso: false, mensagem: `Já existe outra categoria com o nome '${nomeNormalizado}'.` });
+        }
+
+        const result = await db.query(
+            `UPDATE categorias_padrao 
+             SET nome = $1, ctq = $2, perguntas = $3::jsonb, "ultimaAlteracao" = now() 
+             WHERE id = $4 AND ativo = 1 RETURNING *`,
+            [nomeNormalizado, isCtq, JSON.stringify(perguntasArray), id]
+        );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ sucesso: false, mensagem: 'Categoria não encontrada.' });
+        }
+        res.status(200).json({ sucesso: true, mensagem: 'Categoria atualizada com sucesso!', categoria: result.rows[0] });
+    } catch (error) {
+        console.error('Erro ao atualizar categoria padrão:', error);
+        res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao atualizar categoria.' });
+    }
+};
+
+exports.excluirCategoriaPadrao = async (req, res) => {
+    const { id } = req.params;
+    if (!idValido(id)) return res.status(400).json({ sucesso: false, mensagem: 'ID inválido.' });
+
+    try {
+        const result = await db.query('UPDATE categorias_padrao SET ativo = 0, "ultimaAlteracao" = now() WHERE id = $1', [id]);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Categoria não encontrada.' });
+        res.status(200).json({ sucesso: true, mensagem: 'Categoria inativada com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao excluir categoria padrão:', error);
+        res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao excluir categoria.' });
     }
 };

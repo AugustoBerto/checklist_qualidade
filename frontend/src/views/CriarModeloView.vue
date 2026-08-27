@@ -174,11 +174,49 @@
         
         <h2 class="titulo-sessao">Categorias e Perguntas</h2>
         
-        <div class="form-group box-add-categoria">
-          <input type="text" v-model.trim="novaCategoria" @keypress.enter.prevent="adicionarCategoria" class="input-base" placeholder="Digite o nome da nova categoria">
-          <button type="button" class="btn-secundario" @click="adicionarCategoria">
-            <i class="mdi mdi-plus"></i> Adicionar Categoria
-          </button>
+        <!-- Painel de Adição / Importação de Categorias -->
+        <div class="painel-adicionar-categorias">
+          <div class="box-importar-catalogo">
+            <label><i class="mdi mdi-book-open-page-variant-outline"></i> Importar Categoria Pré-configurada</label>
+            <div class="import-controls">
+              <div class="select-wrapper-import">
+                <VueSelect
+                  v-model="categoriaPadraoSelecionada"
+                  :options="opcoesCategoriasPadrao"
+                  placeholder="Selecione uma categoria do catálogo..."
+                  :is-clearable="true"
+                />
+              </div>
+              <button
+                type="button"
+                class="btn-secundario btn-importar"
+                :disabled="!categoriaPadraoSelecionada"
+                @click="importarCategoriaCatalogo"
+              >
+                <i class="mdi mdi-download"></i> Importar
+              </button>
+            </div>
+            <span class="dica-catalogo">Categorias do catálogo já incluem perguntas e parametrização pré-definidas.</span>
+          </div>
+
+          <div class="divisor-ou">
+            <span>OU CRIAR UMA NOVA</span>
+          </div>
+
+          <div class="box-add-categoria">
+            <div class="input-nova-cat-wrapper">
+              <input
+                type="text"
+                v-model.trim="novaCategoria"
+                @keypress.enter.prevent="adicionarCategoria"
+                class="input-base"
+                placeholder="Digite o nome da nova categoria..."
+              />
+            </div>
+            <button type="button" class="btn-secundario" @click="adicionarCategoria">
+              <i class="mdi mdi-plus"></i> Adicionar Categoria
+            </button>
+          </div>
         </div>
 
         <div class="categorias-container">
@@ -335,6 +373,15 @@ const novaCategoria = ref('');
 const erroForm = ref('');
 const isLoadingForm = ref(false);
 
+const categoriasPadrao = ref([]);
+const categoriaPadraoSelecionada = ref(null);
+const opcoesCategoriasPadrao = computed(() =>
+  categoriasPadrao.value.map(c => ({
+    label: `${c.nome} (${c.ctq ? 'CRÍTICO' : 'NORMAL'} · ${(c.perguntas || []).length} perguntas)`,
+    value: c.id
+  }))
+);
+
 const marcaReferencia = ref(null);
 const modeloReferencia = ref(null);
 const opcoesModelosReferencia = ref([]);
@@ -353,17 +400,19 @@ const extrairArrayDeDados = (respostaData) => {
 // ==========================================
 const carregarDadosIniciais = async () => {
   try {
-    const [resMarcas, resSetores] = await Promise.all([
+    const [resMarcas, resSetores, resCategorias] = await Promise.all([
       api.get('/cadastros/marcas'),
-      api.get('/cadastros/setores')
+      api.get('/cadastros/setores'),
+      api.get('/cadastros/categorias-padrao')
     ]);
     
     marcasOptions.value = extrairArrayDeDados(resMarcas.data).map(item => ({ label: item.nome, value: item.id }));
     setoresOptions.value = extrairArrayDeDados(resSetores.data).map(item => ({ label: item.nome, value: item.id }));
+    categoriasPadrao.value = extrairArrayDeDados(resCategorias.data);
     
     await carregarModelosTabela();
   } catch (error) {
-    erroGlobal.value = 'Erro ao carregar dados iniciais (marcas/setores).';
+    erroGlobal.value = 'Erro ao carregar dados iniciais (marcas/setores/categorias).';
     console.error(error);
   }
 };
@@ -520,11 +569,59 @@ watch(modeloReferencia, async (novoValor) => {
 // ==========================================
 // 4. CONSTRUTOR DE UI (Categorias/Perguntas)
 // ==========================================
-const adicionarCategoria = () => {
-  if (novaCategoria.value) {
-    categoriasUI.value.push({ nome: novaCategoria.value, ctq: false, perguntas: [], novaPergunta: '' });
-    novaCategoria.value = '';
+const importarCategoriaCatalogo = () => {
+  if (!categoriaPadraoSelecionada.value) return;
+  const catEncontrada = categoriasPadrao.value.find(c => c.id === categoriaPadraoSelecionada.value);
+  if (!catEncontrada) return;
+
+  const jaExiste = categoriasUI.value.some(c => c.nome.toLowerCase().trim() === catEncontrada.nome.toLowerCase().trim());
+  if (jaExiste) {
+    toast.warning(`A categoria "${catEncontrada.nome}" já foi adicionada a este checklist.`);
+    return;
   }
+
+  categoriasUI.value.push({
+    nome: catEncontrada.nome,
+    ctq: Boolean(catEncontrada.ctq),
+    novaPergunta: '',
+    perguntas: Array.isArray(catEncontrada.perguntas) ? catEncontrada.perguntas.map(texto => ({ texto })) : []
+  });
+
+  toast.success(`Categoria "${catEncontrada.nome}" importada com sucesso (${(catEncontrada.perguntas || []).length} perguntas).`);
+  categoriaPadraoSelecionada.value = null;
+};
+
+const adicionarCategoria = () => {
+  const nomeLimpo = novaCategoria.value?.trim();
+  if (!nomeLimpo) return;
+
+  const jaExisteNoModelo = categoriasUI.value.some(c => c.nome.toLowerCase().trim() === nomeLimpo.toLowerCase());
+  if (jaExisteNoModelo) {
+    toast.warning(`A categoria "${nomeLimpo}" já foi adicionada a este checklist.`);
+    return;
+  }
+
+  const catCatalogo = categoriasPadrao.value.find(c => c.nome.toLowerCase().trim() === nomeLimpo.toLowerCase());
+  if (catCatalogo) {
+    toast.info(`A categoria "${catCatalogo.nome}" já existe no catálogo com ${(catCatalogo.perguntas || []).length} pergunta(s). Ela foi carregada.`);
+    categoriasUI.value.push({
+      nome: catCatalogo.nome,
+      ctq: Boolean(catCatalogo.ctq),
+      novaPergunta: '',
+      perguntas: Array.isArray(catCatalogo.perguntas) ? catCatalogo.perguntas.map(texto => ({ texto })) : []
+    });
+    novaCategoria.value = '';
+    return;
+  }
+
+  categoriasUI.value.push({
+    nome: nomeLimpo,
+    ctq: false,
+    novaPergunta: '',
+    perguntas: []
+  });
+  toast.success(`Categoria "${nomeLimpo}" adicionada.`);
+  novaCategoria.value = '';
 };
 const removerCategoria = (index) => categoriasUI.value.splice(index, 1);
 
@@ -749,7 +846,90 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 .checkbox-group label { margin: 0; cursor: pointer; }
 
 .divisor { border: 0; height: 1px; background: #e2e8f0; margin: 2rem 0; }
-.box-add-categoria { display: flex; gap: 0.5rem; margin-bottom: 2rem; }
+
+.painel-adicionar-categorias {
+  background: #f8fafc;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.box-importar-catalogo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.box-importar-catalogo label {
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0;
+  font-size: 0.95rem;
+}
+
+.import-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.select-wrapper-import {
+  flex: 1;
+  min-width: 250px;
+}
+
+.btn-importar {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.btn-importar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dica-catalogo {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.divisor-ou {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.25rem 0;
+}
+
+.divisor-ou::before,
+.divisor-ou::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.divisor-ou span {
+  padding: 0 1rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+.box-add-categoria {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.input-nova-cat-wrapper {
+  flex: 1;
+}
+
 .btn-secundario { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.25rem; background-color: var(--primary, #b1072c); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap; min-height: 42px; transition: all 0.2s;}
 .btn-secundario:hover { background-color: var(--primary-hover, #8f0523); }
 
@@ -801,6 +981,8 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
   .table-container { overflow-x: auto; }
   .data-table { min-width: 700px; }
   .form-group-row, .box-add-categoria, .categoria-header, .add-pergunta-box { flex-direction: column; }
+  .import-controls { flex-direction: column; align-items: stretch; }
+  .btn-importar { width: 100%; justify-content: center; }
   .form-group-row { gap: 1rem; }
   .w-50, .w-33 { width: 100%; }
   .checkbox-group { align-items: flex-start; }
