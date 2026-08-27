@@ -3,6 +3,25 @@ const db = require('../db');
 const nomeValido = (nome) => typeof nome === 'string' && nome.trim().length > 0 && nome.trim().length <= 255;
 const idValido = (id) => Number.isInteger(Number(id)) && Number(id) > 0;
 const normalizarNome = (nome) => nome.trim().toUpperCase();
+const categoriasValidas = (categorias) => Boolean(
+    categorias
+    && typeof categorias === 'object'
+    && !Array.isArray(categorias)
+    && Object.keys(categorias).length
+    && Object.entries(categorias).every(([nomeCategoria, dados]) =>
+        nomeValido(nomeCategoria)
+        && Array.isArray(dados?.perguntas)
+        && dados.perguntas.length > 0
+        && dados.perguntas.every(nomeValido)
+    )
+);
+
+const obterMarcaId = (body) => body.id_marca_fk ?? body.nomeMarca;
+
+const validarMarca = async (client, idMarca) => {
+    const { rows } = await client.query('SELECT id FROM marcas WHERE id = $1 FOR SHARE', [idMarca]);
+    if (!rows.length) throw new Error('MARCA_INVALIDA');
+};
 
 const slugify = (text) => {
     return text.toString().toLowerCase()
@@ -11,9 +30,10 @@ const slugify = (text) => {
 };
 
 exports.criarModelo = async (req, res) => {
-    const { nomeModelo, nomeMarca, categorias, id_setor } = req.body;
+    const { nomeModelo, categorias, id_setor } = req.body;
+    const idMarca = obterMarcaId(req.body);
 
-    if (!nomeValido(nomeModelo) || !categorias || !idValido(id_setor) || Object.keys(categorias).length === 0) {
+    if (!nomeValido(nomeModelo) || !idValido(idMarca) || !idValido(id_setor) || !categoriasValidas(categorias)) {
         return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos. Selecione o setor e preencha todos os campos.' });
     }
 
@@ -21,18 +41,16 @@ exports.criarModelo = async (req, res) => {
 
     try {
         await client.query('BEGIN'); 
+        await validarMarca(client, idMarca);
 
-        const sqlModelo = 'INSERT INTO modelo (nome, marca, id_setor_fk) VALUES ($1, $2, $3) RETURNING id';
-        const resModelo = await client.query(sqlModelo, [nomeModelo.trim(), nomeValido(nomeMarca) ? nomeMarca.trim() : null, id_setor]);
+        const sqlModelo = 'INSERT INTO modelo (nome, id_marca_fk, id_setor_fk) VALUES ($1, $2, $3) RETURNING id';
+        const resModelo = await client.query(sqlModelo, [nomeModelo.trim(), Number(idMarca), id_setor]);
         const modeloId = resModelo.rows[0].id;
 
         for (const nomeCategoria in categorias) {
             const catData = categorias[nomeCategoria];
-            if (!nomeValido(nomeCategoria) || !Array.isArray(catData?.perguntas) || !catData.perguntas.length || catData.perguntas.some((pergunta) => !nomeValido(pergunta))) {
-                throw new Error('DADOS_MODELO_INVALIDOS');
-            }
             const isCtq = catData.ctq || false;
-            const arrayPerguntas = catData.perguntas || [];
+            const arrayPerguntas = catData.perguntas;
 
             const sqlCategoria = 'INSERT INTO categorias (categoria, id_modelo, ctq) VALUES ($1, $2, $3) RETURNING id';
             const resCategoria = await client.query(sqlCategoria, [nomeCategoria, modeloId, isCtq]);
@@ -59,7 +77,8 @@ exports.criarModelo = async (req, res) => {
         if (error.code === '23505') { 
              return res.status(409).json({ sucesso: false, mensagem: `O modelo '${nomeModelo}' já existe.` });
         }
-        res.status(error.message === 'DADOS_MODELO_INVALIDOS' ? 400 : 500).json({ sucesso: false, mensagem: error.message === 'DADOS_MODELO_INVALIDOS' ? 'Categorias e perguntas válidas são obrigatórias.' : 'Erro interno no servidor.' });
+        if (error.message === 'MARCA_INVALIDA') return res.status(400).json({ sucesso: false, mensagem: 'A marca informada não existe.' });
+        res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
     } finally {
         client.release(); 
     }
@@ -67,7 +86,13 @@ exports.criarModelo = async (req, res) => {
 
 exports.listarModelos = async (req, res) => {
     try {
-        const result = await db.query('SELECT id, nome, marca, ativo, id_setor_fk FROM modelo ORDER BY nome ASC');
+        const result = await db.query(`
+            SELECT m.id, m.nome, COALESCE(m.id_marca_fk::text, m.marca) AS marca,
+                m.id_marca_fk, ma.nome AS nome_marca, m.ativo, m.id_setor_fk
+            FROM modelo m
+            LEFT JOIN marcas ma ON ma.id = m.id_marca_fk
+            ORDER BY m.nome ASC
+        `);
         res.status(200).json({ sucesso: true, modelos: result.rows });
     } catch (error) {
         console.error('Erro ao buscar lista de modelos:', error);
@@ -79,7 +104,13 @@ exports.buscarModeloPorId = async (req, res) => {
     const { id } = req.params;
     
     try {
-        const modeloResult = await db.query('SELECT id, nome, marca, ativo, id_setor_fk FROM modelo WHERE id = $1', [id]);
+        const modeloResult = await db.query(`
+            SELECT m.id, m.nome, m.marca, m.id_marca_fk, ma.nome AS nome_marca,
+                m.ativo, m.id_setor_fk
+            FROM modelo m
+            LEFT JOIN marcas ma ON ma.id = m.id_marca_fk
+            WHERE m.id = $1
+        `, [id]);
         
         if (modeloResult.rows.length === 0) {
             return res.status(404).json({ sucesso: false, mensagem: 'Modelo não encontrado.' });
@@ -115,7 +146,9 @@ exports.buscarModeloPorId = async (req, res) => {
             modelo: {
                 id: modelo.id,
                 nomeModelo: modelo.nome,
-                nomeMarca: modelo.marca,
+                nomeMarca: modelo.id_marca_fk || modelo.marca,
+                id_marca_fk: modelo.id_marca_fk,
+                nome_marca: modelo.nome_marca || modelo.marca,
                 ativo: modelo.ativo,
                 id_setor: modelo.id_setor_fk,
                 categorias: categoriasFormatadas
@@ -130,9 +163,10 @@ exports.buscarModeloPorId = async (req, res) => {
 
 exports.atualizarModelo = async (req, res) => {
     const { id } = req.params;
-    const { nomeModelo, nomeMarca, categorias, ativo, id_setor } = req.body;
+    const { nomeModelo, categorias, ativo, id_setor } = req.body;
+    const idMarca = obterMarcaId(req.body);
 
-    if (!idValido(id) || !nomeValido(nomeModelo) || !categorias || !idValido(id_setor) || Object.keys(categorias).length === 0) {
+    if (!idValido(id) || !nomeValido(nomeModelo) || !idValido(idMarca) || !idValido(id_setor) || typeof ativo !== 'boolean' || !categoriasValidas(categorias)) {
         return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos. Setor e categorias são obrigatórios.' });
     }
 
@@ -140,10 +174,11 @@ exports.atualizarModelo = async (req, res) => {
 
     try {
         await client.query('BEGIN');
+        await validarMarca(client, idMarca);
 
         const modeloAtualizado = await client.query(
-            'UPDATE modelo SET nome = $1, marca = $2, ativo = $3, id_setor_fk = $4 WHERE id = $5', 
-            [nomeModelo, nomeMarca, ativo, id_setor, id]
+            'UPDATE modelo SET nome = $1, id_marca_fk = $2, ativo = $3, id_setor_fk = $4 WHERE id = $5',
+            [nomeModelo.trim(), Number(idMarca), ativo, id_setor, id]
         );
         if (!modeloAtualizado.rowCount) {
             await client.query('ROLLBACK');
@@ -155,7 +190,7 @@ exports.atualizarModelo = async (req, res) => {
         for (const nomeCategoria in categorias) {
             const catData = categorias[nomeCategoria];
             const isCtq = catData.ctq || false;
-            const arrayPerguntas = catData.perguntas || [];
+            const arrayPerguntas = catData.perguntas;
 
             let categoriaId;
             const resCat = await client.query('SELECT id FROM categorias WHERE categoria = $1 AND id_modelo = $2', [nomeCategoria, id]);
@@ -215,11 +250,13 @@ exports.atualizarModelo = async (req, res) => {
         if (error.code === '23505') {
              return res.status(409).json({ sucesso: false, mensagem: `O modelo '${nomeModelo}' já existe.` });
         }
+        if (error.message === 'MARCA_INVALIDA') return res.status(400).json({ sucesso: false, mensagem: 'A marca informada não existe.' });
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
     } finally {
         client.release();
     }
 };
+exports._internals = { categoriasValidas, obterMarcaId };
 exports.listarMarcas = async (req, res) => {
     try {
         const { rows } = await db.query('SELECT * FROM marcas ORDER BY nome ASC');
