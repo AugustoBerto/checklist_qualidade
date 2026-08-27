@@ -57,7 +57,9 @@ const validarRespostas = (respostas, perguntas) => {
     }
 };
 
-const idOpcionalValido = (id) => id == null || id === '' || (Number.isInteger(Number(id)) && Number(id) > 0);
+const idObrigatorioValido = (id) => (typeof id === 'number' || typeof id === 'string')
+    && Number.isInteger(Number(id))
+    && Number(id) > 0;
 
 exports.buscarPerguntas = async (req, res) => {
     const modeloId = Number(req.params.modelo);
@@ -88,17 +90,24 @@ exports.buscarPerguntas = async (req, res) => {
 exports.salvarChecklist = async (req, res) => {
     const { id_modelo, id_setor, id_celula, assinatura, respostas, inicio_checklist } = req.body;
     const idUsuarioFinal = req.usuario?.id;
-    if (!idUsuarioFinal || !Number.isInteger(Number(id_modelo))) {
+    if (!idUsuarioFinal || !idObrigatorioValido(id_modelo) || !idObrigatorioValido(id_setor) || !idObrigatorioValido(id_celula)) {
         return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos ou inválidos.' });
-    }
-    if (!idOpcionalValido(id_setor) || !idOpcionalValido(id_celula)) {
-        return res.status(400).json({ sucesso: false, mensagem: 'Setor ou célula inválidos.' });
     }
     const client = await db.connect();
     try {
         await client.query('BEGIN');
-        const modeloRes = await client.query('SELECT id, nome, marca FROM modelo WHERE id = $1 AND ativo = true FOR SHARE', [id_modelo]);
+        const modeloRes = await client.query(`
+            SELECT m.id, m.nome, COALESCE(ma.nome, m.marca) AS marca, m.id_marca_fk
+            FROM modelo m
+            LEFT JOIN marcas ma ON ma.id = m.id_marca_fk
+            WHERE m.id = $1 AND m.ativo = true
+            FOR SHARE OF m
+        `, [id_modelo]);
         if (!modeloRes.rows.length) throw new ErroValidacao('Modelo inválido ou inativo.');
+        const setorRes = await client.query('SELECT id FROM setores WHERE id = $1 AND ativo = 1 FOR SHARE', [id_setor]);
+        if (!setorRes.rows.length) throw new ErroValidacao('Setor inválido ou inativo.');
+        const celulaRes = await client.query('SELECT id FROM celulas_producao WHERE id = $1 AND ativo = 1 FOR SHARE', [id_celula]);
+        if (!celulaRes.rows.length) throw new ErroValidacao('Célula inválida ou inativa.');
         const perguntasRes = await client.query(`
             SELECT p.id, p.pergunta, p.identificacao, c.categoria, c.ctq
             FROM perguntas p JOIN categorias c ON c.id = p.id_categoria
@@ -112,7 +121,7 @@ exports.salvarChecklist = async (req, res) => {
             INSERT INTO formulario_submissoes
                 (id_usuario, id_modelo, id_setor, id_celula, assinatura, respostas, inicio_checklist, snapshot, data_envio)
             VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8::jsonb, NOW()) RETURNING id
-        `, [idUsuarioFinal, id_modelo, id_setor || null, id_celula || null, assinaturaBuffer, JSON.stringify(respostas), inicio_checklist || null, JSON.stringify(snapshot)]);
+        `, [idUsuarioFinal, id_modelo, id_setor, id_celula, assinaturaBuffer, JSON.stringify(respostas), inicio_checklist || null, JSON.stringify(snapshot)]);
         await client.query('COMMIT');
         res.status(201).json({ sucesso: true, mensagem: 'Checklist salvo com sucesso.', id_relatorio: result.rows[0].id });
     } catch (error) {
@@ -123,4 +132,4 @@ exports.salvarChecklist = async (req, res) => {
     } finally { client.release(); }
 };
 
-exports._internals = { base64ParaBuffer, validarRespostas, RESPOSTAS_VALIDAS, idOpcionalValido };
+exports._internals = { base64ParaBuffer, validarRespostas, RESPOSTAS_VALIDAS, idObrigatorioValido };
