@@ -29,99 +29,59 @@
 
     <!-- Lista de Usuários -->
     <div v-if="modo === 'lista'" class="card">
-      <div v-if="!carregando && perfis.length > 0" class="toolbar-search">
-        <div class="search-box">
-          <i class="mdi mdi-magnify search-icon"></i>
-          <input
-            type="text"
-            v-model="termoBusca"
-            placeholder="Buscar por nome, matrícula ou papel..."
-            class="input-search"
-          >
-          <button
-            v-if="termoBusca"
-            type="button"
-            class="clear-input-btn"
-            @click="termoBusca = ''"
-            title="Limpar busca"
-          >
-            <i class="mdi mdi-close"></i>
-          </button>
-        </div>
-      </div>
-
-      <FeedbackState
-        v-if="carregando"
-        type="loading"
-        message="Carregando perfis de usuários..."
+      <TableToolbar
+        v-model="termoBusca"
+        placeholder="Buscar por nome, matrícula ou papel..."
+        :has-active-filters="Boolean(termoBusca)"
+        @clear="termoBusca = ''"
       />
 
-      <FeedbackState
-        v-else-if="perfis.length === 0"
-        type="empty"
-        title="Nenhum perfil cadastrado"
-        message="Cadastre o primeiro colaborador para atribuir permissões."
+      <DataTable
+        :items="perfisFiltrados"
+        :is-loading="carregando"
+        loading-message="Carregando perfis de usuários..."
+        empty-title="Nenhum perfil encontrado"
+        :empty-message="termoBusca ? `Não encontramos resultados para '${termoBusca}'.` : 'Cadastre o primeiro colaborador para atribuir permissões.'"
+        empty-icon="mdi mdi-account-search-outline"
       >
-        <template #action>
-          <button @click="novo" class="btn-primary">
-            <i class="mdi mdi-plus"></i> Cadastrar primeiro perfil
-          </button>
+        <template #header>
+          <tr>
+            <th>Nome / Colaborador</th>
+            <th class="col-matricula">Matrícula</th>
+            <th>Papel</th>
+            <th>Status</th>
+            <th class="col-acoes">Ações</th>
+          </tr>
         </template>
-      </FeedbackState>
 
-      <FeedbackState
-        v-else-if="perfisFiltrados.length === 0"
-        type="empty"
-        title="Nenhum colaborador encontrado"
-        :message="`Não encontramos resultados para '${termoBusca}'.`"
-      >
-        <template #action>
-          <button @click="termoBusca = ''" class="btn-outline">
-            <i class="mdi mdi-close"></i> Limpar filtro
-          </button>
+        <template #body>
+          <tr v-for="perfil in perfisFiltrados" :key="perfil.id">
+            <td>
+              <div class="user-name-cell">
+                <i class="mdi mdi-account-circle text-muted"></i>
+                <strong>{{ perfil.nome }}</strong>
+              </div>
+            </td>
+            <td class="col-matricula"><code>{{ perfil.matricula }}</code></td>
+            <td>
+              <span class="badge" :class="perfil.papel === 'ADMIN' ? 'badge-admin' : 'badge-user'">
+                {{ perfil.papel }}
+              </span>
+            </td>
+            <td>
+              <span class="badge" :class="perfil.ativo ? 'badge-ativo' : 'badge-inativo'">
+                {{ perfil.ativo ? 'Ativo' : 'Inativo' }}
+              </span>
+            </td>
+            <td class="col-acoes">
+              <button class="btn-editar" @click="editar(perfil)" title="Editar perfil">
+                <i class="mdi mdi-pencil"></i>
+                <span>Editar</span>
+              </button>
+            </td>
+          </tr>
         </template>
-      </FeedbackState>
-
-      <div v-else class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Nome / Colaborador</th>
-              <th>Matrícula</th>
-              <th>Papel</th>
-              <th>Status</th>
-              <th class="text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="perfil in perfisFiltrados" :key="perfil.id">
-              <td>
-                <div class="user-name-cell">
-                  <i class="mdi mdi-account-circle text-muted"></i>
-                  <strong>{{ perfil.nome }}</strong>
-                </div>
-              </td>
-              <td><code>{{ perfil.matricula }}</code></td>
-              <td>
-                <span class="badge" :class="perfil.papel === 'ADMIN' ? 'badge-admin' : 'badge-user'">
-                  {{ perfil.papel }}
-                </span>
-              </td>
-              <td>
-                <span class="badge" :class="perfil.ativo ? 'badge-ativo' : 'badge-inativo'">
-                  {{ perfil.ativo ? 'Ativo' : 'Inativo' }}
-                </span>
-              </td>
-              <td class="text-right">
-                <button class="btn-editar" @click="editar(perfil)">
-                  <i class="mdi mdi-pencil"></i>
-                  <span>Editar</span>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      </DataTable>
     </div>
 
     <!-- Formulário -->
@@ -220,6 +180,8 @@ import VueSelect from 'vue3-select-component'
 import api from '../services/api'
 import PageHeader from '../components/PageHeader.vue'
 import FeedbackState from '../components/FeedbackState.vue'
+import TableToolbar from '../components/TableToolbar.vue'
+import DataTable from '../components/DataTable.vue'
 
 const modo = ref('lista'), perfis = ref([]), unidades = ref([]), setores = ref([]), celulas = ref([]), turnos = ref([])
 const erro = ref(''), sucesso = ref(''), salvando = ref(false), carregando = ref(true)

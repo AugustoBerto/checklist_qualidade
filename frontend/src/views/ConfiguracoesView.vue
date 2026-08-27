@@ -27,106 +27,68 @@
     </div>
 
     <div class="card">
-      <div v-if="!isLoading && dadosAtuais.length > 0" class="toolbar-search">
-        <div class="search-box">
-          <i class="mdi mdi-magnify search-icon"></i>
-          <input
-            type="text"
-            v-model="termoBusca"
-            :placeholder="`Buscar em ${nomeAbaAtiva.toLowerCase()}...`"
-            class="input-search"
-          >
-          <button
-            v-if="termoBusca"
-            type="button"
-            class="clear-input-btn"
-            @click="termoBusca = ''"
-            title="Limpar busca"
-          >
-            <i class="mdi mdi-close"></i>
-          </button>
-        </div>
-      </div>
-
-      <FeedbackState
-        v-if="isLoading"
-        type="loading"
-        :message="`Carregando ${nomeAbaAtiva.toLowerCase()}...`"
+      <TableToolbar
+        v-model="termoBusca"
+        :placeholder="`Buscar em ${nomeAbaAtiva.toLowerCase()}...`"
+        :has-active-filters="Boolean(termoBusca)"
+        @clear="termoBusca = ''"
       />
-      
-      <FeedbackState
-        v-else-if="dadosAtuais.length === 0"
-        type="empty"
-        title="Nenhum registro encontrado"
-        :message="`Não existem registros para ${nomeAbaAtiva}.`"
+
+      <DataTable
+        :items="dadosFiltrados"
+        :is-loading="isLoading"
+        :loading-message="`Carregando ${nomeAbaAtiva.toLowerCase()}...`"
+        empty-title="Nenhum registro encontrado"
+        :empty-message="termoBusca ? `Não encontramos registros em ${nomeAbaAtiva.toLowerCase()} para '${termoBusca}'.` : `Não existem registros cadastrados para ${nomeAbaAtiva}.`"
+        empty-icon="mdi mdi-database-off-outline"
       >
-        <template #action>
-          <button @click="abrirModal()" class="btn-novo-empty">
-            <i class="mdi mdi-plus"></i> Cadastrar primeiro registro
-          </button>
+        <template #header>
+          <tr>
+            <th class="col-id">ID</th>
+            <th>Nome / Descrição</th>
+            
+            <th v-if="abaAtiva === 'celulas'">Setor Vinculado</th>
+            <th v-if="abaAtiva === 'celulas'">Marca Vinculada</th>
+
+            <th v-if="abaAtiva === 'turnos'">Horário Entrada</th>
+            <th v-if="abaAtiva === 'turnos'">Horário Após Intervalo</th>
+            
+            <th class="col-acoes">Ações</th>
+          </tr>
         </template>
-      </FeedbackState>
 
-      <FeedbackState
-        v-else-if="dadosFiltrados.length === 0"
-        type="empty"
-        title="Nenhum resultado encontrado"
-        :message="`Não encontramos registros em ${nomeAbaAtiva.toLowerCase()} para '${termoBusca}'.`"
-      >
-        <template #action>
-          <button @click="termoBusca = ''" class="btn-outline">
-            <i class="mdi mdi-close"></i> Limpar filtro
-          </button>
-        </template>
-      </FeedbackState>
+        <template #body>
+          <tr v-for="item in dadosFiltrados" :key="item.id || item.id_setor || item.id_unidade || item.id_celula">
+            <td class="col-id">#{{ item.id || item.id_setor || item.id_unidade || item.id_marca || item.id_celula || item.id_turno }}</td>
+            <td><strong>{{ item.nome || item.descricao }}</strong></td>
+            
+            <td v-if="abaAtiva === 'celulas'">
+              <span class="badge badge-setor"><i class="mdi mdi-office-building"></i> {{ item.nome_setor || 'N/A' }}</span>
+            </td>
+            <td v-if="abaAtiva === 'celulas'">
+              <span class="badge badge-marca"><i class="mdi mdi-tag"></i> {{ item.nome_marca || 'N/A' }}</span>
+            </td>
 
-      <div v-else class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th class="col-id">ID</th>
-              <th>Nome / Descrição</th>
-              
-              <th v-if="abaAtiva === 'celulas'">Setor Vinculado</th>
-              <th v-if="abaAtiva === 'celulas'">Marca Vinculada</th>
+            <td v-if="abaAtiva === 'turnos'" class="time-col">
+              <i class="mdi mdi-login text-muted"></i> {{ formatarHora(item.entrada_inicio) }} às {{ formatarHora(item.entrada_fim) }}
+            </td>
+            <td v-if="abaAtiva === 'turnos'" class="time-col">
+              <i class="mdi mdi-coffee text-muted"></i> {{ formatarHora(item.intervalo_inicio) }} às {{ formatarHora(item.intervalo_fim) }}
+            </td>
 
-              <th v-if="abaAtiva === 'turnos'">Horário Entrada</th>
-              <th v-if="abaAtiva === 'turnos'">Horário Após Intervalo</th>
-              
-              <th class="col-acoes">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in dadosFiltrados" :key="item.id || item.id_setor || item.id_unidade || item.id_celula">
-              <td class="col-id">#{{ item.id || item.id_setor || item.id_unidade || item.id_marca || item.id_celula || item.id_turno }}</td>
-              <td><strong>{{ item.nome || item.descricao }}</strong></td>
-              
-              <td v-if="abaAtiva === 'celulas'">
-                <span class="badge badge-setor"><i class="mdi mdi-office-building"></i> {{ item.nome_setor || 'N/A' }}</span>
-              </td>
-              <td v-if="abaAtiva === 'celulas'">
-                <span class="badge badge-marca"><i class="mdi mdi-tag"></i> {{ item.nome_marca || 'N/A' }}</span>
-              </td>
-
-              <td v-if="abaAtiva === 'turnos'" class="time-col">
-                <i class="mdi mdi-login text-muted"></i> {{ formatarHora(item.entrada_inicio) }} às {{ formatarHora(item.entrada_fim) }}
-              </td>
-              <td v-if="abaAtiva === 'turnos'" class="time-col">
-                <i class="mdi mdi-coffee text-muted"></i> {{ formatarHora(item.intervalo_inicio) }} às {{ formatarHora(item.intervalo_fim) }}
-              </td>
-
-              <td class="col-acoes actions-cell">
+            <td class="col-acoes">
+              <div class="actions-cell">
                 <button @click="abrirModal(item)" class="btn-icon edit" title="Editar" aria-label="Editar">
                   <i class="mdi mdi-pencil"></i>
                 </button>
                 <button @click="excluirItem(item.id || item.id_setor || item.id_unidade || item.id_marca || item.id_celula || item.id_turno)" class="btn-icon delete" title="Excluir" aria-label="Excluir">
                   <i class="mdi mdi-delete"></i>
                 </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              </div>
+            </td>
+          </tr>
+        </template>
+      </DataTable>
     </div>
 
     <!-- Modal de Criação / Edição -->
@@ -206,6 +168,8 @@ import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
 import FeedbackState from '../components/FeedbackState.vue';
 import BaseModal from '../components/BaseModal.vue';
+import TableToolbar from '../components/TableToolbar.vue';
+import DataTable from '../components/DataTable.vue';
 import { formatarHora } from '../services/formatters';
 import { toast, dialog } from '../services/feedback';
 

@@ -39,3 +39,11 @@ export const urlLogoMarca = (nome, baseUrl = import.meta.env.BASE_URL || '/') =>
   const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   return `${base}logos/${normalizarNomeLogo(nome)}.png`;
 };
+
+export const formatarNomeCurto = (nomeCompleto) => {
+  if (!nomeCompleto) return 'Não informado';
+  const partes = String(nomeCompleto).trim().split(/\s+/).filter(Boolean);
+  if (partes.length <= 2) return partes.join(' ');
+  return `${partes[0]} ${partes[partes.length - 1]}`;
+};
+

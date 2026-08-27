@@ -20,28 +20,14 @@
     <div v-if="erroGlobal" class="alert error"><i class="mdi mdi-alert-circle"></i> {{ erroGlobal }}</div>
     <div v-if="sucessoGlobal" class="alert success"><i class="mdi mdi-check-circle"></i> {{ sucessoGlobal }}</div>
 
-    <div v-if="modoAtual === 'lista'" class="card-admin">
-      <div v-if="!isLoadingTabela && modelosLista.length > 0" class="toolbar-filtros">
-        <div class="search-box">
-          <i class="mdi mdi-magnify search-icon"></i>
-          <input
-            type="text"
-            v-model="filtroTexto"
-            placeholder="Buscar por nome ou ID do modelo..."
-            class="input-search"
-          >
-          <button
-            v-if="filtroTexto"
-            type="button"
-            class="clear-input-btn"
-            @click="filtroTexto = ''"
-            title="Limpar busca"
-          >
-            <i class="mdi mdi-close"></i>
-          </button>
-        </div>
-
-        <div class="filtros-selecao">
+    <div v-if="modoAtual === 'lista'" class="card card-admin">
+      <TableToolbar
+        v-model="filtroTexto"
+        placeholder="Buscar por nome ou ID do modelo..."
+        :has-active-filters="temFiltrosAtivos"
+        @clear="limparFiltros"
+      >
+        <template #filters>
           <div class="filtro-item">
             <select v-model="filtroSetor" class="select-filtro">
               <option value="">Todos os Setores</option>
@@ -67,99 +53,64 @@
               <option value="inativos">Apenas Inativos</option>
             </select>
           </div>
-
-          <button
-            v-if="temFiltrosAtivos"
-            type="button"
-            class="btn-outline btn-limpar-filtros"
-            @click="limparFiltros"
-            title="Limpar todos os filtros"
-          >
-            <i class="mdi mdi-filter-off-outline"></i>
-            <span>Limpar</span>
-          </button>
-        </div>
-      </div>
+        </template>
+      </TableToolbar>
 
       <div v-if="!isLoadingTabela && modelosLista.length > 0" class="filtros-resumo">
         <span>Exibindo <strong>{{ modelosFiltrados.length }}</strong> de <strong>{{ modelosLista.length }}</strong> modelos</span>
       </div>
 
-      <FeedbackState
-        v-if="isLoadingTabela"
-        type="loading"
-        message="Carregando modelos de checklist..."
-      />
-
-      <FeedbackState
-        v-else-if="modelosLista.length === 0"
-        type="empty"
-        title="Nenhum modelo cadastrado"
-        message="Clique em 'Novo Modelo' para cadastrar o primeiro checklist."
+      <DataTable
+        :items="modelosFiltrados"
+        :is-loading="isLoadingTabela"
+        loading-message="Carregando modelos de checklist..."
+        empty-title="Nenhum modelo encontrado"
+        :empty-message="temFiltrosAtivos ? 'Nenhum modelo de checklist corresponde aos filtros selecionados.' : 'Clique em \'Novo Modelo\' para cadastrar o primeiro checklist.'"
+        empty-icon="mdi mdi-clipboard-text-off-outline"
       >
-        <template #action>
-          <button @click="abrirCriacao" class="btn-primary">
-            <i class="mdi mdi-plus"></i> Novo Modelo
-          </button>
-        </template>
-      </FeedbackState>
-
-      <FeedbackState
-        v-else-if="modelosFiltrados.length === 0"
-        type="empty"
-        title="Nenhum modelo encontrado"
-        message="Nenhum modelo de checklist corresponde aos filtros selecionados."
-      >
-        <template #action>
-          <button @click="limparFiltros" class="btn-outline">
-            <i class="mdi mdi-filter-off-outline"></i> Limpar filtros
-          </button>
-        </template>
-      </FeedbackState>
-      
-      <div v-else class="table-container">
-      <table class="data-table">
-        <thead>
+        <template #header>
           <tr>
             <th>ID</th>
             <th>Nome do Modelo</th>
-            <th>Setor</th> <th>Marca</th>
+            <th>Setor</th>
+            <th>Marca</th>
             <th>Status</th>
             <th class="text-right">Ações</th>
           </tr>
-        </thead>
-        <tbody>
+        </template>
+
+        <template #body>
           <tr v-for="modelo in modelosFiltrados" :key="modelo.id">
             <td>#{{ modelo.id }}</td>
             <td><strong>{{ modelo.nome }}</strong></td>
-            
             <td>
               <span class="badge-setor"><i class="mdi mdi-office-building"></i> {{ obterNomeSetor(modelo.id_setor_fk) }}</span>
             </td>
-            
             <td>{{ obterNomeMarca(modelo.marca || modelo.nomeMarca) }}</td>
             <td>
-              <span :class="['badge', modelo.ativo ? 'badge-ativo' : 'badge-inativo']">
+              <span class="badge" :class="modelo.ativo ? 'badge-ativo' : 'badge-inativo'">
                 {{ modelo.ativo ? 'Ativo' : 'Inativo' }}
               </span>
             </td>
-            <td class="text-right acoes-celula">
-              <button class="btn-editar" @click="abrirEdicao(modelo)">
-                <i class="mdi mdi-pencil"></i> Editar
-              </button>
-              <button 
-                class="btn-status" 
-                :class="modelo.ativo ? 'btn-inativar' : 'btn-reativar'"
-                @click="alternarStatus(modelo)"
-              >
-                <i class="mdi" :class="modelo.ativo ? 'mdi-cancel' : 'mdi-check-circle'"></i>
-                {{ modelo.ativo ? 'Inativar' : 'Reativar' }}
-              </button>
+            <td class="col-acoes">
+              <div class="acoes-celula">
+                <button class="btn-editar" @click="abrirEdicao(modelo)">
+                  <i class="mdi mdi-pencil"></i> <span>Editar</span>
+                </button>
+                <button 
+                  class="btn-status" 
+                  :class="modelo.ativo ? 'btn-inativar' : 'btn-reativar'" 
+                  @click="alternarStatusModelo(modelo)"
+                  :title="modelo.ativo ? 'Inativar este modelo' : 'Reativar este modelo'"
+                >
+                  <i class="mdi" :class="modelo.ativo ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"></i>
+                  <span>{{ modelo.ativo ? 'Inativar' : 'Reativar' }}</span>
+                </button>
+              </div>
             </td>
           </tr>
-        </tbody>
-      </table>
-      </div>
+        </template>
+      </DataTable>
     </div>
 
     <div v-else class="card form-card">
@@ -291,6 +242,8 @@ import VueSelect from 'vue3-select-component';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
 import FeedbackState from '../components/FeedbackState.vue';
+import TableToolbar from '../components/TableToolbar.vue';
+import DataTable from '../components/DataTable.vue';
 import { toast, dialog } from '../services/feedback';
 
 const modoAtual = ref('lista'); 
@@ -743,11 +696,12 @@ const salvarChecklist = async () => {
   justify-content: space-between;
 }
 
-.data-table { width: 100%; border-collapse: collapse; text-align: left; }
-.data-table th { background: #f8f9fa; padding: 1rem; color: #34495e; border-bottom: 2px solid #ecf0f1; }
-.data-table td { padding: 1rem; border-bottom: 1px solid #ecf0f1; color: #2c3e50; vertical-align: middle;}
-.text-right { text-align: right; }
-.text-center { text-align: center; }
+:deep(th.col-acoes),
+:deep(td.col-acoes) {
+  width: 215px;
+  min-width: 215px;
+}
+
 .acoes-celula { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;}
 
 .badge { padding: 0.3rem 0.6rem; border-radius: 20px; font-size: 0.8rem; font-weight: bold; color: white; }

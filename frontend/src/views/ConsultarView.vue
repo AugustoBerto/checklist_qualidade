@@ -7,118 +7,95 @@
     />
     
     <div class="card">
-      <div class="toolbar">
-        <div class="search-box">
-          <i class="mdi mdi-magnify search-icon"></i>
-          <input
-            type="text"
-            v-model="filtros.usuario"
-            placeholder="Buscar por responsável / inspetor..."
-            class="input-search"
-          >
-          <button
-            v-if="filtros.usuario"
-            type="button"
-            class="clear-input-btn"
-            @click="filtros.usuario = ''"
-            title="Limpar texto"
-          >
-            <i class="mdi mdi-close"></i>
-          </button>
-        </div>
+      <!-- Barra de Ferramentas e Filtros Reutilizável -->
+      <TableToolbar
+        v-model="filtros.usuario"
+        placeholder="Buscar por responsável / inspetor..."
+        :has-active-filters="temFiltrosAtivos"
+        @clear="limparFiltros"
+        @search="buscarChecklists(1)"
+      >
+        <template #filters>
+          <div class="date-filters">
+            <input type="date" v-model="filtros.dataInicio" class="input-date" title="Data Inicial">
+            <span class="date-separator">até</span>
+            <input type="date" v-model="filtros.dataFim" class="input-date" title="Data Final">
+          </div>
+        </template>
+      </TableToolbar>
 
-        <div class="date-filters">
-          <input type="date" v-model="filtros.dataInicio" class="input-date" title="Data Inicial">
-          <span class="date-separator">até</span>
-          <input type="date" v-model="filtros.dataFim" class="input-date" title="Data Final">
-        </div>
-
-        <button
-          v-if="temFiltrosAtivos"
-          type="button"
-          class="btn-outline btn-limpar-filtros"
-          @click="limparFiltros"
-          title="Limpar todos os filtros"
-        >
-          <i class="mdi mdi-filter-off-outline"></i>
-          <span>Limpar</span>
-        </button>
-      </div>
-
-      <FeedbackState
-        v-if="isLoading"
-        type="loading"
-        message="Carregando histórico de relatórios..."
-      />
-      
-      <FeedbackState
-        v-else-if="error"
-        type="error"
-        title="Erro ao carregar relatórios"
-        :message="error"
-        :show-retry="true"
+      <!-- Tabela Reutilizável com Feedback e Paginação Integrados -->
+      <DataTable
+        :items="checklists"
+        :is-loading="isLoading"
+        :error="error"
+        :show-pagination="true"
+        :page="paginacao.page"
+        :total-pages="paginacao.totalPages"
+        :total="paginacao.total"
+        :page-size="paginacao.pageSize"
+        loading-message="Carregando histórico de relatórios..."
+        empty-title="Nenhum checklist encontrado"
+        empty-message="Não foram encontrados relatórios para os filtros informados."
+        empty-icon="mdi mdi-text-box-search-outline"
         @retry="buscarChecklists(1)"
-      />
-      
-      <FeedbackState
-        v-else-if="checklists.length === 0"
-        type="empty"
-        title="Nenhum checklist encontrado"
-        message="Não foram encontrados registros para o filtro informado."
-      />
+        @change-page="buscarChecklists"
+      >
+        <template #header>
+          <tr>
+            <th>Modelo</th>
+            <th>Setor</th>
+            <th>Linha / Célula</th>
+            <th>Responsável</th>
+            <th>Data e Hora</th>
+            <th class="col-acoes">Ações</th>
+          </tr>
+        </template>
 
-      <div v-else class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Modelo & Linha / Setor</th>
-              <th>Inspetor / Responsável</th>
-              <th>Data e Hora do Envio</th>
-              <th class="text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="checklist in checklists" :key="checklist.id">
-              <td>
-                <strong>{{ checklist.nome_modelo }}</strong>
-                <div class="celula-badge" v-if="checklist.nome_celula">
-                  <i class="mdi mdi-factory"></i> {{ checklist.nome_celula }}
-                  <span v-if="checklist.nome_setor"> - {{ checklist.nome_setor }}</span>
-                </div>
-              </td>
-              
-              <td>
-                <div class="user-cell">
-                  <i class="mdi mdi-account-circle-outline text-muted"></i>
-                  <span>{{ checklist.nome_usuario }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="date-cell">
-                  <i class="mdi mdi-calendar-clock-outline text-muted"></i>
-                  <span>{{ formatarDataHora(checklist.data_envio) }}</span>
-                </div>
-              </td>
-              <td class="text-right">
-                <router-link :to="`/detalhe/${checklist.id}`" class="btn-view">
-                  <i class="mdi mdi-eye-outline"></i>
-                  <span>Visualizar</span>
-                </router-link>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <template #body>
+          <tr v-for="checklist in checklists" :key="checklist.id">
+            <td>
+              <div class="model-cell">
+                <i class="mdi mdi-clipboard-text-outline model-icon"></i>
+                <strong class="model-name">{{ checklist.nome_modelo }}</strong>
+              </div>
+            </td>
 
-      <div v-if="paginacao.totalPages > 1" class="pagination-bar">
-        <button class="btn-page" :disabled="paginacao.page === 1" @click="buscarChecklists(paginacao.page - 1)">
-          <i class="mdi mdi-chevron-left"></i> Anterior
-        </button>
-        <span class="page-info">Página <strong>{{ paginacao.page }}</strong> de <strong>{{ paginacao.totalPages }}</strong></span>
-        <button class="btn-page" :disabled="paginacao.page === paginacao.totalPages" @click="buscarChecklists(paginacao.page + 1)">
-          Próxima <i class="mdi mdi-chevron-right"></i>
-        </button>
-      </div>
+            <td>
+              <span class="badge-setor">{{ checklist.nome_setor || 'Geral' }}</span>
+            </td>
+
+            <td>
+              <span v-if="checklist.nome_celula" class="cell-tag">
+                <i class="mdi mdi-factory"></i>
+                <span>{{ checklist.nome_celula }}</span>
+              </span>
+              <span v-else class="text-muted">--</span>
+            </td>
+            
+            <td>
+              <div class="user-cell" :title="checklist.nome_usuario">
+                <i class="mdi mdi-account-circle-outline text-muted"></i>
+                <span class="user-name">{{ formatarNomeCurto(checklist.nome_usuario) }}</span>
+              </div>
+            </td>
+
+            <td>
+              <div class="date-cell">
+                <i class="mdi mdi-calendar-clock-outline text-muted"></i>
+                <span>{{ formatarDataHora(checklist.data_envio) }}</span>
+              </div>
+            </td>
+
+            <td class="col-acoes">
+              <router-link :to="`/detalhe/${checklist.id}`" class="btn-view" title="Visualizar detalhes do relatório">
+                <i class="mdi mdi-eye-outline"></i>
+                <span>Visualizar</span>
+              </router-link>
+            </td>
+          </tr>
+        </template>
+      </DataTable>
     </div>
   </div>
 </template>
@@ -127,8 +104,9 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
-import FeedbackState from '../components/FeedbackState.vue';
-import { formatarDataHora } from '../services/formatters';
+import TableToolbar from '../components/TableToolbar.vue';
+import DataTable from '../components/DataTable.vue';
+import { formatarDataHora, formatarNomeCurto } from '../services/formatters';
 
 const checklists = ref([]);
 const isLoading = ref(true);
@@ -142,9 +120,8 @@ const temFiltrosAtivos = computed(() => {
 
 const limparFiltros = () => {
   filtros.value = { usuario: '', dataInicio: '', dataFim: '' };
+  buscarChecklists(1);
 };
-
-let debounceTimer = null;
 
 const buscarChecklists = async (page = 1) => {
   isLoading.value = true;
@@ -166,17 +143,6 @@ const buscarChecklists = async (page = 1) => {
     isLoading.value = false;
   }
 };
-
-// 📌 Filtragem dinâmica com debounce para digitação de texto
-watch(
-  () => filtros.value.usuario,
-  () => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      buscarChecklists(1);
-    }, 300);
-  }
-);
 
 // 📌 Filtragem dinâmica imediata para seleção de datas
 watch(
@@ -204,48 +170,6 @@ onMounted(buscarChecklists);
   border: 1px solid var(--border-color, #e2e8f0);
 }
 
-.toolbar {
-  margin-bottom: 1.5rem;
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.search-box {
-  position: relative;
-  flex: 1;
-  min-width: 240px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  font-size: 1.2rem;
-}
-
-.input-search {
-  width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.4rem;
-  border: 1.5px solid var(--border-color, #e2e8f0);
-  border-radius: var(--radius-md, 10px);
-  font-size: 0.95rem;
-  color: var(--text-primary, #0f172a);
-  background-color: #f8fafc;
-  box-sizing: border-box;
-  min-height: 44px;
-}
-
-.input-search:focus {
-  outline: none;
-  border-color: var(--primary, #b1072c);
-  background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
-}
-
 .date-filters {
   display: flex;
   align-items: center;
@@ -253,13 +177,13 @@ onMounted(buscarChecklists);
 }
 
 .input-date {
-  padding: 0.7rem 0.85rem;
-  border: 1.5px solid var(--border-color, #e2e8f0);
-  border-radius: var(--radius-md, 10px);
+  padding: 0.65rem 0.85rem;
+  border: 1.5px solid var(--border-color, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
   font-size: 0.9rem;
   color: var(--text-primary, #0f172a);
   background-color: #f8fafc;
-  min-height: 44px;
+  min-height: 42px;
   box-sizing: border-box;
 }
 
@@ -268,86 +192,51 @@ onMounted(buscarChecklists);
   font-size: 0.88rem;
 }
 
-.clear-input-btn {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 50%;
+.model-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-icon {
+  font-size: 1.15rem;
+  color: var(--primary, #b1072c);
+}
+
+.model-name {
+  color: var(--text-primary, #0f172a);
+  font-weight: 700;
+}
+
+.badge-setor {
+  background: #fff1f2;
+  color: var(--primary, #b1072c);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  transition: all 0.2s;
 }
 
-.clear-input-btn:hover {
-  color: #ef4444;
-  background: #fee2e2;
-}
-
-.btn-limpar-filtros {
-  min-height: 44px;
-  padding: 0.7rem 1.1rem;
-}
-
-.table-container {
-  overflow-x: auto;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: var(--radius-md, 10px);
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.data-table th {
-  background: #f8fafc;
-  padding: 1rem;
-  color: #475569;
-  font-weight: 700;
-  font-size: 0.88rem;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
-}
-
-.data-table td {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
-  color: var(--text-primary, #0f172a);
-  vertical-align: middle;
-  font-size: 0.95rem;
-}
-
-.data-table tbody tr:hover {
-  background-color: #f8fafc;
-}
-
-.celula-badge {
+.cell-tag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 4px;
-  font-size: 0.8rem;
-  color: var(--primary, #b1072c);
-  background: #fff1f2;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-weight: 600;
+  font-size: 0.88rem;
+  color: #475569;
+  font-weight: 500;
 }
 
 .user-cell, .date-cell {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.user-name {
+  font-weight: 500;
+  color: var(--text-primary, #0f172a);
 }
 
 .text-muted {
@@ -366,13 +255,13 @@ onMounted(buscarChecklists);
   background-color: #fff1f2;
   color: var(--primary, #b1072c);
   text-decoration: none;
-  padding: 0.55rem 1rem;
+  padding: 0.45rem 0.9rem;
   border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  transition: all 0.2s;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
   border: 1px solid #fecdd3;
-  min-height: 40px;
+  min-height: 38px;
 }
 
 .btn-view:hover {
@@ -381,51 +270,9 @@ onMounted(buscarChecklists);
   border-color: var(--primary, #b1072c);
 }
 
-.pagination-bar {
-  margin-top: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-
-.btn-page {
-  background: #f8fafc;
-  border: 1px solid var(--border-color, #cbd5e1);
-  padding: 0.55rem 1rem;
-  border-radius: 8px;
-  font-weight: 600;
-  color: var(--text-primary);
-  cursor: pointer;
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.btn-page:hover:not(:disabled) {
-  background: #eff6ff;
-  color: var(--primary);
-  border-color: #bfdbfe;
-}
-
-.btn-page:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.page-info {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
 @media (max-width: 768px) {
   .card { padding: 1rem; }
-  .toolbar { flex-direction: column; align-items: stretch; }
-  .search-box { width: 100%; min-width: auto; }
   .date-filters { width: 100%; justify-content: space-between; }
   .input-date { flex: 1; }
-  .btn-filtrar { width: 100%; justify-content: center; }
-  .data-table { min-width: 600px; }
 }
 </style>
