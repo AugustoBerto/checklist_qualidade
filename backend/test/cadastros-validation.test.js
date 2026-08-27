@@ -392,15 +392,15 @@ test('rejeita setor inexistente ou inativo ao criar modelo antes do insert', asy
 
 test('rejeita célula com setor inativo ou marca inexistente antes do insert', async () => {
   for (const caso of [
-    { tabela: 'setores', setor: { id: 3, ativo: 0 }, marca: { id: 7 } },
-    { tabela: 'marcas', setor: { id: 3, ativo: 1 }, marca: null },
+    { setor: { id: 3, ativo: 0 }, marca: { id: 7 } },
+    { setor: { id: 3, ativo: 1 }, marca: null },
   ]) {
     const consultas = [];
     db.query = async (sql, params = []) => {
       consultas.push({ sql, params });
       if (/FROM setores/.test(sql)) {
         assert.match(sql, /ativo\s*=\s*1/);
-        return !/ativo\s*=\s*1/.test(sql) ? { rows: [caso.setor], rowCount: 1 } : { rows: [], rowCount: 0 };
+        return caso.setor.ativo === 1 ? { rows: [caso.setor], rowCount: 1 } : { rows: [], rowCount: 0 };
       }
       if (/FROM marcas/.test(sql)) {
         assert.doesNotMatch(sql, /ativo/);

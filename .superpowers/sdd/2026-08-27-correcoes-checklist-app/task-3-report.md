@@ -41,3 +41,18 @@
 
 - Cada caso de referência verifica comportamento de produção além do status: SQL de atividade, ausência/presença de predicado, ausência de INSERT/UPDATE e parâmetros nulos.
 - Nenhuma alteração de produção foi necessária neste round; nenhum mock simula mais o SELECT antigo do catálogo.
+
+## Fix round 2 — cenário de marca inexistente na célula
+
+- `backend/test/cadastros-validation.test.js`: corrigi o mock da criação de célula para manter o setor ativo no cenário de marca inexistente; assim a execução alcança `validarMarca`, retorna 400 e comprova que nenhum INSERT ocorre. O cenário separado de setor inativo continua interrompendo antes da marca.
+
+### Comandos e resultados
+
+- `cd backend && node --test --test-concurrency=1 test/cadastros-validation.test.js`: GREEN (`tests 1, pass 1, fail 0`; execução direta confirmou 21 testes, 21 pass).
+- `cd backend && npm run test:unit`: GREEN (`tests 5, pass 5, fail 0`).
+- `git diff --check`: GREEN.
+- Integração PostgreSQL não executada: Docker continua sem permissão para `/var/run/docker.sock`.
+
+### Auto-review
+
+- O teste agora distingue a ordem real de validação e alcança a consulta de marca exclusivamente no caso aplicável; não houve mudança de produção.
