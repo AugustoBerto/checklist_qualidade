@@ -94,6 +94,7 @@ test('rejeita setor ou célula inexistente/inativa antes de inserir submissão',
             async query(sql, params = []) {
                 consultas.push({ sql, params });
                 if (/^(BEGIN|ROLLBACK|COMMIT)$/.test(sql)) return { rows: [] };
+                if (/JOIN celulas_producao c/.test(sql)) return { rows: [] };
                 if (/FROM modelo/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca' }] };
                 if (new RegExp(`FROM ${tabelaInvalida}`).test(sql)) return { rows: [] };
                 if (/FROM setores/.test(sql) || /FROM celulas_producao/.test(sql)) return { rows: [{ id: 1 }] };
@@ -110,12 +111,38 @@ test('rejeita setor ou célula inexistente/inativa antes de inserir submissão',
     }
 });
 
-test('aceita referências ativas independentes e persiste todos os IDs recebidos', async () => {
+test('rejeita modelo e célula de setores diferentes', async () => {
     const consultas = [];
     db.connect = async () => ({
         async query(sql, params = []) {
             consultas.push({ sql, params });
+            if (/JOIN celulas_producao c/.test(sql)) return { rows: [] };
             if (/FROM modelo/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca' }] };
+            if (/FROM setores/.test(sql)) return { rows: [{ id: 20 }] };
+            if (/FROM celulas_producao/.test(sql)) return { rows: [{ id: 30, id_setor_fk: 30, id_marca_fk: 1 }] };
+            if (/FROM perguntas/.test(sql)) return { rows: [{ id: 1, pergunta: 'Pergunta', identificacao: 'pergunta_1', categoria: 'Categoria', ctq: false }] };
+            if (/INSERT INTO formulario_submissoes/.test(sql)) return { rows: [{ id: 50 }] };
+            return { rows: [] };
+        },
+        release() {},
+    });
+    const res = resposta();
+
+    await checklist.salvarChecklist(submissaoValida(), res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(consultas.some(({ sql }) => /INSERT INTO formulario_submissoes/.test(sql)), false);
+});
+
+test('aceita modelo, setor e célula relacionados e persiste todos os IDs', async () => {
+    const consultas = [];
+    db.connect = async () => ({
+        async query(sql, params = []) {
+            consultas.push({ sql, params });
+            if (/JOIN celulas_producao c/.test(sql)) {
+                return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca', id_marca_fk: 1 }] };
+            }
+            if (/FROM modelo/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca', id_marca_fk: 1 }] };
             if (/FROM setores/.test(sql) || /FROM celulas_producao/.test(sql)) return { rows: [{ id: 1 }] };
             if (/FROM perguntas/.test(sql)) return { rows: [{ id: 1, pergunta: 'Pergunta', identificacao: 'pergunta_1', categoria: 'Categoria', ctq: false }] };
             if (/INSERT INTO formulario_submissoes/.test(sql)) return { rows: [{ id: 50 }] };
@@ -130,6 +157,9 @@ test('aceita referências ativas independentes e persiste todos os IDs recebidos
     const insert = consultas.find(({ sql }) => /INSERT INTO formulario_submissoes/.test(sql));
     assert.equal(res.statusCode, 201);
     assert.deepEqual(insert.params.slice(1, 4), [10, 20, 30]);
-    assert.ok(consultas.some(({ sql, params }) => /FROM setores/.test(sql) && params[0] === 20));
-    assert.ok(consultas.some(({ sql, params }) => /FROM celulas_producao/.test(sql) && params[0] === 30));
+    const relacional = consultas.find(({ sql }) => /JOIN celulas_producao c/.test(sql));
+    assert.deepEqual(relacional.params, [10, 20, 30]);
+    assert.match(relacional.sql, /m\.id_setor_fk = s\.id/);
+    assert.match(relacional.sql, /c\.id_setor_fk = s\.id/);
+    assert.match(relacional.sql, /c\.id_marca_fk IS NULL OR c\.id_marca_fk = m\.id_marca_fk/);
 });
