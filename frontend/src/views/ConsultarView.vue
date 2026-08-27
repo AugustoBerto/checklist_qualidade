@@ -43,28 +43,39 @@
         <template #header>
           <tr>
             <th>Modelo</th>
-            <th>Setor</th>
-            <th>Linha / Célula</th>
-            <th>Responsável</th>
+            <th class="hide-mobile">Setor</th>
+            <th class="hide-mobile">Linha / Célula</th>
+            <th class="hide-mobile">Responsável</th>
             <th>Data e Hora</th>
-            <th class="col-acoes">Ações</th>
+            <th class="col-chevron"></th>
           </tr>
         </template>
 
         <template #body>
-          <tr v-for="checklist in checklists" :key="checklist.id">
+          <tr
+            v-for="checklist in checklists"
+            :key="checklist.id"
+            class="clickable-row"
+            @click="abrirDetalhe(checklist.id)"
+            title="Toque para visualizar os detalhes"
+          >
             <td>
               <div class="model-cell">
                 <i class="mdi mdi-clipboard-text-outline model-icon"></i>
-                <strong class="model-name">{{ checklist.nome_modelo }}</strong>
+                <div class="model-info">
+                  <strong class="model-name">{{ checklist.nome_modelo }}</strong>
+                  <span class="model-sub-mobile show-mobile-only">
+                    {{ checklist.nome_setor || 'Geral' }} · {{ formatarNomeCurto(checklist.nome_usuario) }}
+                  </span>
+                </div>
               </div>
             </td>
 
-            <td>
+            <td class="hide-mobile">
               <span class="badge-setor">{{ checklist.nome_setor || 'Geral' }}</span>
             </td>
 
-            <td>
+            <td class="hide-mobile">
               <span v-if="checklist.nome_celula" class="cell-tag">
                 <i class="mdi mdi-factory"></i>
                 <span>{{ checklist.nome_celula }}</span>
@@ -72,7 +83,7 @@
               <span v-else class="text-muted">--</span>
             </td>
             
-            <td>
+            <td class="hide-mobile">
               <div class="user-cell" :title="checklist.nome_usuario">
                 <i class="mdi mdi-account-circle-outline text-muted"></i>
                 <span class="user-name">{{ formatarNomeCurto(checklist.nome_usuario) }}</span>
@@ -86,11 +97,8 @@
               </div>
             </td>
 
-            <td class="col-acoes">
-              <router-link :to="`/detalhe/${checklist.id}`" class="btn-view" title="Visualizar detalhes do relatório">
-                <i class="mdi mdi-eye-outline"></i>
-                <span>Visualizar</span>
-              </router-link>
+            <td class="col-chevron">
+              <i class="mdi mdi-chevron-right"></i>
             </td>
           </tr>
         </template>
@@ -101,13 +109,19 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
 import TableToolbar from '../components/TableToolbar.vue';
 import DataTable from '../components/DataTable.vue';
 import { formatarDataHora, formatarNomeCurto } from '../services/formatters';
 
+const router = useRouter();
 const checklists = ref([]);
+
+const abrirDetalhe = (id) => {
+  router.push(`/detalhe/${id}`);
+};
 const isLoading = ref(true);
 const error = ref(null);
 const filtros = ref({ usuario: '', dataInicio: '', dataFim: '' });
@@ -243,33 +257,26 @@ onMounted(buscarChecklists);
   font-size: 1.15rem;
 }
 
-.text-right {
-  text-align: right;
+.model-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.btn-view {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: #fff1f2;
-  color: var(--primary, #b1072c);
-  text-decoration: none;
-  padding: 0.45rem 0.9rem;
-  border-radius: 8px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  border: 1px solid #fecdd3;
-  min-height: 38px;
+.model-sub-mobile {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  font-weight: 500;
 }
 
-.btn-view:hover {
-  background-color: var(--primary, #b1072c);
-  color: #ffffff;
-  border-color: var(--primary, #b1072c);
+.show-mobile-only {
+  display: none;
 }
 
 @media (max-width: 768px) {
+  .show-mobile-only {
+    display: inline-block;
+  }
   .page-container { padding: 1rem 0.5rem; }
   .card { padding: 1rem; border-radius: 12px; }
   .date-filters {

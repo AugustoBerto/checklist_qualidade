@@ -74,27 +74,43 @@
       >
         <template #header>
           <tr>
-            <th class="col-id">ID</th>
+            <th class="col-id hide-mobile">ID</th>
             <th>Nome / Descrição</th>
             <th v-if="abaAtiva === 'marcas'">Logo</th>
             
             <th v-if="abaAtiva === 'categorias'">Tipo / Processo</th>
-            <th v-if="abaAtiva === 'categorias'">Perguntas</th>
+            <th v-if="abaAtiva === 'categorias'" class="hide-mobile">Perguntas</th>
 
             <th v-if="abaAtiva === 'celulas'">Setor Vinculado</th>
-            <th v-if="abaAtiva === 'celulas'">Marca Vinculada</th>
+            <th v-if="abaAtiva === 'celulas'" class="hide-mobile">Marca Vinculada</th>
 
             <th v-if="abaAtiva === 'turnos'">Horário Entrada</th>
-            <th v-if="abaAtiva === 'turnos'">Horário Após Intervalo</th>
+            <th v-if="abaAtiva === 'turnos'" class="hide-mobile">Horário Após Intervalo</th>
             
-            <th class="col-acoes">Ações</th>
+            <th class="col-chevron"></th>
           </tr>
         </template>
 
         <template #body>
-          <tr v-for="item in dadosFiltrados" :key="item.id || item.id_setor || item.id_unidade || item.id_celula">
-            <td class="col-id">#{{ item.id || item.id_setor || item.id_unidade || item.id_marca || item.id_celula || item.id_turno }}</td>
-            <td><strong>{{ item.nome || item.descricao }}</strong></td>
+          <tr
+            v-for="item in dadosFiltrados"
+            :key="item.id || item.id_setor || item.id_unidade || item.id_celula || item.id_marca || item.id_turno"
+            class="clickable-row"
+            @click="abrirModal(item)"
+            title="Toque para editar este registro"
+          >
+            <td class="col-id hide-mobile">#{{ item.id || item.id_setor || item.id_unidade || item.id_marca || item.id_celula || item.id_turno }}</td>
+            <td>
+              <div class="entity-name-cell">
+                <strong>{{ item.nome || item.descricao }}</strong>
+                <span v-if="abaAtiva === 'celulas' && item.nome_marca" class="entity-sub-meta show-mobile-only">
+                  Marca: {{ item.nome_marca }}
+                </span>
+                <span v-if="abaAtiva === 'categorias'" class="entity-sub-meta show-mobile-only">
+                  {{ (item.perguntas && Array.isArray(item.perguntas)) ? item.perguntas.length : 0 }} perguntas
+                </span>
+              </div>
+            </td>
             <td v-if="abaAtiva === 'marcas'">
               <img v-if="urlLogoMarca(item)" :src="urlLogoMarca(item)" :alt="item.nome" class="marca-logo-mini" />
               <span v-else class="text-muted">Sem logo</span>
@@ -106,7 +122,7 @@
                 {{ item.ctq ? 'CRÍTICO' : 'NORMAL' }}
               </span>
             </td>
-            <td v-if="abaAtiva === 'categorias'">
+            <td v-if="abaAtiva === 'categorias'" class="hide-mobile">
               <span class="badge badge-perguntas-count">
                 <i class="mdi mdi-help-circle-outline"></i>
                 {{ (item.perguntas && Array.isArray(item.perguntas)) ? item.perguntas.length : 0 }} perguntas
@@ -116,26 +132,19 @@
             <td v-if="abaAtiva === 'celulas'">
               <span class="badge badge-setor"><i class="mdi mdi-office-building"></i> {{ item.nome_setor || 'N/A' }}</span>
             </td>
-            <td v-if="abaAtiva === 'celulas'">
+            <td v-if="abaAtiva === 'celulas'" class="hide-mobile">
               <span class="badge badge-marca"><i class="mdi mdi-tag"></i> {{ item.nome_marca || 'N/A' }}</span>
             </td>
 
             <td v-if="abaAtiva === 'turnos'" class="time-col">
               <i class="mdi mdi-login text-muted"></i> {{ formatarHora(item.entrada_inicio) }} às {{ formatarHora(item.entrada_fim) }}
             </td>
-            <td v-if="abaAtiva === 'turnos'" class="time-col">
+            <td v-if="abaAtiva === 'turnos'" class="time-col hide-mobile">
               <i class="mdi mdi-coffee text-muted"></i> {{ formatarHora(item.intervalo_inicio) }} às {{ formatarHora(item.intervalo_fim) }}
             </td>
 
-            <td class="col-acoes">
-              <div class="actions-cell">
-                <button @click="abrirModal(item)" class="btn-icon edit" title="Editar" aria-label="Editar">
-                  <i class="mdi mdi-pencil"></i>
-                </button>
-                <button @click="excluirItem(item.id || item.id_setor || item.id_unidade || item.id_marca || item.id_celula || item.id_turno)" class="btn-icon delete" title="Excluir" aria-label="Excluir">
-                  <i class="mdi mdi-delete"></i>
-                </button>
-              </div>
+            <td class="col-chevron">
+              <i class="mdi mdi-chevron-right"></i>
             </td>
           </tr>
         </template>
@@ -178,6 +187,7 @@
               type="button"
               class="btn-toggle-ctq"
               :class="{ 'is-ctq': form.ctq }"
+              :title="form.ctq ? 'Processo Crítico (CTQ) ativo. Clique para alterar para Normal.' : 'Processo Normal. Clique para marcar como Crítico.'"
               @click="form.ctq = !form.ctq"
             >
               <i class="mdi" :class="form.ctq ? 'mdi-alert-decagram' : 'mdi-checkbox-blank-circle-outline'"></i>
@@ -186,56 +196,54 @@
           </div>
 
           <div class="form-group">
-            <label>Perguntas Pré-configuradas ({{ form.perguntas.length }})</label>
-            
-            <div class="perguntas-gerenciador">
-              <div v-if="form.perguntas.length === 0" class="perguntas-vazio">
-                <i class="mdi mdi-information-outline"></i>
-                <span>Nenhuma pergunta vinculada ainda. Adicione perguntas abaixo.</span>
+            <label>Perguntas Pré-configuradas</label>
+            <div class="perguntas-manager-box">
+              <div v-if="form.perguntas.length === 0" class="sem-perguntas-aviso">
+                <i class="mdi mdi-information-outline"></i> Nenhuma pergunta cadastrada para esta categoria.
               </div>
               
-              <ul v-else class="lista-perguntas-config">
-                <li v-for="(p, pIndex) in form.perguntas" :key="pIndex" class="item-pergunta-config">
-                  <span class="p-index">{{ pIndex + 1 }}.</span>
-                  <input type="text" v-model="form.perguntas[pIndex]" class="input-base input-p-text" placeholder="Texto da pergunta" />
-                  <button type="button" class="btn-remove-p" @click="removerPerguntaModal(pIndex)" title="Remover pergunta">
+              <ul v-else class="modal-perguntas-lista">
+                <li v-for="(p, pIndex) in form.perguntas" :key="pIndex" class="modal-pergunta-item">
+                  <span class="pergunta-num">{{ pIndex + 1 }}.</span>
+                  <input type="text" v-model="form.perguntas[pIndex]" class="input-pergunta-modal" />
+                  <button type="button" @click="removerPerguntaModal(pIndex)" class="btn-remover-pergunta" title="Remover pergunta">
                     <i class="mdi mdi-close"></i>
                   </button>
                 </li>
               </ul>
 
-              <div class="add-pergunta-config-box">
+              <div class="add-pergunta-modal-box">
                 <textarea
                   v-model="form.novaPerguntaInput"
                   class="input-base"
                   rows="2"
-                  placeholder="Digite uma nova pergunta ou cole várias perguntas de uma vez (Excel)..."
+                  placeholder="Digite nova(s) pergunta(s)... (pode colar várias do Excel)"
                   @keypress.enter.exact.prevent="adicionarPerguntaModal"
                 ></textarea>
-                <button type="button" class="btn-secundario btn-add-p" @click="adicionarPerguntaModal">
-                  <i class="mdi mdi-plus"></i> Adicionar Pergunta(s)
+                <button type="button" class="btn-add-p-modal" @click="adicionarPerguntaModal">
+                  <i class="mdi mdi-plus"></i> Adicionar
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        <div v-if="abaAtiva === 'celulas'" class="dependencies-grid">
-          <div class="form-group">
+        <div v-if="abaAtiva === 'celulas'" class="form-group-row">
+          <div class="form-group w-50">
             <label>Setor Vinculado <span class="obrigatorio">*</span></label>
             <VueSelect
               v-model="form.id_setor_fk"
               :options="opcoesSetores"
-              placeholder="Selecione um Setor..."
+              placeholder="Selecione o setor..."
               :is-clearable="false"
             />
           </div>
-          <div class="form-group">
+          <div class="form-group w-50">
             <label>Marca Vinculada (Opcional)</label>
             <VueSelect
               v-model="form.id_marca_fk"
               :options="opcoesMarcas"
-              placeholder="Geral / Sem Marca Específica"
+              placeholder="Selecione a marca..."
               :is-clearable="true"
             />
           </div>
@@ -267,11 +275,27 @@
       </form>
 
       <template #footer>
-        <button type="button" @click="fecharModal" class="btn-outline">Cancelar</button>
-        <button type="submit" form="formConfig" class="btn-primary" :disabled="salvando">
-          <i class="mdi" :class="salvando ? 'mdi-loading mdi-spin' : 'mdi-content-save'"></i>
-          <span>{{ salvando ? 'Salvando...' : 'Salvar' }}</span>
-        </button>
+        <div class="modal-footer-content">
+          <button
+            v-if="form.id"
+            type="button"
+            @click="excluirItem(form.id)"
+            class="btn-danger-outline"
+            :disabled="salvando"
+            title="Excluir este registro"
+          >
+            <i class="mdi mdi-trash-can-outline"></i>
+            <span>Excluir</span>
+          </button>
+          
+          <div class="modal-footer-right">
+            <button type="button" @click="fecharModal" class="btn-outline">Cancelar</button>
+            <button type="submit" form="formConfig" class="btn-primary" :disabled="salvando">
+              <i class="mdi" :class="salvando ? 'mdi-loading mdi-spin' : 'mdi-content-save'"></i>
+              <span>{{ salvando ? 'Salvando...' : 'Salvar' }}</span>
+            </button>
+          </div>
+        </div>
       </template>
     </BaseModal>
   </div>
@@ -568,6 +592,7 @@ const excluirItem = async (id) => {
   try {
     await api.delete(`${endpointAtivo.value}/${id}`);
     toast.success(`${entidade} excluído(a) com sucesso!`);
+    fecharModal();
     buscarDados(true);
   } catch (err) {
     console.error('Erro ao excluir:', err);
@@ -834,58 +859,153 @@ onMounted(() => {
 .btn-toggle-ctq.is-ctq { background: #fff1f2; border-color: #fecdd3; color: var(--primary, #b1072c); }
 .btn-toggle-ctq.is-ctq:hover { background: #ffe4e6; border-color: var(--primary, #b1072c); }
 
-.categoria-config-container { margin-top: 0.5rem; }
-.perguntas-gerenciador { background: #f8fafc; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; padding: 1rem; }
-.perguntas-vazio { display: flex; align-items: center; gap: 6px; color: #64748b; font-size: 0.88rem; font-style: italic; margin-bottom: 0.75rem; }
-.lista-perguntas-config { list-style: none; padding: 0; margin: 0 0 1rem 0; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem; }
-.item-pergunta-config { display: flex; align-items: center; gap: 0.5rem; background: #ffffff; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid #e2e8f0; }
-.p-index { font-weight: 700; color: #94a3b8; font-size: 0.85rem; min-width: 20px; }
-.input-p-text { padding: 0.4rem 0.6rem; font-size: 0.9rem; }
-.btn-remove-p { background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: 0.2s; min-width: 32px; min-height: 32px; }
-.btn-remove-p:hover { color: #dc2626; background: #fef2f2; }
-.add-pergunta-config-box { display: flex; flex-direction: column; gap: 0.5rem; }
-.btn-add-p { align-self: flex-start; font-size: 0.85rem; padding: 0.5rem 1rem; }
-.btn-secundario { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.25rem; background-color: var(--primary, #b1072c); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap; min-height: 40px; transition: all 0.2s;}
-.btn-secundario:hover { background-color: var(--primary-hover, #8f0523); }
-
-.actions-cell {
+.entity-name-cell {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.btn-icon {
-  background: transparent;
-  border: none;
-  font-size: 1.25rem;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: 0.2s;
-  display: inline-flex;
+.entity-sub-meta {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  font-weight: 500;
+}
+
+.modal-footer-content {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  min-width: 42px;
-  min-height: 42px;
+  width: 100%;
+  gap: 0.75rem;
 }
 
-.btn-icon.edit { color: var(--primary, #b1072c); background: #fff1f2; }
-.btn-icon.edit:hover { background: #ffe4e6; }
-.btn-icon.delete { color: var(--danger, #ef4444); background: #fef2f2; }
-.btn-icon.delete:hover { background: #fee2e2; }
+.modal-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 
-.btn-novo-empty {
-  margin-top: 1rem;
-  background: var(--primary, #b1072c);
-  color: white;
-  border: none;
-  padding: 0.65rem 1.25rem;
+.btn-danger-outline {
+  background: white;
+  border: 1.5px solid #fecdd3;
+  color: #dc2626;
+  padding: 0.75rem 1.2rem;
   border-radius: 8px;
-  font-weight: 600;
   cursor: pointer;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
+  transition: all 0.2s;
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
+.perguntas-manager-box {
+  background: #f8fafc;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.sem-perguntas-aviso {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 0.88rem;
+  font-style: italic;
+  margin-bottom: 0.75rem;
+}
+
+.modal-perguntas-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.modal-pergunta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #ffffff;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.pergunta-num {
+  font-weight: 700;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  min-width: 20px;
+}
+
+.input-pergunta-modal {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.input-pergunta-modal:focus {
+  outline: none;
+  border-color: var(--primary, #b1072c);
+}
+
+.btn-remover-pergunta {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.btn-remover-pergunta:hover {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.add-pergunta-modal-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-add-p-modal {
+  align-self: flex-start;
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--primary, #b1072c);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-add-p-modal:hover {
+  background-color: var(--primary-hover, #8f0523);
 }
 
 /* ==========================================

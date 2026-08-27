@@ -65,43 +65,43 @@
       >
         <template #header>
           <tr>
-            <th>ID</th>
+            <th class="col-id hide-mobile">ID</th>
             <th>Nome do Modelo</th>
-            <th>Setor</th>
-            <th>Marca</th>
+            <th class="hide-mobile">Setor</th>
+            <th class="hide-mobile">Marca</th>
             <th>Status</th>
-            <th class="text-right">Ações</th>
+            <th class="col-chevron"></th>
           </tr>
         </template>
 
         <template #body>
-          <tr v-for="modelo in modelosFiltrados" :key="modelo.id">
-            <td>#{{ modelo.id }}</td>
-            <td><strong>{{ modelo.nome }}</strong></td>
+          <tr
+            v-for="modelo in modelosFiltrados"
+            :key="modelo.id"
+            class="clickable-row"
+            @click="abrirEdicao(modelo)"
+            title="Toque para editar este modelo de checklist"
+          >
+            <td class="col-id hide-mobile">#{{ modelo.id }}</td>
             <td>
+              <div class="model-name-cell">
+                <strong>{{ modelo.nome }}</strong>
+                <span class="model-sub-meta show-mobile-only">
+                  {{ obterNomeSetor(modelo.id_setor_fk) }} · {{ obterNomeMarca(modelo.marca || modelo.nomeMarca) }}
+                </span>
+              </div>
+            </td>
+            <td class="hide-mobile">
               <span class="badge-setor"><i class="mdi mdi-office-building"></i> {{ obterNomeSetor(modelo.id_setor_fk) }}</span>
             </td>
-            <td>{{ obterNomeMarca(modelo.marca || modelo.nomeMarca) }}</td>
+            <td class="hide-mobile">{{ obterNomeMarca(modelo.marca || modelo.nomeMarca) }}</td>
             <td>
               <span class="badge" :class="modelo.ativo ? 'badge-ativo' : 'badge-inativo'">
                 {{ modelo.ativo ? 'Ativo' : 'Inativo' }}
               </span>
             </td>
-            <td class="col-acoes">
-              <div class="acoes-celula">
-                <button class="btn-editar" @click="abrirEdicao(modelo)">
-                  <i class="mdi mdi-pencil"></i> <span>Editar</span>
-                </button>
-                <button 
-                  class="btn-status" 
-                  :class="modelo.ativo ? 'btn-inativar' : 'btn-reativar'" 
-                  @click="alternarStatus(modelo)"
-                  :title="modelo.ativo ? 'Inativar este modelo' : 'Reativar este modelo'"
-                >
-                  <i class="mdi" :class="modelo.ativo ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"></i>
-                  <span>{{ modelo.ativo ? 'Inativar' : 'Reativar' }}</span>
-                </button>
-              </div>
+            <td class="col-chevron">
+              <i class="mdi mdi-chevron-right"></i>
             </td>
           </tr>
         </template>
@@ -111,11 +111,15 @@
     <!-- Formulário de Criação / Edição -->
     <div v-else class="card form-card">
       <div class="form-header-row">
-        <h3>{{ form.id ? 'Editar Modelo de Checklist' : 'Criar Novo Modelo de Checklist' }}</h3>
-        <button class="btn-outline" @click="voltarParaLista">
-          <i class="mdi mdi-arrow-left"></i>
-          <span>Voltar para Lista</span>
-        </button>
+        <div class="form-header-left">
+          <h3>{{ form.id ? 'Editar Modelo de Checklist' : 'Criar Novo Modelo de Checklist' }}</h3>
+        </div>
+        <div class="form-header-actions">
+          <button class="btn-outline" @click="voltarParaLista">
+            <i class="mdi mdi-arrow-left"></i>
+            <span>Voltar para Lista</span>
+          </button>
+        </div>
       </div>
       
       <form @submit.prevent="salvarChecklist">
@@ -502,29 +506,6 @@ const abrirEdicao = async (modelo) => {
   }
 };
 
-const alternarStatus = async (modelo) => {
-  const acao = modelo.ativo ? 'inativar' : 'reativar';
-  const confirmou = await dialog.confirm({
-    title: `${modelo.ativo ? 'Inativar' : 'Reativar'} Modelo`,
-    message: `Deseja realmente ${acao} o modelo "${modelo.nome}"?`,
-    confirmText: modelo.ativo ? 'Inativar' : 'Reativar',
-    variant: modelo.ativo ? 'danger' : 'primary'
-  });
-  if (!confirmou) return;
-
-  try {
-    const res = await api.get(`/cadastros/modelos/${modelo.id}`);
-    if (res.data?.sucesso) {
-      const payload = { ...res.data.modelo, ativo: !modelo.ativo };
-      await api.put(`/cadastros/modelos/${modelo.id}`, payload);
-      toast.success(`Modelo ${acao}do com sucesso.`);
-      carregarModelosTabela();
-    }
-  } catch (err) {
-    toast.error(`Erro ao ${acao} modelo.`);
-  }
-};
-
 // ==========================================
 // 3. LÓGICA DE CLONAGEM (REFERÊNCIA)
 // ==========================================
@@ -736,13 +717,57 @@ const salvarChecklist = async () => {
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-color, #e2e8f0);
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.form-header-row h3 {
+.form-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.form-header-left h3 {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary, #0f172a);
+}
+
+.form-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-status-header {
+  border: none;
+  padding: 0.65rem 1.15rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  min-height: 44px;
+}
+
+.model-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.model-sub-meta {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  font-weight: 500;
+}
+
+.show-mobile-only {
+  display: none;
 }
 
 .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;}

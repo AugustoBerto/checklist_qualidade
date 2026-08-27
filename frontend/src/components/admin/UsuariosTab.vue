@@ -41,23 +41,34 @@
         <template #header>
           <tr>
             <th>Nome / Colaborador</th>
-            <th class="col-matricula">Matrícula</th>
-            <th>Papel</th>
+            <th class="col-matricula hide-mobile">Matrícula</th>
+            <th class="hide-mobile">Papel</th>
             <th>Status</th>
-            <th class="col-acoes">Ações</th>
+            <th class="col-chevron"></th>
           </tr>
         </template>
 
         <template #body>
-          <tr v-for="perfil in perfisFiltrados" :key="perfil.id">
+          <tr
+            v-for="perfil in perfisFiltrados"
+            :key="perfil.id"
+            class="clickable-row"
+            @click="editar(perfil)"
+            title="Toque para editar este perfil operacional"
+          >
             <td>
               <div class="user-name-cell">
                 <i class="mdi mdi-account-circle text-muted"></i>
-                <strong>{{ perfil.nome }}</strong>
+                <div class="user-info-text">
+                  <strong>{{ perfil.nome }}</strong>
+                  <span class="user-sub-meta show-mobile-only">
+                    Matrícula: {{ perfil.matricula }} · {{ perfil.papel }}
+                  </span>
+                </div>
               </div>
             </td>
-            <td class="col-matricula"><code>{{ perfil.matricula }}</code></td>
-            <td>
+            <td class="col-matricula hide-mobile"><code>{{ perfil.matricula }}</code></td>
+            <td class="hide-mobile">
               <span class="badge" :class="perfil.papel === 'ADMIN' ? 'badge-admin' : 'badge-user'">
                 {{ perfil.papel }}
               </span>
@@ -67,11 +78,8 @@
                 {{ perfil.ativo ? 'Ativo' : 'Inativo' }}
               </span>
             </td>
-            <td class="col-acoes">
-              <button class="btn-editar" @click="editar(perfil)" title="Editar perfil">
-                <i class="mdi mdi-pencil"></i>
-                <span>Editar</span>
-              </button>
+            <td class="col-chevron">
+              <i class="mdi mdi-chevron-right"></i>
             </td>
           </tr>
         </template>
@@ -345,6 +353,22 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-sub-meta {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  font-weight: 500;
+}
+
+.show-mobile-only {
+  display: none;
 }
 
 .text-muted {

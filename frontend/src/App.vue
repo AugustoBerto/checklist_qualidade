@@ -274,12 +274,9 @@ body {
   font-weight: 700;
 }
 
-.btn-login-link:hover {
-  background: var(--primary-hover) !important;
-  color: #ffffff !important;
-}
-
-/* AÇÕES DO USUÁRIO E LOGOUT */
+/* ==========================================
+   BOTÕES DE AUTENTICAÇÃO (ENTRAR E SAIR)
+   ========================================== */
 .user-actions { 
   display: flex; 
   align-items: center; 
@@ -287,27 +284,47 @@ body {
   margin-left: 0.25rem;
 }
 
-.logout-button { 
+.auth-button,
+.logout-button,
+.btn-login-link { 
   background: #fff1f2; 
-  color: var(--danger); 
+  color: var(--primary, #b1072c); 
   border: 1px solid #fecdd3; 
-  border-radius: var(--radius-md);
-  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-md, 10px);
+  padding: 0.5rem 0.95rem;
   font-weight: 600;
   font-size: 0.88rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   transition: all 0.2s ease;
   min-height: 40px;
   white-space: nowrap;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
-.logout-button:hover { 
-  background: var(--danger); 
-  color: #ffffff; 
-  border-color: var(--danger);
+.auth-button i,
+.logout-button i,
+.btn-login-link i {
+  font-size: 1.15rem;
+}
+
+.auth-button:hover,
+.logout-button:hover,
+.btn-login-link:hover { 
+  background: var(--primary, #b1072c) !important; 
+  color: #ffffff !important; 
+  border-color: var(--primary, #b1072c) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-button:active,
+.logout-button:active,
+.btn-login-link:active {
+  transform: translateY(0);
 }
 
 /* ==========================================

@@ -130,7 +130,6 @@ defineEmits(['retry', 'change-page']);
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  min-width: 600px;
 }
 
 :deep(th) {
@@ -171,11 +170,6 @@ defineEmits(['retry', 'change-page']);
   width: 140px;
   min-width: 140px;
   white-space: nowrap;
-  position: sticky;
-  right: 0;
-  background-color: #f8fafc;
-  z-index: 2;
-  box-shadow: -3px 0 6px -3px rgba(0, 0, 0, 0.05);
 }
 
 :deep(td.col-acoes),
@@ -184,63 +178,78 @@ defineEmits(['retry', 'change-page']);
   width: 140px;
   min-width: 140px;
   white-space: nowrap;
-  position: sticky;
-  right: 0;
-  background-color: #ffffff;
-  z-index: 1;
-  box-shadow: -3px 0 6px -3px rgba(0, 0, 0, 0.05);
 }
 
 :deep(tbody tr) {
   transition: background-color 0.15s ease;
 }
 
-:deep(tbody tr:hover) {
+:deep(tbody tr.clickable-row) {
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(177, 7, 44, 0.05);
+}
+
+:deep(tbody tr:hover),
+:deep(tbody tr.clickable-row:hover) {
   background-color: #f8fafc;
 }
 
-:deep(tbody tr:hover td.col-acoes),
-:deep(tbody tr:hover td.text-right) {
-  background-color: #f8fafc;
+:deep(tbody tr.clickable-row:active) {
+  background-color: #f1f5f9;
 }
 
 :deep(tbody tr:last-child td) {
   border-bottom: none;
 }
 
+:deep(th.col-chevron),
+:deep(td.col-chevron) {
+  width: 32px;
+  min-width: 32px;
+  max-width: 36px;
+  padding-left: 0;
+  padding-right: 0.75rem;
+  text-align: right;
+  color: #94a3b8;
+  font-size: 1.15rem;
+}
+
+:deep(tr.clickable-row:hover td.col-chevron) {
+  color: var(--primary, #b1072c);
+}
+
 @media (max-width: 768px) {
+  :deep(.hide-mobile) {
+    display: none !important;
+  }
+
   :deep(th) {
-    padding: 0.75rem 0.85rem;
+    padding: 0.75rem 0.65rem;
     font-size: 0.8rem;
   }
 
   :deep(td) {
-    padding: 0.75rem 0.85rem;
+    padding: 0.85rem 0.65rem;
     font-size: 0.88rem;
   }
 
   :deep(th.col-id),
   :deep(td.col-id) {
-    width: 60px;
-    min-width: 60px;
+    width: 50px;
+    min-width: 50px;
   }
 
-  :deep(th.col-acoes),
-  :deep(th.text-right),
-  :deep(td.col-acoes),
-  :deep(td.text-right) {
-    width: 120px;
-    min-width: 120px;
-    padding: 0.5rem 0.6rem;
+  :deep(th.col-chevron),
+  :deep(td.col-chevron) {
+    width: 24px;
+    min-width: 24px;
+    padding-right: 0.5rem;
   }
+}
 
-  :deep(.btn-editar),
-  :deep(.btn-status),
-  :deep(.btn-view),
-  :deep(.btn-excluir) {
-    min-height: 38px;
-    padding: 0.4rem 0.65rem;
-    font-size: 0.82rem;
+@media (max-width: 1024px) {
+  :deep(.hide-tablet) {
+    display: none !important;
   }
 }
 </style>
