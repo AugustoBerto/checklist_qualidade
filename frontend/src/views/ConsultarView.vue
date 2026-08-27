@@ -263,7 +263,7 @@ const carregarOpcoesFiltros = async () => {
   try {
     const [resSetores, resModelos, resCelulas] = await Promise.all([
       api.get('/cadastros/setores'),
-      api.get('/cadastros/modelos'),
+      api.get('/dados/modelos'),
       api.get('/cadastros/celulas')
     ]);
     setoresOptions.value = extrairArray(resSetores.data);

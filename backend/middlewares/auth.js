@@ -88,7 +88,10 @@ const autorizar = (...permissoesPermitidas) => {
 
             next();
         } catch (err) {
-            return res.status(403).json({ sucesso: false, mensagem: 'Token inválido ou expirado.' });
+            if (err instanceof jwt.JsonWebTokenError) {
+                return res.status(401).json({ sucesso: false, mensagem: 'Token inválido ou expirado.' });
+            }
+            return next(err);
         }
     };
 };

@@ -1,7 +1,8 @@
 const assert = require('node:assert/strict');
+const { EventEmitter } = require('node:events');
 const { test, describe } = require('node:test');
 const { withTransaction } = require('../database/transaction');
-const { createPool } = require('../db');
+const { createPool, registrarErroPool } = require('../db');
 const {
   listMigrationFiles,
   readMigrationSql,
@@ -13,6 +14,17 @@ const {
 } = require('../scripts/db');
 
 describe('fundação DB', () => {
+  test('pool registra erros assíncronos sem emitir uncaught error', () => {
+    const pool = new EventEmitter();
+    const erros = [];
+    registrarErroPool(pool, { error: (mensagem) => erros.push(mensagem) });
+    const erro = new Error('conexão encerrada');
+
+    pool.emit('error', erro);
+
+    assert.deepEqual(erros, ['Erro assíncrono do pool PostgreSQL: conexão encerrada']);
+  });
+
   test('withTransaction faz commit e sempre libera o cliente', async () => {
     const calls = [];
     const client = {

@@ -25,7 +25,11 @@ const createDbConfig = (env = process.env) => {
 };
 
 const createPool = (env = process.env) => new Pool(createDbConfig(env));
-const pool = createPool();
+const registrarErroPool = (pool, logger = console) => {
+  pool.on('error', (error) => logger.error(`Erro assíncrono do pool PostgreSQL: ${error.message}`));
+  return pool;
+};
+const pool = registrarErroPool(createPool());
 
 // Preserve the existing `require('./db').query/connect` contract while making
 // the factory available to the migration runner and integration tests.
@@ -35,3 +39,4 @@ pool.createDbConfig = createDbConfig;
 module.exports = pool;
 module.exports.createPool = createPool;
 module.exports.createDbConfig = createDbConfig;
+module.exports.registrarErroPool = registrarErroPool;
