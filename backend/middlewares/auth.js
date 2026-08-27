@@ -45,7 +45,15 @@ const buscarOuCriarPerfilBootstrap = async (usuarioDecodificado) => {
 
 const autorizar = (...permissoesPermitidas) => {
     return async (req, res, next) => {
-        const token = extrairCookie(req.headers.cookie, 'token');
+        let token;
+        try {
+            token = extrairCookie(req.headers.cookie, 'token');
+        } catch (err) {
+            if (err instanceof URIError) {
+                return res.status(401).json({ sucesso: false, mensagem: 'Token inválido ou expirado.' });
+            }
+            return next(err);
+        }
 
         if (!token) {
             return res.status(401).json({ sucesso: false, mensagem: 'Token de acesso não fornecido.' });

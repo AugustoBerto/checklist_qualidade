@@ -9,13 +9,20 @@ const port = process.env.PORT || 3000;
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET é obrigatório para validar tokens do dass_auth.');
 }
+if (process.env.JWT_SECRET === 'supersecretjwtkey12345') {
+  throw new Error('JWT_SECRET não pode usar o valor padrão do exemplo.');
+}
 
 app.use(cors({
   origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
   credentials: true,
 }));
-app.use(express.json({ limit: '12mb' }));
+app.use(express.json({ limit: '12mb', strict: false }));
 app.use(express.urlencoded({ limit: '12mb', extended: true }));
+app.use((req, _res, next) => {
+  if (req.body === null) req.body = {};
+  next();
+});
 
 app.get('/api/health', async (req, res) => {
   try {
@@ -40,6 +47,10 @@ app.use('/api/relatorios', RelatoriosRoutes);
 app.use('/api/submissoes', SubmissoesRoutes);
 app.use('/api/perfis', PerfisRoutes);
 
+if (process.env.NODE_ENV === 'test') {
+  app.get('/api/test/error', (_req, _res, next) => next(new Error('erro de teste')));
+}
+
 app.use((req, res, next) => {
   res.status(404).json({ sucesso: false, mensagem: 'Endpoint não encontrado na API.' });
 });
@@ -50,8 +61,14 @@ app.use((error, _req, res, next) => {
   if (error instanceof SyntaxError && error.status === 400) {
     return res.status(400).json({ sucesso: false, mensagem: 'JSON inválido.' });
   }
-  return next(error);
+  console.error(error);
+  return res.status(500).json({ sucesso: false, mensagem: 'Erro interno do servidor.' });
 });
-app.listen(port, host, () => {
-  console.log(`Servidor rodando com sucesso em http://${host}:${port}`);
-});
+
+module.exports = app;
+
+if (require.main === module) {
+  app.listen(port, host, () => {
+    console.log(`Servidor rodando com sucesso em http://${host}:${port}`);
+  });
+}

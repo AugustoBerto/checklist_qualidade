@@ -19,3 +19,17 @@ test('JWT expirado é informado como não autenticado', async () => {
   assert.equal(resposta.status, 401)
   assert.equal(resposta.corpo.mensagem, 'Token inválido ou expirado.')
 })
+
+test('cookie percent-encoded inválido retorna 401 JSON', async () => {
+  const req = { headers: { cookie: 'token=%' } }
+  const resposta = {}
+  const res = {
+    status(codigo) { resposta.status = codigo; return this },
+    json(corpo) { resposta.corpo = corpo; return this },
+  }
+
+  await autorizar()(req, res, () => assert.fail('não deveria autorizar'))
+
+  assert.equal(resposta.status, 401)
+  assert.deepEqual(resposta.corpo, { sucesso: false, mensagem: 'Token inválido ou expirado.' })
+})
