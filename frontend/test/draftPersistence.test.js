@@ -66,5 +66,10 @@ describe('createDraftPersistence', () => {
     expect(storage.dados.has('rascunho')).toBe(false);
     expect(storage.dados.has('rascunho:foto:a')).toBe(false);
     expect(storage.maximoEmAndamento).toBe(1);
+
+    // Garante que chamadas subsequentes de flush ou schedule após clear() não recriam o rascunho
+    await persistencia.flush(metadata);
+    persistencia.schedule(metadata);
+    expect(storage.dados.has('rascunho')).toBe(false);
   });
 });

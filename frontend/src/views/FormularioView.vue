@@ -174,6 +174,7 @@ const inputsFoto = new Map();
 const MAX_FOTO_BYTES = 2 * 1024 * 1024;
 const persistenciaRascunho = createDraftPersistence(localforage, rascunhoKey);
 let rascunhoCarregado = false;
+const enviadoComSucesso = ref(false);
 
 const obterMetadataRascunho = () => ({
   respostas: respostas.value,
@@ -182,11 +183,11 @@ const obterMetadataRascunho = () => ({
 });
 
 watch([respostas, observacoesNaoConformes, inicioChecklistTimestamp], () => {
-  if (rascunhoCarregado) persistenciaRascunho.schedule(obterMetadataRascunho());
+  if (rascunhoCarregado && !enviadoComSucesso.value) persistenciaRascunho.schedule(obterMetadataRascunho());
 }, { deep: true });
 
 watch(respostas, () => {
-  if (!rascunhoCarregado) return;
+  if (!rascunhoCarregado || enviadoComSucesso.value) return;
   for (const variavel of Object.keys(fotosNaoConformes.value)) {
     if (respostas.value[variavel] !== 'Não Conforme') {
       const { [variavel]: _, ...fotosRestantes } = fotosNaoConformes.value;
@@ -233,11 +234,11 @@ onUnmounted(() => {
   delete window.onFotoCapturada;
   document.removeEventListener('visibilitychange', salvarRascunhoAoOcultar);
   window.removeEventListener('pagehide', salvarRascunhoAoOcultar);
-  if (rascunhoCarregado) void persistenciaRascunho.flush(obterMetadataRascunho());
+  if (rascunhoCarregado && !enviadoComSucesso.value) void persistenciaRascunho.flush(obterMetadataRascunho());
 });
 
 const salvarRascunhoAoOcultar = (event) => {
-  if ((event?.type === 'pagehide' || document.visibilityState === 'hidden') && rascunhoCarregado) {
+  if ((event?.type === 'pagehide' || document.visibilityState === 'hidden') && rascunhoCarregado && !enviadoComSucesso.value) {
     void persistenciaRascunho.flush(obterMetadataRascunho());
   }
 };
@@ -431,8 +432,14 @@ async function enviarFormulario() {
     const res = await api.post('/checklists/salvar', payload);
     toast.success('Checklist finalizado e enviado com sucesso!');
     
+    enviadoComSucesso.value = true;
+    rascunhoCarregado = false;
     await persistenciaRascunho.clear();
     localStorage.removeItem('celula_auditada_atual');
+
+    respostas.value = {};
+    fotosNaoConformes.value = {};
+    observacoesNaoConformes.value = {};
     
     const idRota = res.data.id_formulario || res.data.id_relatorio;
     router.push(`/relatorio/${idRota}`); 

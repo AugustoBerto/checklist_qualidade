@@ -17,6 +17,7 @@ export function createDraftPersistence(storage, rascunhoKey, {
   let timer = null;
   let metadataPendente = null;
   let fila = Promise.resolve();
+  let ativo = true;
 
   const chaveFoto = (variavel) => `${rascunhoKey}:foto:${variavel}`;
 
@@ -29,13 +30,14 @@ export function createDraftPersistence(storage, rascunhoKey, {
   };
 
   const gravarMetadata = () => {
-    if (!metadataPendente) return fila;
+    if (!ativo || !metadataPendente) return fila;
     const metadata = metadataPendente;
     metadataPendente = null;
     return enfileirar(() => storage.setItem(rascunhoKey, metadata));
   };
 
   const agendarMetadata = (metadata) => {
+    if (!ativo) return;
     metadataPendente = cloneMetadata(metadata, fotoVariaveis);
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
@@ -67,10 +69,12 @@ export function createDraftPersistence(storage, rascunhoKey, {
     },
 
     schedule(metadata) {
+      if (!ativo) return;
       agendarMetadata(metadata);
     },
 
     setPhoto(variavel, foto, metadata) {
+      if (!ativo) return Promise.resolve();
       fotoVariaveis.add(variavel);
       const escrita = enfileirar(() => storage.setItem(chaveFoto(variavel), foto));
       agendarMetadata(metadata);
@@ -78,6 +82,7 @@ export function createDraftPersistence(storage, rascunhoKey, {
     },
 
     removePhoto(variavel, metadata) {
+      if (!ativo) return Promise.resolve();
       fotoVariaveis.delete(variavel);
       const escrita = enfileirar(() => storage.removeItem(chaveFoto(variavel)));
       agendarMetadata(metadata);
@@ -85,6 +90,7 @@ export function createDraftPersistence(storage, rascunhoKey, {
     },
 
     flush(metadata) {
+      if (!ativo) return Promise.resolve();
       if (timer) {
         clearTimeout(timer);
         timer = null;
@@ -94,6 +100,7 @@ export function createDraftPersistence(storage, rascunhoKey, {
     },
 
     clear() {
+      ativo = false;
       if (timer) {
         clearTimeout(timer);
         timer = null;
