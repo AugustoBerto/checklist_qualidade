@@ -7,13 +7,31 @@ exports.listarSubmissoes = async (req, res) => {
         const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 25, 1), 100);
         const filtros = [];
         const valores = [];
-        const adicionarFiltro = (sql, valor) => { valores.push(valor); filtros.push(sql.replace('?', `$${valores.length}`)); };
+        const adicionarFiltro = (sql, ...vals) => {
+            let s = sql;
+            vals.forEach(val => {
+                valores.push(val);
+                s = s.replace('?', `$${valores.length}`);
+            });
+            filtros.push(s);
+        };
+
         if (req.query.dataInicio) adicionarFiltro('s.data_envio >= ?::date', req.query.dataInicio);
         if (req.query.dataFim) adicionarFiltro("s.data_envio < (?::date + interval '1 day')", req.query.dataFim);
         if (req.query.marca) adicionarFiltro('m.marca = ?', req.query.marca);
-        if (req.query.setorId) adicionarFiltro('COALESCE(s.id_setor, st_mod.id, st_cp.id) = ?::int', req.query.setorId);
+        if (req.query.modeloId) adicionarFiltro('s.id_modelo = ?::int', req.query.modeloId);
+        if (req.query.setorId) adicionarFiltro('COALESCE(s.id_setor, st_mod.id, st_cp.id, st_user.id) = ?::int', req.query.setorId);
         if (req.query.celulaId) adicionarFiltro('s.id_celula = ?::int', req.query.celulaId);
-        if (req.query.usuario) adicionarFiltro('u.nome ILIKE ?', `%${req.query.usuario}%`);
+        if (req.query.busca) {
+            const termo = `%${req.query.busca.trim()}%`;
+            adicionarFiltro(
+                "(u.nome ILIKE ? OR COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome) ILIKE ? OR cp.nome ILIKE ? OR COALESCE(st_mod.nome, st_cp.nome, st_user.nome) ILIKE ?)",
+                termo, termo, termo, termo
+            );
+        } else if (req.query.usuario) {
+            adicionarFiltro('u.nome ILIKE ?', `%${req.query.usuario.trim()}%`);
+        }
+
         const where = filtros.length ? `WHERE ${filtros.join(' AND ')}` : '';
         const joins = `FROM formulario_submissoes s JOIN usuarios u ON s.id_usuario = u.id JOIN modelo m ON s.id_modelo = m.id LEFT JOIN celulas_producao cp ON s.id_celula = cp.id LEFT JOIN setores st_cp ON cp.id_setor_fk = st_cp.id LEFT JOIN setores st_mod ON m.id_setor_fk = st_mod.id LEFT JOIN setores st_user ON u.id_setor_fk = st_user.id`;
         const sql = `SELECT s.id, s.data_envio, u.nome AS nome_usuario, COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome) AS nome_modelo, cp.nome AS nome_celula, COALESCE(st_mod.nome, st_cp.nome, st_user.nome, 'Geral') AS nome_setor ${joins} ${where} ORDER BY s.data_envio DESC`;
