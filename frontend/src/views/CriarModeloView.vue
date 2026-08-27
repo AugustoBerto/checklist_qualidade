@@ -187,19 +187,28 @@
           <div v-for="(cat, catIndex) in categoriasUI" :key="catIndex" class="categoria-card">
             
             <div class="categoria-header">
-              <div style="display: flex; align-items: center; gap: 1.5rem; flex: 1;">
+              <div class="categoria-header-left">
+                <i class="mdi mdi-tag-outline categoria-icone"></i>
                 <input type="text" v-model="cat.nome" class="input-editavel titulo-cat" placeholder="Nome da Categoria">
-                
-                <label class="ctq-toggle" :class="{ 'is-ctq': cat.ctq }" title="Marcar como Processo Crítico (CTQ)">
-                  <input type="checkbox" v-model="cat.ctq" style="display: none;">
-                  <i class="mdi" :class="cat.ctq ? 'mdi-star' : 'mdi-star-outline'"></i>
-                  <span>{{ cat.ctq ? 'PROCESSO CTQ' : 'Normal' }}</span>
-                </label>
               </div>
 
-              <button type="button" class="btn-excluir-categoria" @click="removerCategoria(catIndex)">
-                <i class="mdi mdi-delete-outline"></i> Remover Categoria
-              </button>
+              <div class="categoria-header-actions">
+                <button
+                  type="button"
+                  class="btn-toggle-ctq"
+                  :class="{ 'is-ctq': cat.ctq }"
+                  :title="cat.ctq ? 'Processo Crítico (CTQ) ativo. Clique para alterar para Normal.' : 'Processo Normal. Clique para marcar como Crítico.'"
+                  @click="cat.ctq = !cat.ctq"
+                >
+                  <i class="mdi" :class="cat.ctq ? 'mdi-alert-decagram' : 'mdi-checkbox-blank-circle-outline'"></i>
+                  <span>{{ cat.ctq ? 'CRÍTICO' : 'NORMAL' }}</span>
+                </button>
+
+                <button type="button" class="btn-excluir-categoria" @click="removerCategoria(catIndex)" title="Remover esta categoria">
+                  <i class="mdi mdi-delete-outline"></i>
+                  <span>Remover</span>
+                </button>
+              </div>
             </div>
             
             <ul class="perguntas-lista">
@@ -745,13 +754,18 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 .btn-secundario:hover { background-color: var(--primary-hover, #8f0523); }
 
 .categoria-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 1.5rem; padding: 1.5rem; background: #ffffff; box-shadow: var(--shadow-sm);}
-.categoria-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 0.8rem; margin-bottom: 1rem; }
+.categoria-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 0.85rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.categoria-header-left { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 240px; }
+.categoria-icone { font-size: 1.25rem; color: #94a3b8; }
+.categoria-header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 
-.ctq-toggle { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 20px; border: 1px solid #cbd5e1; background: #f8fafc; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; font-weight: bold; color: #64748b; user-select: none; white-space: nowrap;}
-.ctq-toggle:hover { border-color: #94a3b8; }
-.ctq-toggle.is-ctq { background: #fff1f2; border-color: #f43f5e; color: #e11d48; }
+.btn-toggle-ctq { display: inline-flex; align-items: center; gap: 6px; padding: 0.45rem 0.85rem; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #f8fafc; cursor: pointer; transition: all 0.2s ease; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.5px; color: #64748b; min-height: 38px; user-select: none; }
+.btn-toggle-ctq i { font-size: 1.05rem; }
+.btn-toggle-ctq:hover { border-color: #94a3b8; background-color: #f1f5f9; color: #334155; }
+.btn-toggle-ctq.is-ctq { background: #fff1f2; border-color: #fecdd3; color: var(--primary, #b1072c); }
+.btn-toggle-ctq.is-ctq:hover { background: #ffe4e6; border-color: var(--primary, #b1072c); }
 
-.btn-excluir-categoria { display: inline-flex; align-items: center; gap: 0.35rem; background-color: #fef2f2; color: #dc2626; border: 1px solid #fecdd3; padding: 0.45rem 0.85rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s; min-height: 36px;}
+.btn-excluir-categoria { display: inline-flex; align-items: center; gap: 4px; background-color: #fef2f2; color: #dc2626; border: 1px solid #fecdd3; padding: 0.45rem 0.85rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s; min-height: 38px;}
 .btn-excluir-categoria:hover { background-color: #dc2626; color: #ffffff; }
 
 .perguntas-lista { list-style: none; padding-left: 0; margin-bottom: 1.5rem;}
@@ -765,7 +779,7 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 .input-editavel { border: 1px dashed transparent; background: transparent; padding: 0.45rem 0.6rem; font-family: inherit; color: #333; transition: all 0.2s; border-radius: 6px;}
 .input-editavel:hover { border-color: #cbd5e1; background: #fff; }
 .input-editavel:focus { outline: none; border: 1px solid var(--primary, #b1072c); background: #fff; box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);}
-.titulo-cat { font-size: 1.15rem; font-weight: 700; color: #1e293b; flex: 1; margin-right: 1rem;}
+.titulo-cat { font-size: 1.15rem; font-weight: 700; color: #1e293b; flex: 1; }
 .texto-pergunta { flex: 1; font-size: 0.95rem; }
 
 .add-pergunta-box { display: flex; gap: 0.75rem; align-items: flex-start; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;}
@@ -790,9 +804,11 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
   .form-group-row { gap: 1rem; }
   .w-50, .w-33 { width: 100%; }
   .checkbox-group { align-items: flex-start; }
-  .categoria-header > div[style] { width: 100%; flex-wrap: wrap; gap: 0.75rem !important; }
-  .titulo-cat { width: 100%; margin-right: 0; }
-  .btn-secundario, .btn-add-pergunta, .btn-excluir-categoria { justify-content: center; width: 100%; }
+  .categoria-header-left { width: 100%; }
+  .categoria-header-actions { width: 100%; justify-content: flex-start; }
+  .btn-toggle-ctq, .btn-excluir-categoria { flex: 1; justify-content: center; }
+  .titulo-cat { width: 100%; }
+  .btn-secundario, .btn-add-pergunta { justify-content: center; width: 100%; }
   .pergunta-item { align-items: flex-start; }
   .texto-pergunta { min-width: 0; width: 100%; }
   .btn-excluir-item { min-width: 44px; min-height: 44px; }
