@@ -992,8 +992,6 @@ onMounted(() => {
   list-style: none;
   padding: 0;
   margin: 0 0 1rem 0;
-  max-height: 220px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
