@@ -70,3 +70,15 @@ test('corpo literal null chega ao controller como objeto vazio', async () => {
   assert.match(response.headers['content-type'], /application\/json/)
   assert.deepEqual(response.json(), { sucesso: false, mensagem: 'Dados incompletos ou inválidos.' })
 })
+
+test('corpo JSON primitivo não nulo retorna JSON inválido', async () => {
+  const token = require('jsonwebtoken').sign({ matricula: '123' }, process.env.JWT_SECRET)
+  const response = await request('/api/checklists/salvar', {
+    method: 'POST',
+    headers: { Cookie: `token=${token}`, 'Content-Type': 'application/json' },
+    body: 'true',
+  })
+  assert.equal(response.status, 400)
+  assert.match(response.headers['content-type'], /application\/json/)
+  assert.deepEqual(response.json(), { sucesso: false, mensagem: 'JSON inválido.' })
+})

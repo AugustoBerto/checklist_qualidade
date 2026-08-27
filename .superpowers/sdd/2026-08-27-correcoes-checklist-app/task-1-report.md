@@ -26,3 +26,11 @@ Com os testes adicionados e antes da produção, `cd backend && npm run test:uni
 - A rota de erro é exclusiva de teste; nenhum endpoint novo é exposto fora de `NODE_ENV=test`.
 - Não foram adicionadas dependências, nem stack foi enviada ao cliente.
 - O parser JSON agora aceita valores primitivos para poder receber o literal `null`; somente `null` é normalizado globalmente conforme o contrato.
+
+## Fix round 1
+
+- Arquivos: `backend/index.js` e `backend/test/http-errors.test.js`.
+- RED: a regressão para corpo `true` falhou; o controller respondia 400 com `Dados incompletos ou inválidos.` em vez de `JSON inválido.`.
+- GREEN: a guarda após os parsers preserva `null -> {}` e responde 400 JSON para primitivos não nulos.
+- `cd backend && node --test --test-reporter spec test/http-errors.test.js`: 1 arquivo passou, 0 falhas.
+- `cd backend && npm run test:unit && node --check index.js && node --check middlewares/auth.js && git diff --check`: 5 arquivos passaram, 0 falhas; sintaxe e diff limpo.

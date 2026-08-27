@@ -19,8 +19,11 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '12mb', strict: false }));
 app.use(express.urlencoded({ limit: '12mb', extended: true }));
-app.use((req, _res, next) => {
+app.use((req, res, next) => {
   if (req.body === null) req.body = {};
+  if (req.body !== undefined && typeof req.body !== 'object') {
+    return res.status(400).json({ sucesso: false, mensagem: 'JSON inválido.' });
+  }
   next();
 });
 
