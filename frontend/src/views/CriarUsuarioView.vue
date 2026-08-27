@@ -250,12 +250,23 @@ const dependencias = async () => {
 }
 
 const novo = () => { Object.assign(form, vazio()); erro.value = ''; sucesso.value = ''; modo.value = 'formulario' }
-const editar = (perfil) => { Object.assign(form, vazio(), perfil); erro.value = ''; sucesso.value = ''; modo.value = 'formulario' }
+const editar = (perfil) => {
+  Object.assign(form, vazio(), perfil)
+  form.ativo = perfil.ativo !== 0 && perfil.ativo !== false && perfil.ativo !== '0' && perfil.ativo !== 'false'
+  form.id_unidade_fk = perfil.id_unidade_fk || ''
+  form.id_setor_fk = perfil.id_setor_fk || ''
+  form.id_celula_fk = perfil.id_celula_fk || ''
+  form.id_turno_fk = perfil.id_turno_fk || ''
+  erro.value = ''
+  sucesso.value = ''
+  modo.value = 'formulario'
+}
 
 const salvar = async () => {
   salvando.value = true; erro.value = ''; sucesso.value = ''
   try {
     const { nome, funcao, id, ...payload } = form
+    payload.ativo = form.ativo === true || form.ativo === 1 || form.ativo === '1' || form.ativo === 'true'
     payload.id_unidade_fk = payload.id_unidade_fk ? Number(payload.id_unidade_fk) : null
     payload.id_setor_fk = payload.id_setor_fk ? Number(payload.id_setor_fk) : null
     payload.id_celula_fk = payload.id_celula_fk ? Number(payload.id_celula_fk) : null
