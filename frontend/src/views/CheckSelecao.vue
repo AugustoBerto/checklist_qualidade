@@ -102,7 +102,6 @@ import { useRouter } from 'vue-router'
 import api from '../services/api'
 import PageHeader from '../components/PageHeader.vue'
 import FeedbackState from '../components/FeedbackState.vue'
-import { obterPerfilLocal } from '../services/session'
 import { urlLogoMarca } from '../services/formatters'
 import { toast } from '../services/feedback'
 
@@ -120,9 +119,6 @@ const erroCarregamento = ref('')
 
 const form = ref({ setor_selecionado: '', modelo: '', celula_selecionada: '' })
 
-const usuario = ref(obterPerfilLocal() || {})
-
-const isAdmin = computed(() => usuario.value.papel === 'ADMIN')
 const podeTrocarMarca = computed(() => marcas.value.length > 1)
 
 const isBotaoDesabilitado = computed(() => {
@@ -140,16 +136,12 @@ async function carregarDadosIniciais() {
     const [resMarcas, resCelulas, resSetores] = await Promise.all([
       api.get('/cadastros/marcas'),
       api.get('/cadastros/celulas'),
-      api.get('/cadastros/setores').catch(() => ({ data: [] }))
+      api.get('/cadastros/setores').catch(() => ({ data: { dados: [] } }))
     ]);
 
-    let listaMarcas = resMarcas.data?.sucesso ? (resMarcas.data.dados || resMarcas.data.marcas || []) : (resMarcas.data || []);
-    listaCelulasGlobal.value = resCelulas.data?.celulas || resCelulas.data?.dados || resCelulas.data || [];
-    
-    const listaSetores = resSetores.data?.setores || resSetores.data?.dados || resSetores.data || [];
-    opcoesSetores.value = listaSetores.map(s => ({ label: s.nome, value: s.id }));
-
-    marcas.value = listaMarcas;
+    marcas.value = resMarcas.data.dados;
+    listaCelulasGlobal.value = resCelulas.data.dados;
+    opcoesSetores.value = resSetores.data.dados.map(s => ({ label: s.nome, value: s.id }));
 
   } catch (error) {
     console.error('Erro na carga inicial:', error);
@@ -191,8 +183,7 @@ async function carregarModelos(marca, setorId) {
     }
 
     const response = await api.get('/dados/modelos', { params: queryParams });
-    const listaModelos = response.data?.dados || response.data?.modelos || response.data || [];
-    opcoesModelos.value = listaModelos.map(item => ({ label: item.nome, value: item.id }));
+    opcoesModelos.value = response.data.dados.map(item => ({ label: item.nome, value: item.id }));
 
   } catch (error) {
     console.error("Erro ao carregar modelos:", error);

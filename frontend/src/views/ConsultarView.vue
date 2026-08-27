@@ -33,7 +33,6 @@
         :page="paginacao.page"
         :total-pages="paginacao.totalPages"
         :total="paginacao.total"
-        :page-size="paginacao.pageSize"
         loading-message="Carregando histórico de relatórios..."
         empty-title="Nenhum checklist encontrado"
         empty-message="Não foram encontrados relatórios para os filtros informados."

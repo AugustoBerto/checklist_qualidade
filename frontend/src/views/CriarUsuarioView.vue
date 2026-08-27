@@ -179,7 +179,6 @@ import { onMounted, reactive, ref, computed } from 'vue'
 import VueSelect from 'vue3-select-component'
 import api from '../services/api'
 import PageHeader from '../components/PageHeader.vue'
-import FeedbackState from '../components/FeedbackState.vue'
 import TableToolbar from '../components/TableToolbar.vue'
 import DataTable from '../components/DataTable.vue'
 
@@ -222,7 +221,7 @@ const perfisFiltrados = computed(() => {
   )
 })
 
-const dados = (r) => r.data?.dados || r.data?.unidades || r.data?.setores || r.data?.celulas || r.data?.turnos || []
+const dados = (r) => r.data?.dados || []
 
 const carregar = async () => {
   carregando.value = true
@@ -237,10 +236,10 @@ const carregar = async () => {
 
 const dependencias = async () => {
   const [u, s, c, t] = await Promise.all([
-    api.get('/cadastros/unidades').catch(() => ({ data: [] })),
-    api.get('/cadastros/setores').catch(() => ({ data: [] })),
-    api.get('/cadastros/celulas').catch(() => ({ data: [] })),
-    api.get('/cadastros/turnos').catch(() => ({ data: [] }))
+    api.get('/cadastros/unidades').catch(() => ({ data: { dados: [] } })),
+    api.get('/cadastros/setores').catch(() => ({ data: { dados: [] } })),
+    api.get('/cadastros/celulas').catch(() => ({ data: { dados: [] } })),
+    api.get('/cadastros/turnos').catch(() => ({ data: { dados: [] } }))
   ])
   unidades.value = dados(u); setores.value = dados(s); celulas.value = dados(c); turnos.value = dados(t)
 }

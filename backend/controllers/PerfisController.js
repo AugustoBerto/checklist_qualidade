@@ -16,9 +16,6 @@ const validarPerfil = (dados) => {
 };
 
 const buscarColaboradorCentral = async (matricula) => {
-    if (!DASS_AUTH_BASE_URL) {
-        throw new Error('VALIDACAO_CENTRAL_NAO_CONFIGURADA');
-    }
     let resposta;
     try {
         const baseUrl = DASS_AUTH_BASE_URL.replace(/\/$/, '');

@@ -252,7 +252,6 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import VueSelect from 'vue3-select-component';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
-import FeedbackState from '../components/FeedbackState.vue';
 import BaseModal from '../components/BaseModal.vue';
 import TableToolbar from '../components/TableToolbar.vue';
 import DataTable from '../components/DataTable.vue';
@@ -325,21 +324,13 @@ const nomeAbaAtiva = computed(() => abaInfo.value?.titulo || '');
 const placeholderExemplo = computed(() => abaInfo.value?.ex || '');
 const endpointAtivo = computed(() => abaInfo.value?.endpoint || '');
 
-const extrairArrayDeDados = (respostaData) => {
-  if (Array.isArray(respostaData)) return respostaData;
-  if (respostaData.dados && Array.isArray(respostaData.dados)) return respostaData.dados;
-  if (respostaData.rows && Array.isArray(respostaData.rows)) return respostaData.rows;
-  const possivelArray = Object.values(respostaData).find(val => Array.isArray(val));
-  return possivelArray || [];
-};
-
 const buscarDados = async (forcarRefresh = false) => {
   if (!forcarRefresh && dados[abaAtiva.value].length > 0) return;
 
   isLoading.value = true;
   try {
     const res = await api.get(endpointAtivo.value);
-    dados[abaAtiva.value] = extrairArrayDeDados(res.data);
+    dados[abaAtiva.value] = res.data.dados;
   } catch (err) {
     console.error(`Erro ao carregar ${abaAtiva.value}:`, err);
   } finally {
@@ -351,11 +342,11 @@ const carregarDependenciasCelulas = async () => {
   try {
     if (dados.setores.length === 0) {
       const res = await api.get('/cadastros/setores');
-      dados.setores = extrairArrayDeDados(res.data);
+      dados.setores = res.data.dados;
     }
     if (dados.marcas.length === 0) {
       const res = await api.get('/cadastros/marcas');
-      dados.marcas = extrairArrayDeDados(res.data);
+      dados.marcas = res.data.dados;
     }
   } catch (err) {
     console.error('Erro ao carregar dependências para células:', err);

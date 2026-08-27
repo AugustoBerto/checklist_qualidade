@@ -86,27 +86,22 @@ const router = useRouter()
 const logoDass = new URL('./img/dass.png', import.meta.url).href
 
 const usuarioLogado = ref(false);
-const nomeUsuario = ref('');
 const isAdmin = ref(false); 
 
 const verificarAuth = () => {
   const usuarioObj = obterPerfilLocal();
   if (!usuarioObj) {
     usuarioLogado.value = false;
-    nomeUsuario.value = '';
     isAdmin.value = false;
     return;
   }
   usuarioLogado.value = true;
-  nomeUsuario.value = (usuarioObj.nome || usuarioObj.usuario || '').split(' ')[0];
   isAdmin.value = usuarioObj.papel === 'ADMIN';
 };
 
 const limparSessao = () => {
   localStorage.removeItem('usuario');
-  localStorage.removeItem('isAdmin');
   usuarioLogado.value = false;
-  nomeUsuario.value = '';
   isAdmin.value = false;
 };
 
@@ -399,4 +394,3 @@ body {
   }
 }
 </style>
-

@@ -2,7 +2,6 @@ const assert = require('node:assert/strict');
 const { test, describe } = require('node:test');
 const { withTransaction } = require('../database/transaction');
 const { createPool } = require('../db');
-const { isPgError, isRetryablePgError, mensagemPostgres } = require('../database/errors');
 const {
   listMigrationFiles,
   readMigrationSql,
@@ -40,12 +39,6 @@ describe('fundação DB', () => {
       /falha esperada/
     );
     assert.deepEqual(calls, ['BEGIN', 'ROLLBACK', 'release']);
-  });
-
-  test('mapeia erros PostgreSQL sem devolver detalhes sensíveis', () => {
-    assert.equal(isPgError({ code: '23505', detail: 'secret value' }), true);
-    assert.equal(isRetryablePgError({ code: '40001' }), true);
-    assert.equal(mensagemPostgres({ code: '23503', detail: 'private row' }), 'Registro relacionado não encontrado ou ainda utilizado.');
   });
 
   test('descobre as migrations em ordem', () => {

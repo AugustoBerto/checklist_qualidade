@@ -134,7 +134,7 @@ exports.listarModelos = async (req, res) => {
             LEFT JOIN marcas ma ON ma.id = m.id_marca_fk
             ORDER BY m.nome ASC
         `);
-        res.status(200).json({ sucesso: true, modelos: result.rows });
+        res.status(200).json({ sucesso: true, dados: result.rows });
     } catch (error) {
         console.error('Erro ao buscar lista de modelos:', error);
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
@@ -382,7 +382,7 @@ exports.excluirMarca = async (req, res) => {
 exports.listarSetores = async (req, res) => {
     try {
         const { rows } = await db.query('SELECT * FROM setores WHERE ativo = 1 ORDER BY nome ASC');
-        res.status(200).json({ sucesso: true, setores: rows });
+        res.status(200).json({ sucesso: true, dados: rows });
     } catch (error) {
         console.error('Erro ao listar setores:', error);
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
@@ -441,7 +441,7 @@ exports.listarCelulas = async (req, res) => {
             ORDER BY cp.nome ASC
         `;
         const { rows } = await db.query(query);
-        res.status(200).json({ sucesso: true, celulas: rows });
+        res.status(200).json({ sucesso: true, dados: rows });
     } catch (error) {
         console.error('Erro ao listar células:', error);
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
@@ -503,7 +503,7 @@ exports.excluirCelula = async (req, res) => {
 exports.listarUnidades = async (req, res) => {
     try {
         const { rows } = await db.query('SELECT * FROM unidades WHERE ativo = 1 ORDER BY nome ASC');
-        res.status(200).json({ sucesso: true, unidades: rows });
+        res.status(200).json({ sucesso: true, dados: rows });
     } catch (error) {
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
     }

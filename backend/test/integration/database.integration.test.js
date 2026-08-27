@@ -50,7 +50,7 @@ test('controllers executam filtros e atualizações no PostgreSQL real', async (
   const filtrados = resposta();
   await dados.listarModelosAtivos({ query: { marca_id: String(marca.id), setor_id: String(setor.id) } }, filtrados);
   assert.equal(filtrados.statusCode, 200);
-  assert.deepEqual(filtrados.body.modelos.map(({ id }) => id), [modelo.id]);
+  assert.deepEqual(filtrados.body.dados.map(({ id }) => id), [modelo.id]);
 
   const atualizado = resposta();
   await cadastros.atualizarSetor({ params: { id: setor.id }, body: { nome: 'SETOR RENOMEADO', ativo: true } }, atualizado);

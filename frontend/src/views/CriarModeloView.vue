@@ -288,7 +288,6 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import VueSelect from 'vue3-select-component';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
-import FeedbackState from '../components/FeedbackState.vue';
 import TableToolbar from '../components/TableToolbar.vue';
 import DataTable from '../components/DataTable.vue';
 import { toast, dialog } from '../services/feedback';
@@ -386,15 +385,6 @@ const marcaReferencia = ref(null);
 const modeloReferencia = ref(null);
 const opcoesModelosReferencia = ref([]);
 
-const extrairArrayDeDados = (respostaData) => {
-  if (Array.isArray(respostaData)) return respostaData;
-  if (respostaData.dados && Array.isArray(respostaData.dados)) return respostaData.dados;
-  if (respostaData.modelos) return respostaData.modelos;
-  if (respostaData.setores) return respostaData.setores;
-  if (respostaData.marcas) return respostaData.marcas;
-  return Object.values(respostaData).find(val => Array.isArray(val)) || [];
-};
-
 // ==========================================
 // 1. CARREGAMENTO INICIAL
 // ==========================================
@@ -406,9 +396,9 @@ const carregarDadosIniciais = async () => {
       api.get('/cadastros/categorias-padrao')
     ]);
     
-    marcasOptions.value = extrairArrayDeDados(resMarcas.data).map(item => ({ label: item.nome, value: item.id }));
-    setoresOptions.value = extrairArrayDeDados(resSetores.data).map(item => ({ label: item.nome, value: item.id }));
-    categoriasPadrao.value = extrairArrayDeDados(resCategorias.data);
+    marcasOptions.value = resMarcas.data.dados.map(item => ({ label: item.nome, value: item.id }));
+    setoresOptions.value = resSetores.data.dados.map(item => ({ label: item.nome, value: item.id }));
+    categoriasPadrao.value = resCategorias.data.dados;
     
     await carregarModelosTabela();
   } catch (error) {
@@ -421,7 +411,7 @@ const carregarModelosTabela = async () => {
   isLoadingTabela.value = true;
   try {
     const res = await api.get('/cadastros/modelos');
-    modelosLista.value = extrairArrayDeDados(res.data);
+    modelosLista.value = res.data.dados;
   } catch (error) {
     erroGlobal.value = 'Erro ao listar modelos.';
   } finally {

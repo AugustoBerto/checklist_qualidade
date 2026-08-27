@@ -17,7 +17,6 @@ export const configurarInterceptorDeAutenticacao = (router) => {
     (error) => {
       if (error.response?.status === 401) {
         localStorage.removeItem('usuario');
-        localStorage.removeItem('isAdmin');
         if (!redirecionamentoDeAutenticacaoEmAndamento && router.currentRoute.value.path !== '/login') {
           redirecionamentoDeAutenticacaoEmAndamento = true;
           void router.replace('/login').finally(() => {

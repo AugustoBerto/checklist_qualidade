@@ -3,12 +3,10 @@ import { authApi } from './auth'
 
 const limparPerfil = () => {
   localStorage.removeItem('usuario')
-  localStorage.removeItem('isAdmin')
 }
 
 const salvarPerfil = (perfil) => {
   localStorage.setItem('usuario', JSON.stringify(perfil))
-  localStorage.setItem('isAdmin', String(perfil.papel === 'ADMIN'))
   return perfil
 }
 

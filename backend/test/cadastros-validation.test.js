@@ -227,6 +227,8 @@ test('filtro de modelos por marca usa id_marca_fk', async () => {
   await dados.listarModelosAtivos({ query: { marca_id: '7', setor_id: '3' } }, res);
 
   assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.dados, []);
+  assert.equal('modelos' in res.body, false);
   assert.match(consulta.sql, /id_marca_fk = \$1/);
   assert.doesNotMatch(consulta.sql, /\bmarca = \$1/);
   assert.deepEqual(consulta.params, ['7', '3']);

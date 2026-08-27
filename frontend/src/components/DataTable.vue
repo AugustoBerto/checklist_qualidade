@@ -51,7 +51,6 @@
           :page="page"
           :total-pages="totalPages"
           :total="total"
-          :page-size="pageSize"
           @change="$emit('change-page', $event)"
         />
       </slot>
@@ -108,10 +107,6 @@ defineProps({
     type: Number,
     default: 0
   },
-  pageSize: {
-    type: Number,
-    default: 25
-  }
 });
 
 defineEmits(['retry', 'change-page']);

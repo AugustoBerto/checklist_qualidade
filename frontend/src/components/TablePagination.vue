@@ -48,10 +48,6 @@ defineProps({
   total: {
     type: Number,
     default: 0
-  },
-  pageSize: {
-    type: Number,
-    default: 25
   }
 });
 

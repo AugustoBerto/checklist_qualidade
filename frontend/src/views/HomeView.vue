@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container portal-page">
     <div class="welcome-header">
       <div class="header-icon">
         <i class="mdi mdi-shield-check"></i>
@@ -44,63 +44,3 @@ import { obterPerfilLocal } from '../services/session'
 
 const isAdmin = computed(() => obterPerfilLocal()?.papel === 'ADMIN')
 </script>
-
-<style scoped>
-.page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.welcome-header {
-  text-align: center;
-  margin-bottom: 2.5rem;
-  margin-top: 1rem;
-}
-
-.header-icon {
-  font-size: 3rem;
-  color: var(--primary, #b1072c);
-  margin-bottom: 0.75rem;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  background: #fff1f2;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 8px #f1f5f9;
-}
-
-.welcome-header h1 {
-  font-size: 2.2rem;
-  color: var(--text-primary, #0f172a);
-  font-weight: 800;
-  margin: 0 0 0.5rem 0;
-  letter-spacing: -0.5px;
-}
-
-.welcome-header p {
-  font-size: 1.05rem;
-  color: var(--text-secondary, #64748b);
-  max-width: 600px;
-  margin: 0 auto;
-  line-height: 1.5;
-}
-
-.modules-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.25rem;
-  width: 100%;
-}
-
-@media (max-width: 768px) {
-  .welcome-header h1 { font-size: 1.8rem; }
-  .welcome-header { margin-bottom: 1.75rem; }
-  .modules-grid { grid-template-columns: 1fr; }
-}
-</style>
