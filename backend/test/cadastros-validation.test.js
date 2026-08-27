@@ -15,13 +15,85 @@ afterEach(() => {
 const resposta = () => ({
   statusCode: 200,
   body: null,
+  headers: {},
   status(code) { this.statusCode = code; return this; },
+  set(headers) { Object.assign(this.headers, headers); return this; },
+  send(body) { this.body = body; return this; },
   json(body) { this.body = body; return this; },
 });
 
 const categoriasValidas = {
   COSTURA: { ctq: false, perguntas: ['A costura está íntegra?'] },
 };
+
+const pngUmPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB';
+
+test('marca persiste logo PNG válida e rejeita conteúdo que não corresponde ao MIME', async () => {
+  let insert;
+  db.query = async (sql, params) => {
+    insert = { sql, params };
+    return { rows: [{ id: 4, nome: 'FILA', tem_logo: true }], rowCount: 1 };
+  };
+
+  const resValida = resposta();
+  await cadastros.criarMarca({ body: { nome: 'Fila', logo: pngUmPixel } }, resValida);
+  assert.equal(resValida.statusCode, 201);
+  assert.match(insert.sql, /logo_mime/);
+  assert.equal(insert.params[0], 'FILA');
+  assert.ok(Buffer.isBuffer(insert.params[1]));
+  assert.equal(insert.params[2], 'image/png');
+
+  const resInvalida = resposta();
+  await cadastros.criarMarca({ body: { nome: 'Falsa', logo: 'data:image/png;base64,ZmFsc2E=' } }, resInvalida);
+  assert.equal(resInvalida.statusCode, 400);
+});
+
+test('endpoint da logo devolve bytes e cache, ou 404 quando não existe', async () => {
+  db.query = async (_sql, params) => params[0] === '4'
+    ? { rows: [{ logo: Buffer.from('imagem'), logo_mime: 'image/webp', ultimaAlteracao: new Date('2026-08-27T00:00:00Z') }] }
+    : { rows: [] };
+
+  const encontrada = resposta();
+  await cadastros.buscarLogoMarca({ params: { id: '4' } }, encontrada);
+  assert.equal(encontrada.statusCode, 200);
+  assert.equal(encontrada.headers['Content-Type'], 'image/webp');
+  assert.equal(encontrada.headers['Cache-Control'], 'public, max-age=3600');
+  assert.deepEqual(encontrada.body, Buffer.from('imagem'));
+
+  const ausente = resposta();
+  await cadastros.buscarLogoMarca({ params: { id: '5' } }, ausente);
+  assert.equal(ausente.statusCode, 404);
+});
+
+test('edição preserva logo omitida e remove logo enviada como null', async () => {
+  const consultas = [];
+  db.query = async (sql, params) => {
+    consultas.push({ sql, params });
+    return { rows: [{ id: 4, nome: 'FILA' }], rowCount: 1 };
+  };
+
+  await cadastros.atualizarMarca({ params: { id: 4 }, body: { nome: 'Fila' } }, resposta());
+  await cadastros.atualizarMarca({ params: { id: 4 }, body: { nome: 'Fila', logo: null } }, resposta());
+
+  assert.doesNotMatch(consultas[0].sql, /logo\s*=/);
+  assert.match(consultas[1].sql, /logo\s*=\s*NULL/);
+});
+
+test('atualizações convertem status booleano para colunas integer', async () => {
+  const consultas = [];
+  db.query = async (sql, params) => {
+    consultas.push({ sql, params });
+    return { rows: [{ id: 1, ativo: params.at(-2) }], rowCount: 1 };
+  };
+
+  await cadastros.atualizarSetor({ params: { id: 1 }, body: { nome: 'Setor', ativo: true } }, resposta());
+  await cadastros.atualizarUnidade({ params: { id: 1 }, body: { nome: 'Unidade', ativo: false } }, resposta());
+  await cadastros.atualizarCelula({ params: { id: 1 }, body: { nome: 'Célula', id_setor_fk: 2, id_marca_fk: null, ativo: true } }, resposta());
+
+  assert.equal(consultas[0].params[1], 1);
+  assert.equal(consultas[1].params[1], 0);
+  assert.equal(consultas[2].params[3], 1);
+});
 
 test('criação e atualização rejeitam a mesma estrutura inválida antes de acessar o banco', async () => {
   let conexoes = 0;

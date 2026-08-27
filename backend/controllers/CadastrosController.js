@@ -3,6 +3,20 @@ const db = require('../db');
 const nomeValido = (nome) => typeof nome === 'string' && nome.trim().length > 0 && nome.trim().length <= 255;
 const idValido = (id) => Number.isInteger(Number(id)) && Number(id) > 0;
 const normalizarNome = (nome) => nome.trim().toUpperCase();
+const MAX_LOGO_BYTES = 512 * 1024;
+const validarLogo = (valor) => {
+    if (valor === undefined || valor === null) return valor;
+    if (typeof valor !== 'string') throw new Error('LOGO_INVALIDA');
+    const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(valor);
+    if (!match) throw new Error('LOGO_INVALIDA');
+    const logo = Buffer.from(match[2], 'base64');
+    const mime = `image/${match[1]}`;
+    const formatoValido = (mime === 'image/png' && logo.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])))
+        || (mime === 'image/jpeg' && logo.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])))
+        || (mime === 'image/webp' && logo.subarray(0, 4).toString() === 'RIFF' && logo.subarray(8, 12).toString() === 'WEBP');
+    if (!logo.length || logo.length > MAX_LOGO_BYTES || !formatoValido) throw new Error('LOGO_INVALIDA');
+    return { logo, mime };
+};
 const categoriasValidas = (categorias) => Boolean(
     categorias
     && typeof categorias === 'object'
@@ -288,7 +302,7 @@ exports.atualizarModelo = async (req, res) => {
 exports._internals = { categoriasValidas, obterMarcaId };
 exports.listarMarcas = async (req, res) => {
     try {
-        const { rows } = await db.query('SELECT * FROM marcas ORDER BY nome ASC');
+        const { rows } = await db.query('SELECT id, nome, "ultimaAlteracao", logo IS NOT NULL AS tem_logo FROM marcas ORDER BY nome ASC');
         res.status(200).json({ sucesso: true, dados: rows });
     } catch (error) {
         console.error('Erro ao listar marcas:', error);
@@ -297,13 +311,18 @@ exports.listarMarcas = async (req, res) => {
 };
 
 exports.criarMarca = async (req, res) => {
-    const { nome } = req.body;
+    const { nome, logo } = req.body;
     if (!nomeValido(nome)) return res.status(400).json({ sucesso: false, mensagem: 'O nome da marca é obrigatório.' });
 
     try {
-        const { rows } = await db.query('INSERT INTO marcas (nome) VALUES ($1) RETURNING *', [normalizarNome(nome)]);
+        const imagem = validarLogo(logo);
+        const { rows } = await db.query(
+            'INSERT INTO marcas (nome, logo, logo_mime) VALUES ($1, $2, $3) RETURNING id, nome, logo IS NOT NULL AS tem_logo',
+            [normalizarNome(nome), imagem?.logo || null, imagem?.mime || null]
+        );
         res.status(201).json({ sucesso: true, mensagem: 'Marca criada com sucesso!', marca: rows[0] });
     } catch (error) {
+        if (error.message === 'LOGO_INVALIDA') return res.status(400).json({ sucesso: false, mensagem: 'A logo deve ser PNG, JPEG ou WebP e ter no máximo 512 KB.' });
         console.error('Erro ao criar marca:', error);
         if (error.code === '23505') return res.status(409).json({ sucesso: false, mensagem: 'Esta marca já existe.' });
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
@@ -312,18 +331,36 @@ exports.criarMarca = async (req, res) => {
 
 exports.atualizarMarca = async (req, res) => {
     const { id } = req.params;
-    const { nome } = req.body;
+    const { nome, logo } = req.body;
     
     if (!idValido(id) || !nomeValido(nome)) return res.status(400).json({ sucesso: false, mensagem: 'ID e nome válido são obrigatórios.' });
 
     try {
-        const result = await db.query('UPDATE marcas SET nome = $1 WHERE id = $2 RETURNING *', [normalizarNome(nome), id]);
+        const imagem = validarLogo(logo);
+        const result = logo === undefined
+            ? await db.query('UPDATE marcas SET nome = $1, "ultimaAlteracao" = NOW() WHERE id = $2 RETURNING id, nome, logo IS NOT NULL AS tem_logo', [normalizarNome(nome), id])
+            : logo === null
+                ? await db.query('UPDATE marcas SET nome = $1, logo = NULL, logo_mime = NULL, "ultimaAlteracao" = NOW() WHERE id = $2 RETURNING id, nome, false AS tem_logo', [normalizarNome(nome), id])
+                : await db.query('UPDATE marcas SET nome = $1, logo = $2, logo_mime = $3, "ultimaAlteracao" = NOW() WHERE id = $4 RETURNING id, nome, true AS tem_logo', [normalizarNome(nome), imagem.logo, imagem.mime, id]);
         if (result.rowCount === 0) return res.status(404).json({ sucesso: false, mensagem: 'Marca não encontrada.' });
         
         res.status(200).json({ sucesso: true, mensagem: 'Marca atualizada!', marca: result.rows[0] });
     } catch (error) {
+        if (error.message === 'LOGO_INVALIDA') return res.status(400).json({ sucesso: false, mensagem: 'A logo deve ser PNG, JPEG ou WebP e ter no máximo 512 KB.' });
         console.error('Erro ao atualizar marca:', error);
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
+    }
+};
+
+exports.buscarLogoMarca = async (req, res) => {
+    if (!idValido(req.params.id)) return res.status(400).json({ sucesso: false, mensagem: 'ID inválido.' });
+    try {
+        const { rows } = await db.query('SELECT logo, logo_mime, "ultimaAlteracao" FROM marcas WHERE id = $1 AND logo IS NOT NULL', [req.params.id]);
+        if (!rows.length) return res.status(404).json({ sucesso: false, mensagem: 'Logo não encontrada.' });
+        return res.set({ 'Content-Type': rows[0].logo_mime, 'Cache-Control': 'public, max-age=3600' }).send(rows[0].logo);
+    } catch (error) {
+        console.error('Erro ao buscar logo da marca:', error);
+        return res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });
     }
 };
 
@@ -369,7 +406,7 @@ exports.atualizarSetor = async (req, res) => {
     const { nome, ativo } = req.body;
     if (!idValido(id) || !nomeValido(nome) || typeof ativo !== 'boolean') return res.status(400).json({ sucesso: false, mensagem: 'ID, nome e status válido são obrigatórios.' });
     try {
-        const result = await db.query('UPDATE setores SET nome = $1, ativo = $2 WHERE id = $3 RETURNING *', [normalizarNome(nome), ativo, id]);
+        const result = await db.query('UPDATE setores SET nome = $1, ativo = $2 WHERE id = $3 RETURNING *', [normalizarNome(nome), Number(ativo), id]);
         if (result.rowCount === 0) return res.status(404).json({ sucesso: false, mensagem: 'Setor não encontrado.' });
         res.status(200).json({ sucesso: true, mensagem: 'Setor atualizado!', setor: result.rows[0] });
     } catch (error) {
@@ -442,7 +479,7 @@ exports.atualizarCelula = async (req, res) => {
             SET nome = $1, id_setor_fk = $2, id_marca_fk = $3, ativo = $4 
             WHERE id = $5 RETURNING *
         `;
-        const result = await db.query(query, [normalizarNome(nome), id_setor_fk, id_marca_fk || null, ativo, id]);
+        const result = await db.query(query, [normalizarNome(nome), id_setor_fk, id_marca_fk || null, Number(ativo), id]);
         if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Célula não encontrada.' });
         res.status(200).json({ sucesso: true, mensagem: 'Célula atualizada!', celula: result.rows[0] });
     } catch (error) {
@@ -488,7 +525,7 @@ exports.atualizarUnidade = async (req, res) => {
     const { nome, ativo } = req.body;
     if (!idValido(id) || !nomeValido(nome) || typeof ativo !== 'boolean') return res.status(400).json({ sucesso: false, mensagem: 'ID, nome e status válido são obrigatórios.' });
     try {
-        const result = await db.query('UPDATE unidades SET nome = $1, ativo = $2 WHERE id = $3 RETURNING *', [normalizarNome(nome), ativo, id]);
+        const result = await db.query('UPDATE unidades SET nome = $1, ativo = $2 WHERE id = $3 RETURNING *', [normalizarNome(nome), Number(ativo), id]);
         if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Unidade não encontrada.' });
         res.status(200).json({ sucesso: true, mensagem: 'Unidade atualizada!', unidade: result.rows[0] });
     } catch (error) {

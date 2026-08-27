@@ -46,6 +46,7 @@
           <tr>
             <th class="col-id">ID</th>
             <th>Nome / Descrição</th>
+            <th v-if="abaAtiva === 'marcas'">Logo</th>
             
             <th v-if="abaAtiva === 'categorias'">Tipo / Processo</th>
             <th v-if="abaAtiva === 'categorias'">Perguntas</th>
@@ -64,6 +65,10 @@
           <tr v-for="item in dadosFiltrados" :key="item.id || item.id_setor || item.id_unidade || item.id_celula">
             <td class="col-id">#{{ item.id || item.id_setor || item.id_unidade || item.id_marca || item.id_celula || item.id_turno }}</td>
             <td><strong>{{ item.nome || item.descricao }}</strong></td>
+            <td v-if="abaAtiva === 'marcas'">
+              <img v-if="urlLogoMarca(item)" :src="urlLogoMarca(item)" :alt="item.nome" class="marca-logo-mini" />
+              <span v-else class="text-muted">Sem logo</span>
+            </td>
             
             <td v-if="abaAtiva === 'categorias'">
               <span class="badge" :class="item.ctq ? 'badge-ctq-critico' : 'badge-ctq-normal'">
@@ -118,6 +123,22 @@
         <div class="form-group">
           <label>Nome / Descrição <span class="obrigatorio">*</span></label>
           <input type="text" v-model="form.nome" required class="input-base" :placeholder="'Ex: ' + placeholderExemplo" />
+        </div>
+
+        <div v-if="abaAtiva === 'marcas'" class="form-group">
+          <label>Logo da marca</label>
+          <div class="logo-upload">
+            <img v-if="form.logoPreview" :src="form.logoPreview" alt="Pré-visualização da logo" class="logo-preview" />
+            <div v-else class="logo-placeholder"><i class="mdi mdi-image-outline"></i><span>Sem logo</span></div>
+            <div class="logo-actions">
+              <label class="btn-outline logo-file-label">
+                <i class="mdi mdi-upload"></i> Selecionar imagem
+                <input type="file" accept="image/png,image/jpeg,image/webp" @change="selecionarLogo" />
+              </label>
+              <button v-if="form.logoPreview" type="button" class="btn-outline" @click="removerLogo">Remover</button>
+              <small>PNG, JPEG ou WebP, até 512 KB.</small>
+            </div>
+          </div>
         </div>
 
         <div v-if="abaAtiva === 'categorias'" class="categoria-config-container">
@@ -235,7 +256,7 @@ import FeedbackState from '../components/FeedbackState.vue';
 import BaseModal from '../components/BaseModal.vue';
 import TableToolbar from '../components/TableToolbar.vue';
 import DataTable from '../components/DataTable.vue';
-import { formatarHora } from '../services/formatters';
+import { formatarHora, urlLogoMarca } from '../services/formatters';
 import { toast, dialog } from '../services/feedback';
 
 const abas = [
@@ -273,7 +294,9 @@ const form = reactive({
   entrada_inicio: '',
   entrada_fim: '',
   intervalo_inicio: '',
-  intervalo_fim: ''
+  intervalo_fim: '',
+  logo: undefined,
+  logoPreview: ''
 });
 
 const opcoesSetores = computed(() => (dados.setores || []).map(s => ({ label: s.nome, value: s.id })));
@@ -367,6 +390,8 @@ const abrirModal = async (item = null) => {
   if (item) {
     form.id = item.id || item.id_setor || item.id_unidade || item.id_marca || item.id_celula || item.id_turno;
     form.nome = item.nome || item.descricao;
+    form.logo = undefined;
+    form.logoPreview = abaAtiva.value === 'marcas' ? (urlLogoMarca(item) || '') : '';
     
     if (abaAtiva.value === 'categorias') {
       form.ctq = Boolean(item.ctq);
@@ -397,6 +422,8 @@ const abrirModal = async (item = null) => {
     form.entrada_fim = '';
     form.intervalo_inicio = '';
     form.intervalo_fim = '';
+    form.logo = undefined;
+    form.logoPreview = '';
   }
   showModal.value = true;
 };
@@ -405,10 +432,32 @@ const fecharModal = () => {
   showModal.value = false;
 };
 
+const selecionarLogo = (event) => {
+  const arquivo = event.target.files?.[0];
+  event.target.value = '';
+  if (!arquivo) return;
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(arquivo.type) || arquivo.size > 512 * 1024) {
+    toast.warning('Selecione uma imagem PNG, JPEG ou WebP de até 512 KB.');
+    return;
+  }
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    form.logo = leitor.result;
+    form.logoPreview = leitor.result;
+  };
+  leitor.readAsDataURL(arquivo);
+};
+
+const removerLogo = () => {
+  form.logo = null;
+  form.logoPreview = '';
+};
+
 const salvarItem = async () => {
   salvando.value = true;
   
   const payload = { nome: form.nome };
+  if (abaAtiva.value === 'marcas' && form.logo !== undefined) payload.logo = form.logo;
 
   if (abaAtiva.value === 'categorias') {
     payload.ctq = form.ctq;
@@ -638,6 +687,15 @@ onMounted(() => buscarDados(true));
 }
 .badge-setor { background: #fff1f2; color: var(--primary, #b1072c); }
 .badge-marca { background: #fef3c7; color: #b45309; }
+.marca-logo-mini { width: 64px; height: 36px; object-fit: contain; }
+.logo-upload { display: flex; align-items: center; gap: 1rem; }
+.logo-preview, .logo-placeholder { width: 120px; height: 72px; object-fit: contain; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; background: #f8fafc; }
+.logo-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; }
+.logo-placeholder i { font-size: 1.5rem; }
+.logo-actions { display: flex; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
+.logo-actions small { width: 100%; color: #64748b; }
+.logo-file-label { cursor: pointer; }
+.logo-file-label input { display: none; }
 .badge-ctq-critico { background: #fff1f2; color: var(--primary, #b1072c); border: 1px solid #fecdd3; }
 .badge-ctq-normal { background: #f8fafc; color: #64748b; border: 1px solid #cbd5e1; }
 .badge-perguntas-count { background: #eff6ff; color: #1d4ed8; }

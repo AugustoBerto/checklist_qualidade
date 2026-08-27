@@ -25,19 +25,18 @@ export const formatarHora = (horaString) => {
   return str;
 };
 
-export const normalizarNomeLogo = (nome) => {
-  if (!nome) return 'sem-nome';
-  return String(nome)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-};
-
-export const urlLogoMarca = (nome, baseUrl = import.meta.env.BASE_URL || '/') => {
+export const urlLogoMarca = (
+  marca,
+  apiBase = import.meta.env.VITE_API_URL || '/api/checklist-app/api',
+  baseUrl = import.meta.env.BASE_URL || '/'
+) => {
+  if (marca?.tem_logo) {
+    const versao = marca.ultimaAlteracao ? `?v=${encodeURIComponent(marca.ultimaAlteracao)}` : '';
+    return `${apiBase}/cadastros/marcas/${marca.id}/logo${versao}`;
+  }
+  if (String(marca?.nome || '').trim().toUpperCase() !== 'FILA') return null;
   const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-  return `${base}logos/${normalizarNomeLogo(nome)}.png`;
+  return `${base}logos/fila.png`;
 };
 
 export const formatarNomeCurto = (nomeCompleto) => {
@@ -46,4 +45,3 @@ export const formatarNomeCurto = (nomeCompleto) => {
   if (partes.length <= 2) return partes.join(' ');
   return `${partes[0]} ${partes[partes.length - 1]}`;
 };
-

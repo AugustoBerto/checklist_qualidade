@@ -15,11 +15,12 @@ Ela cria toda a estrutura de tabelas, relacionamentos, chaves estrangeiras e ín
    ```bash
    cd backend
    npm run db:init
+   npm run db:migrate
    npm run db:status
    ```
 
    - `db:init`: Cria o schema configurado (`checklist_app`), executa `001_initial_schema.sql` e registra em `schema_migrations`.
-   - `db:migrate`: Executa migrations sequenciais futuras (`002_...`, `003_...`), se houverem.
+   - `db:migrate`: Executa as migrations posteriores à estrutura inicial.
    - `db:status`: Exibe o estado e histórico de migrations aplicadas.
 
 4. Inicie a API (`npm run dev` ou `npm start`). No primeiro login autenticado com a matrícula de administrador, o perfil `ADMIN` será criado automaticamente.
@@ -32,4 +33,3 @@ O arquivo `backend/docker-compose.db-test.yml` fornece um PostgreSQL 15 temporá
 cd backend
 npm run test:integration
 ```
-

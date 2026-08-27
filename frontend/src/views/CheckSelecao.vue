@@ -32,10 +32,10 @@
       <div v-else class="brand-grid">
         <div v-for="marca in marcas" :key="marca.id" class="brand-card" @click="selecionarMarca(marca)">
           <div class="brand-logo-wrapper">
-            <img v-show="!errosImagens[marca.id]" :src="urlLogo(marca.nome)" :alt="marca.nome"
+            <img v-if="urlLogo(marca) && !errosImagens[marca.id]" :src="urlLogo(marca)" :alt="marca.nome"
               class="img-responsive" @error="marcarErroImagem(marca.id)">
 
-            <span v-show="errosImagens[marca.id]" class="brand-initial">
+            <span v-else class="brand-initial">
               {{ marca.nome ? marca.nome.charAt(0) : '?' }}
             </span>
           </div>
@@ -50,8 +50,8 @@
       <div class="card-formulario">
         <div class="header-marca">
           <div class="mini-brand-info">
-            <img v-if="!errosImagens[marcaSelecionada.id]"
-              :src="urlLogo(marcaSelecionada.nome)" class="mini-logo"
+            <img v-if="urlLogo(marcaSelecionada) && !errosImagens[marcaSelecionada.id]"
+              :src="urlLogo(marcaSelecionada)" class="mini-logo"
               @error="marcarErroImagem(marcaSelecionada.id)">
             <span v-else class="mini-initial">
               {{ marcaSelecionada?.nome ? marcaSelecionada.nome.charAt(0) : '?' }}
@@ -221,8 +221,8 @@ function irParaFormulario() {
   router.push({ path: `/formulario/${form.value.modelo}`, query: query });
 }
 
-function urlLogo(nome) {
-  return urlLogoMarca(nome);
+function urlLogo(marca) {
+  return urlLogoMarca(marca);
 }
 
 function marcarErroImagem(id) { 

@@ -10,6 +10,7 @@ router.get('/modelos/:id', autorizar('admin'), CadastrosController.buscarModeloP
 router.put('/modelos/:id', autorizar('admin'), CadastrosController.atualizarModelo);
 
 router.get('/marcas', autorizar(), CadastrosController.listarMarcas);
+router.get('/marcas/:id/logo', autorizar(), CadastrosController.buscarLogoMarca);
 router.post('/marcas', autorizar('ADMIN'), CadastrosController.criarMarca);
 router.put('/marcas/:id', autorizar('ADMIN'), CadastrosController.atualizarMarca);
 router.delete('/marcas/:id', autorizar('ADMIN'), CadastrosController.excluirMarca);

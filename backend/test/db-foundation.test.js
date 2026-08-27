@@ -48,9 +48,9 @@ describe('fundação DB', () => {
     assert.equal(mensagemPostgres({ code: '23503', detail: 'private row' }), 'Registro relacionado não encontrado ou ainda utilizado.');
   });
 
-  test('descobre as migrations 001, 002 e 003 em ordem', () => {
+  test('descobre as migrations em ordem', () => {
     const migrations = validateMigrationSet(listMigrationFiles());
-    assert.deepEqual(migrations.map(({ version }) => version), [1, 2, 3]);
+    assert.deepEqual(migrations.map(({ version }) => version), [1, 2, 3, 4]);
     assert.match(readMigrationSql(migrations[0]), /^CREATE SCHEMA checklist_app;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /^BEGIN;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /COMMIT;\s*$/);
@@ -91,7 +91,7 @@ describe('fundação DB', () => {
       `, [String(unica.id), duplicadaA.id]);
 
       const migrated = await migrateDatabase({ pool, env: migrationEnv });
-      assert.deepEqual(migrated.applied, ['002_modelo_marca_fk.sql']);
+      assert.deepEqual(migrated.applied, ['002_modelo_marca_fk.sql', '003_categorias_padrao.sql', '004_marca_logo.sql']);
       const modelos = await pool.query(`
         SELECT nome, marca, id_marca_fk
         FROM ${migrationEnv.DB_SCHEMA}.modelo
@@ -107,7 +107,7 @@ describe('fundação DB', () => {
 
       const status = await statusDatabase({ pool, env: migrationEnv });
       assert.equal(status.initialized, true);
-      assert.deepEqual(status.migrations.map((item) => item.applied), [true, true]);
+      assert.deepEqual(status.migrations.map((item) => item.applied), [true, true, true, true]);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS ${migrationEnv.DB_SCHEMA} CASCADE`);
       await pool.end();
