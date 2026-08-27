@@ -729,28 +729,6 @@ const salvarChecklist = async () => {
   min-width: 160px;
 }
 
-.select-filtro {
-  width: 100%;
-  padding: 0.65rem 0.85rem;
-  border: 1.5px solid var(--border-color, #e2e8f0);
-  border-radius: var(--radius-md, 10px);
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-primary, #0f172a);
-  background-color: #f8fafc;
-  min-height: 42px;
-  cursor: pointer;
-  box-sizing: border-box;
-  transition: all 0.2s;
-}
-
-.select-filtro:focus {
-  outline: none;
-  border-color: var(--primary, #2563eb);
-  background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
 .btn-limpar-filtros {
   min-height: 42px;
   padding: 0.65rem 1rem;

@@ -139,12 +139,12 @@
 
         <div class="form-group">
           <label>Papel no Sistema <span class="obrigatorio">*</span></label>
-          <select v-model="form.papel" required class="input-base select-base">
-            <option value="" disabled>Selecione o papel...</option>
-            <option value="ADMIN">Administrador</option>
-            <option value="LIDER">Líder de Produção</option>
-            <option value="INSPETOR">Inspetor de Qualidade</option>
-          </select>
+          <VueSelect
+            v-model="form.papel"
+            :options="opcoesPapel"
+            placeholder="Selecione o papel..."
+            :is-clearable="false"
+          />
         </div>
 
         <div class="form-group" v-if="form.id">
@@ -154,42 +154,52 @@
 
         <div class="form-group">
           <label>Unidade</label>
-          <select v-model="form.id_unidade_fk" class="input-base select-base">
-            <option value="">Não definida</option>
-            <option v-for="u in unidades" :key="u.id" :value="u.id">{{ u.nome }}</option>
-          </select>
+          <VueSelect
+            v-model="form.id_unidade_fk"
+            :options="opcoesUnidades"
+            placeholder="Selecione a unidade..."
+            :is-clearable="true"
+          />
         </div>
 
         <div class="form-group">
           <label>Setor</label>
-          <select v-model="form.id_setor_fk" class="input-base select-base">
-            <option value="">Não definido</option>
-            <option v-for="s in setores" :key="s.id" :value="s.id">{{ s.nome }}</option>
-          </select>
+          <VueSelect
+            v-model="form.id_setor_fk"
+            :options="opcoesSetores"
+            placeholder="Selecione o setor..."
+            :is-clearable="true"
+          />
         </div>
 
         <div class="form-group">
           <label>Célula / Linha</label>
-          <select v-model="form.id_celula_fk" class="input-base select-base">
-            <option value="">Não definida</option>
-            <option v-for="c in celulas" :key="c.id" :value="c.id">{{ c.nome }}</option>
-          </select>
+          <VueSelect
+            v-model="form.id_celula_fk"
+            :options="opcoesCelulas"
+            placeholder="Selecione a linha/célula..."
+            :is-clearable="true"
+          />
         </div>
 
         <div class="form-group">
           <label>Turno</label>
-          <select v-model="form.id_turno_fk" class="input-base select-base">
-            <option value="">Não definido</option>
-            <option v-for="t in turnos" :key="t.id" :value="t.id">{{ t.nome }}</option>
-          </select>
+          <VueSelect
+            v-model="form.id_turno_fk"
+            :options="opcoesTurnos"
+            placeholder="Selecione o turno..."
+            :is-clearable="true"
+          />
         </div>
 
         <div class="form-group" v-if="form.id">
           <label>Status</label>
-          <select v-model="form.ativo" class="input-base select-base">
-            <option :value="true">Ativo</option>
-            <option :value="false">Inativo</option>
-          </select>
+          <VueSelect
+            v-model="form.ativo"
+            :options="opcoesStatus"
+            placeholder="Selecione o status..."
+            :is-clearable="false"
+          />
         </div>
 
         <div class="form-actions-row">
@@ -206,6 +216,7 @@
 
 <script setup>
 import { onMounted, reactive, ref, computed } from 'vue'
+import VueSelect from 'vue3-select-component'
 import api from '../services/api'
 import PageHeader from '../components/PageHeader.vue'
 import FeedbackState from '../components/FeedbackState.vue'
@@ -215,6 +226,29 @@ const erro = ref(''), sucesso = ref(''), salvando = ref(false), carregando = ref
 const termoBusca = ref('')
 const vazio = () => ({ id: null, matricula: '', nome: '', papel: '', funcao: '', ativo: true, id_unidade_fk: '', id_setor_fk: '', id_celula_fk: '', id_turno_fk: '' })
 const form = reactive(vazio())
+
+const opcoesPapel = [
+  { label: 'Administrador', value: 'ADMIN' },
+  { label: 'Líder de Produção', value: 'LIDER' },
+  { label: 'Inspetor de Qualidade', value: 'INSPETOR' }
+]
+
+const opcoesUnidades = computed(() => unidades.value.map(u => ({ label: u.nome, value: u.id })))
+const opcoesSetores = computed(() => setores.value.map(s => ({ label: s.nome, value: s.id })))
+
+const opcoesCelulas = computed(() => {
+  const lista = form.id_setor_fk
+    ? celulas.value.filter(c => !c.id_setor_fk || String(c.id_setor_fk) === String(form.id_setor_fk))
+    : celulas.value
+  return lista.map(c => ({ label: c.nome, value: c.id }))
+})
+
+const opcoesTurnos = computed(() => turnos.value.map(t => ({ label: t.nome, value: t.id })))
+
+const opcoesStatus = [
+  { label: 'Ativo', value: true },
+  { label: 'Inativo', value: false }
+]
 
 const perfisFiltrados = computed(() => {
   if (!termoBusca.value.trim()) return perfis.value
@@ -263,6 +297,14 @@ const editar = (perfil) => {
 }
 
 const salvar = async () => {
+  if (!form.matricula) {
+    erro.value = 'A matrícula do colaborador é obrigatória.'
+    return
+  }
+  if (!form.papel) {
+    erro.value = 'O papel no sistema é obrigatório.'
+    return
+  }
   salvando.value = true; erro.value = ''; sucesso.value = ''
   try {
     const { nome, funcao, id, ...payload } = form

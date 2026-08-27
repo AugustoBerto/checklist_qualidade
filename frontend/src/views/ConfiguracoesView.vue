@@ -144,22 +144,22 @@
 
         <div v-if="abaAtiva === 'celulas'" class="dependencies-grid">
           <div class="form-group">
-            <label>Setor Vinculado</label>
-            <select v-model="form.id_setor_fk" required class="input-base select-base">
-              <option value="" disabled>Selecione um Setor...</option>
-              <option v-for="setor in dados.setores" :key="setor.id" :value="setor.id">
-                {{ setor.nome }}
-              </option>
-            </select>
+            <label>Setor Vinculado <span class="obrigatorio">*</span></label>
+            <VueSelect
+              v-model="form.id_setor_fk"
+              :options="opcoesSetores"
+              placeholder="Selecione um Setor..."
+              :is-clearable="false"
+            />
           </div>
           <div class="form-group">
             <label>Marca Vinculada (Opcional)</label>
-            <select v-model="form.id_marca_fk" class="input-base select-base">
-              <option value="">Geral / Sem Marca Específica</option>
-              <option v-for="marca in dados.marcas" :key="marca.id" :value="marca.id">
-                {{ marca.nome }}
-              </option>
-            </select>
+            <VueSelect
+              v-model="form.id_marca_fk"
+              :options="opcoesMarcas"
+              placeholder="Geral / Sem Marca Específica"
+              :is-clearable="true"
+            />
           </div>
         </div>
 
@@ -201,6 +201,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
+import VueSelect from 'vue3-select-component';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
 import FeedbackState from '../components/FeedbackState.vue';
@@ -240,6 +241,9 @@ const form = reactive({
   intervalo_inicio: '',
   intervalo_fim: ''
 });
+
+const opcoesSetores = computed(() => (dados.setores || []).map(s => ({ label: s.nome, value: s.id })));
+const opcoesMarcas = computed(() => (dados.marcas || []).map(m => ({ label: m.nome, value: m.id })));
 
 const dadosAtuais = computed(() => {
   const lista = dados[abaAtiva.value] || [];
@@ -350,8 +354,13 @@ const salvarItem = async () => {
   const payload = { nome: form.nome };
   
   if (abaAtiva.value === 'celulas') {
-    payload.id_setor_fk = form.id_setor_fk;
-    payload.id_marca_fk = form.id_marca_fk || null;
+    if (!form.id_setor_fk) {
+      toast.warning('Por favor, selecione um setor vinculado.');
+      salvando.value = false;
+      return;
+    }
+    payload.id_setor_fk = Number(form.id_setor_fk);
+    payload.id_marca_fk = form.id_marca_fk ? Number(form.id_marca_fk) : null;
   }
   
   if (abaAtiva.value === 'turnos') {
