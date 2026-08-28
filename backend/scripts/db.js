@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { createPool, createDbConfig } = require('../db');
+const { createPool } = require('../db');
 const { withTransaction } = require('../database/transaction');
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../migrations');
@@ -13,8 +13,6 @@ const schemaMigrationsSql = (schema = 'checklist_app') => `
     applied_at timestamptz NOT NULL DEFAULT now()
   )
 `;
-const SCHEMA_MIGRATIONS_SQL = schemaMigrationsSql();
-
 const migrationNumber = (name) => Number(name.slice(0, name.indexOf('_')));
 const isSupportedMigration = (name) => /^\d{3,}_[a-z0-9_-]+\.sql$/i.test(name);
 
@@ -69,8 +67,7 @@ async function initDatabase({ pool, env = process.env, migrationsDir = MIGRATION
   const migrations = validateMigrationSet(listMigrationFiles(migrationsDir));
   const initial = migrations.find((migration) => migration.version === 1);
   try {
-    const result = await ownedPool.query('SELECT to_regnamespace($1)::text AS schema', [schema]);
-    if (result.rows[0]?.schema) throw new Error(`O schema ${schema} já existe; db:init recusado.`);
+    if (await schemaExists(ownedPool, schema)) throw new Error(`O schema ${schema} já existe; db:init recusado.`);
 
     await withTransaction(ownedPool, async (client) => {
       await client.query(migrationSqlForSchema(initial, schema));
@@ -115,8 +112,7 @@ async function migrateDatabase({ pool, env = process.env, migrationsDir = MIGRAT
   const schema = assertIdentifier(getSchema(env));
   const migrations = validateMigrationSet(listMigrationFiles(migrationsDir));
   try {
-    const exists = await ownedPool.query('SELECT to_regnamespace($1)::text AS schema', [schema]);
-    if (!exists.rows[0]?.schema) throw new Error(`O schema ${schema} não existe; execute db:init.`);
+    if (!await schemaExists(ownedPool, schema)) throw new Error(`O schema ${schema} não existe; execute db:init.`);
     const applied = await readApplied(ownedPool, schema);
     validateApplied(applied, migrations);
     const appliedVersions = new Set(applied.map((row) => row.version));
@@ -145,8 +141,7 @@ async function statusDatabase({ pool, env = process.env, migrationsDir = MIGRATI
   const schema = assertIdentifier(getSchema(env));
   const migrations = validateMigrationSet(listMigrationFiles(migrationsDir));
   try {
-    const exists = await ownedPool.query('SELECT to_regnamespace($1)::text AS schema', [schema]);
-    if (!exists.rows[0]?.schema) return { schema, initialized: false, migrations: [] };
+    if (!await schemaExists(ownedPool, schema)) return { schema, initialized: false, migrations: [] };
     const applied = await readApplied(ownedPool, schema);
     validateApplied(applied, migrations);
     const byVersion = new Map(applied.map((row) => [row.version, row]));
@@ -184,7 +179,6 @@ if (require.main === module) {
 
 module.exports = {
   MIGRATIONS_DIR,
-  SCHEMA_MIGRATIONS_SQL,
   schemaMigrationsSql,
   listMigrationFiles,
   readMigrationSql,
@@ -193,6 +187,5 @@ module.exports = {
   validateApplied,
   initDatabase,
   migrateDatabase,
-  statusDatabase,
-  createDbConfig
+  statusDatabase
 };
