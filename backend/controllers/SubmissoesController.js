@@ -3,7 +3,7 @@ const { calcularPontuacao, normalizarResposta } = require('../utils/scoring');
 
 exports.listarSubmissoes = async (req, res) => {
     try {
-        const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+        const page = Math.min(Math.max(Number.parseInt(req.query.page, 10) || 1, 1), 10000);
         const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 25, 1), 100);
         const filtros = [];
         const valores = [];
@@ -18,14 +18,14 @@ exports.listarSubmissoes = async (req, res) => {
 
         if (req.query.dataInicio) adicionarFiltro('s.data_envio >= ?::date', req.query.dataInicio);
         if (req.query.dataFim) adicionarFiltro("s.data_envio < (?::date + interval '1 day')", req.query.dataFim);
-        if (req.query.marca) adicionarFiltro('m.marca = ?', req.query.marca);
+        if (req.query.marca) adicionarFiltro('COALESCE(ma.nome, m.marca) = ?', req.query.marca);
         if (req.query.modeloId) adicionarFiltro('s.id_modelo = ?::int', req.query.modeloId);
-        if (req.query.setorId) adicionarFiltro('COALESCE(s.id_setor, st_mod.id, st_cp.id, st_user.id) = ?::int', req.query.setorId);
+        if (req.query.setorId) adicionarFiltro('COALESCE(s.id_setor, st_cp.id, st_user.id) = ?::int', req.query.setorId);
         if (req.query.celulaId) adicionarFiltro('s.id_celula = ?::int', req.query.celulaId);
         if (req.query.busca) {
             const termo = `%${req.query.busca.trim()}%`;
             adicionarFiltro(
-                "(u.nome ILIKE ? OR COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome) ILIKE ? OR cp.nome ILIKE ? OR COALESCE(st_mod.nome, st_cp.nome, st_user.nome) ILIKE ?)",
+                "(u.nome ILIKE ? OR COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome) ILIKE ? OR cp.nome ILIKE ? OR COALESCE(st_sub.nome, st_cp.nome, st_user.nome) ILIKE ?)",
                 termo, termo, termo, termo
             );
         } else if (req.query.usuario) {
@@ -33,8 +33,8 @@ exports.listarSubmissoes = async (req, res) => {
         }
 
         const where = filtros.length ? `WHERE ${filtros.join(' AND ')}` : '';
-        const joins = `FROM formulario_submissoes s JOIN usuarios u ON s.id_usuario = u.id JOIN modelo m ON s.id_modelo = m.id LEFT JOIN celulas_producao cp ON s.id_celula = cp.id LEFT JOIN setores st_cp ON cp.id_setor_fk = st_cp.id LEFT JOIN setores st_mod ON m.id_setor_fk = st_mod.id LEFT JOIN setores st_user ON u.id_setor_fk = st_user.id`;
-        const sql = `SELECT s.id, s.data_envio, u.nome AS nome_usuario, COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome) AS nome_modelo, cp.nome AS nome_celula, COALESCE(st_mod.nome, st_cp.nome, st_user.nome, 'Geral') AS nome_setor ${joins} ${where} ORDER BY s.data_envio DESC`;
+        const joins = `FROM formulario_submissoes s JOIN usuarios u ON s.id_usuario = u.id JOIN modelo m ON s.id_modelo = m.id LEFT JOIN marcas ma ON ma.id = m.id_marca_fk LEFT JOIN celulas_producao cp ON s.id_celula = cp.id LEFT JOIN setores st_sub ON s.id_setor = st_sub.id LEFT JOIN setores st_cp ON cp.id_setor_fk = st_cp.id LEFT JOIN setores st_user ON u.id_setor_fk = st_user.id`;
+        const sql = `SELECT s.id, s.data_envio, u.nome AS nome_usuario, COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome) AS nome_modelo, cp.nome AS nome_celula, COALESCE(st_sub.nome, st_cp.nome, st_user.nome, 'Geral') AS nome_setor ${joins} ${where} ORDER BY s.data_envio DESC`;
         const [totalResult, resultado] = await Promise.all([
             db.query(`SELECT count(*) ${joins} ${where}`, valores),
             db.query(`${sql} LIMIT $${valores.length + 1} OFFSET $${valores.length + 2}`, [...valores, pageSize, (page - 1) * pageSize]),
@@ -67,8 +67,8 @@ exports.buscarDetalhesSubmissao = async (req, res) => {
             const legado = await db.query(`SELECT p.id, p.pergunta, c.categoria FROM perguntas p LEFT JOIN categorias c ON c.id = p.id_categoria WHERE p.id_modelo = $1`, [submissao.id_modelo]);
             legado.rows.forEach((pergunta) => perguntas.set(Number(pergunta.id), { ...pergunta, categoria: pergunta.categoria || 'Geral' }));
         }
-        const dados = { id: submissao.id, nomeUsuario: submissao.nome_usuario, nomeModelo: submissao.snapshot?.modelo?.nome || submissao.nome_modelo, nomeCelula: submissao.nome_celula || 'Não informada', dataEnvio: submissao.data_envio, assinatura: submissao.assinatura ? `data:image/png;base64,${submissao.assinatura.toString('base64')}` : null, categorias: {}, pontuacao: 0 };
-        const paraPontuar = {};
+        const dados = { id: submissao.id, nomeUsuario: submissao.nome_usuario, nomeModelo: submissao.snapshot?.modelo?.nome || submissao.nome_modelo, nomeCelula: submissao.nome_celula || 'Não informada', dataEnvio: submissao.data_envio, assinatura: submissao.assinatura ? `data:image/png;base64,${submissao.assinatura.toString('base64')}` : null, categorias: Object.create(null), pontuacao: 0 };
+        const paraPontuar = Object.create(null);
         submissao.respostas.forEach((resposta) => {
             const pergunta = perguntas.get(Number(resposta.id_pergunta));
             const categoria = pergunta?.categoria || 'Geral';

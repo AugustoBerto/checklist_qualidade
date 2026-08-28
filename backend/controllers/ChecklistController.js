@@ -76,7 +76,7 @@ exports.buscarPerguntas = async (req, res) => {
             ORDER BY c.id, p.id
         `, [modeloId]);
         if (!rows.length) return res.status(404).json({ sucesso: false, mensagem: 'Modelo ativo sem perguntas não encontrado.' });
-        const agrupado = {};
+        const agrupado = Object.create(null);
         rows.forEach((row) => {
             const categoria = row.categoria || 'SEM CATEGORIA';
             (agrupado[categoria] ||= []).push({ id: row.id_pergunta, texto: row.pergunta, variavel: row.identificacao, modelo: row.nome_modelo, id_modelo: row.id_modelo_fk, ctq: row.ctq || false });

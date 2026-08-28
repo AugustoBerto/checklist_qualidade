@@ -1,9 +1,9 @@
 const db = require('../db');
 const { calcularPontuacao, normalizarResposta } = require('../utils/scoring');
 exports.buscarRelatorioPorId = async (req, res) => {
-    const submissaoId = parseInt(req.params.id, 10);
+    const submissaoId = Number(req.params.id);
     
-    if (isNaN(submissaoId)) {
+    if (!Number.isInteger(submissaoId) || submissaoId <= 0) {
         return res.status(400).json({ sucesso: false, mensagem: 'ID de relatório inválido.' });
     }
 
@@ -14,13 +14,15 @@ exports.buscarRelatorioPorId = async (req, res) => {
                 m.nome as nome_modelo, 
                 s.data_envio,
                 cp.nome as nome_celula,
-                st.nome as nome_setor,
+                COALESCE(st_sub.nome, st_cp.nome, st_user.nome) AS nome_setor,
                 s.respostas,
                 s.snapshot
             FROM formulario_submissoes s
             JOIN usuarios u ON s.id_usuario = u.id
             LEFT JOIN celulas_producao cp ON s.id_celula = cp.id
-            LEFT JOIN setores st ON cp.id_setor_fk = st.id
+            LEFT JOIN setores st_sub ON s.id_setor = st_sub.id
+            LEFT JOIN setores st_cp ON cp.id_setor_fk = st_cp.id
+            LEFT JOIN setores st_user ON u.id_setor_fk = st_user.id
             JOIN modelo m ON s.id_modelo = m.id
             WHERE s.id = $1
         `;
@@ -33,7 +35,7 @@ exports.buscarRelatorioPorId = async (req, res) => {
         const submissao = rows[0];
         const respostasJSON = submissao.respostas;
 
-        const mapaCategorias = {};
+        const mapaCategorias = Object.create(null);
         if (submissao.snapshot?.perguntas) {
             submissao.snapshot.perguntas.forEach((pergunta) => { mapaCategorias[pergunta.id] = pergunta.categoria; });
         } else {
@@ -45,7 +47,7 @@ exports.buscarRelatorioPorId = async (req, res) => {
             nomesCategorias.forEach((row) => { mapaCategorias[row.id_pergunta] = row.nome_categoria; });
         }
 
-        const categoriasAgrupadas = {};
+        const categoriasAgrupadas = Object.create(null);
         respostasJSON.forEach(item => {
             const nomeCat = mapaCategorias[item.id_pergunta] || 'Geral';
             if (!categoriasAgrupadas[nomeCat]) {
