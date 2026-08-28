@@ -272,6 +272,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import VueSelect from 'vue3-select-component';
 import api from '../../services/api';
+import { toast } from '../../services/feedback';
 import TableToolbar from '../TableToolbar.vue';
 import DataTable from '../DataTable.vue';
 const props = defineProps({

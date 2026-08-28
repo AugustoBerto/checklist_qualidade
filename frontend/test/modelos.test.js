@@ -55,4 +55,16 @@ describe('edição de modelos', () => {
     expect(api.put).not.toHaveBeenCalled()
     expect(wrapper.vm.erroForm).toContain('categorias duplicadas')
   })
+
+  it('importa uma categoria do catálogo sem erro no manipulador', async () => {
+    api.get.mockImplementation((url) => Promise.resolve({ data: { dados: url.endsWith('categorias-padrao')
+      ? [{ id: 4, nome: 'TESTE', ctq: false, perguntas: ['P1', 'P2'] }]
+      : [] } }))
+    const wrapper = shallowMount(ModelosTab)
+    await flushPromises()
+    wrapper.vm.categoriaPadraoSelecionada = 4
+
+    expect(() => wrapper.vm.importarCategoriaCatalogo()).not.toThrow()
+    expect(wrapper.vm.categoriasUI[0].perguntas).toHaveLength(2)
+  })
 })
