@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { obterPerfilLocal, possuiPerfilLocal } from '../services/session'
 
 const routes = [
-  { path: '/', name: 'Home', component: () => import('../views/HomeView.vue') },
+  { path: '/', redirect: () => possuiPerfilLocal() ? '/selecao' : '/login' },
   { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue') },
   {
     path: '/formulario/:modelo',
@@ -66,7 +66,7 @@ router.beforeEach(async (to) => {
   const isAdmin = getIsAdmin()
 
   if (to.path === '/login' && autenticado) {
-    return { path: '/' }
+    return { path: '/selecao' }
   }
 
   if (to.meta.requiresAuth && !autenticado) {

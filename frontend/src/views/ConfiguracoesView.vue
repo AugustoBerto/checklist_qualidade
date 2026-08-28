@@ -945,12 +945,6 @@ onBeforeUnmount(cancelarBuscaDados);
 .badge-ctq-normal { background: #f8fafc; color: #64748b; border: 1px solid #cbd5e1; }
 .badge-perguntas-count { background: #eff6ff; color: #1d4ed8; }
 
-.btn-toggle-ctq { display: inline-flex; align-items: center; gap: 6px; padding: 0.45rem 0.85rem; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #f8fafc; cursor: pointer; transition: all 0.2s ease; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.5px; color: #64748b; min-height: 38px; user-select: none; }
-.btn-toggle-ctq i { font-size: 1.05rem; }
-.btn-toggle-ctq:hover { border-color: #94a3b8; background-color: #f1f5f9; color: #334155; }
-.btn-toggle-ctq.is-ctq { background: #fff1f2; border-color: #fecdd3; color: var(--primary, #b1072c); }
-.btn-toggle-ctq.is-ctq:hover { background: #ffe4e6; border-color: var(--primary, #b1072c); }
-
 .entity-name-cell {
   display: flex;
   flex-direction: column;

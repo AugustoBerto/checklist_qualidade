@@ -8,11 +8,8 @@ import './style.css'
 
 const app = createApp(App)
 configurarInterceptorDeAutenticacao(router)
-const perfilRestaurado = await restaurarSessao()
+await restaurarSessao()
 
 app.use(router)
 await router.isReady()
-if (['/', '/login'].includes(router.currentRoute.value.path)) {
-  await router.replace(perfilRestaurado ? '/selecao' : '/login')
-}
 app.mount('#app')

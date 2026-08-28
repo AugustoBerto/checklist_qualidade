@@ -986,12 +986,6 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 .categoria-icone { font-size: 1.25rem; color: #94a3b8; }
 .categoria-header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 
-.btn-toggle-ctq { display: inline-flex; align-items: center; gap: 6px; padding: 0.45rem 0.85rem; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #f8fafc; cursor: pointer; transition: all 0.2s ease; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.5px; color: #64748b; min-height: 38px; user-select: none; }
-.btn-toggle-ctq i { font-size: 1.05rem; }
-.btn-toggle-ctq:hover { border-color: #94a3b8; background-color: #f1f5f9; color: #334155; }
-.btn-toggle-ctq.is-ctq { background: #fff1f2; border-color: #fecdd3; color: var(--primary, #b1072c); }
-.btn-toggle-ctq.is-ctq:hover { background: #ffe4e6; border-color: var(--primary, #b1072c); }
-
 .btn-excluir-categoria { display: inline-flex; align-items: center; gap: 4px; background-color: #fef2f2; color: #dc2626; border: 1px solid #fecdd3; padding: 0.45rem 0.85rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s; min-height: 38px;}
 .btn-excluir-categoria:hover { background-color: #dc2626; color: #ffffff; }
 

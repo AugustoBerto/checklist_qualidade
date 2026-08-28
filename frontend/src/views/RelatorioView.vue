@@ -60,7 +60,29 @@
         <div class="chart-card">
           <h3 class="card-title">Distribuição de Conformidade</h3>
           <div class="chart-container">
-            <div id="graficoRelatorio" style="width: 100%; height: 380px;"></div>
+            <svg class="donut-chart" viewBox="0 0 120 120" role="img" aria-label="Distribuição de conformidade">
+              <circle class="donut-track" cx="60" cy="60" r="42" pathLength="100" />
+              <circle
+                v-for="segmento in segmentosGrafico"
+                :key="segmento.nome"
+                class="donut-segment"
+                cx="60"
+                cy="60"
+                r="42"
+                pathLength="100"
+                :stroke="segmento.cor"
+                :stroke-dasharray="`${segmento.percentual} ${100 - segmento.percentual}`"
+                :stroke-dashoffset="-segmento.inicio"
+              >
+                <title>{{ segmento.nome }}: {{ segmento.total }} ({{ segmento.percentual.toFixed(1) }}%)</title>
+              </circle>
+            </svg>
+            <div class="chart-legend">
+              <span v-for="segmento in segmentosGrafico" :key="segmento.nome" class="legend-item">
+                <i :style="{ backgroundColor: segmento.cor }"></i>
+                {{ segmento.nome }}: {{ segmento.total }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -84,27 +106,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
 import FeedbackState from '../components/FeedbackState.vue';
 import { formatarDataHora } from '../services/formatters';
 
-// 📌 Tree-shaking do ECharts para otimização de performance e redução de bundle
-import * as echarts from 'echarts/core';
-import { PieChart } from 'echarts/charts';
-import { TooltipComponent, LegendComponent, DatasetComponent } from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
-
-echarts.use([PieChart, TooltipComponent, LegendComponent, DatasetComponent, CanvasRenderer]);
-
 const route = useRoute();
 const isLoading = ref(true);
 const error = ref(null);
 const relatorio = ref(null);
-let chartInstance = null;
-const redimensionarGrafico = () => chartInstance?.resize();
+
+const segmentosGrafico = computed(() => {
+  const dados = relatorio.value?.dadosGrafico?.slice(1) || [];
+  const totalGeral = dados.reduce((soma, item) => soma + Number(item[1] || 0), 0);
+  let inicio = 0;
+  return dados.map(([nome, total, cor]) => {
+    const percentual = totalGeral ? (Number(total) / totalGeral) * 100 : 0;
+    const segmento = { nome, total: Number(total), cor: cor || '#94a3b8', percentual, inicio };
+    inicio += percentual;
+    return segmento;
+  });
+});
 
 const pontuacao = computed(() => {
   if (!relatorio.value || !relatorio.value.dadosGrafico) {
@@ -152,52 +176,9 @@ const buscarDados = async () => {
     isLoading.value = false;
   }
 
-  await nextTick();
-  if (relatorio.value && relatorio.value.sucesso) {
-    inicializarGrafico(relatorio.value.dadosGrafico);
-  }
-};
-
-const inicializarGrafico = (datasetSource) => {
-  const chartDom = document.getElementById('graficoRelatorio');
-  if (!chartDom) return;
-
-  chartInstance?.dispose();
-  chartInstance = echarts.init(chartDom);
-  const legendas = datasetSource.slice(1).map(item => item[0]);
-
-  const option = {
-    legend: { data: legendas, top: 'bottom' },
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    dataset: { source: datasetSource },
-    series: [{
-      name: 'Status por Categoria',
-      type: 'pie',
-      radius: ['50%', '75%'],
-      center: ['50%', '45%'],
-      avoidLabelOverlap: false,
-      label: { show: false },
-      itemStyle: {
-        color: (params) => params.value[2],
-        borderRadius: 10,
-        borderColor: '#fff',
-        borderWidth: 3
-      },
-      encode: { itemName: 'status', value: 'total' }
-    }]
-  };
-  
-  chartInstance.setOption(option);
-  window.removeEventListener('resize', redimensionarGrafico);
-  window.addEventListener('resize', redimensionarGrafico);
 };
 
 onMounted(buscarDados);
-onUnmounted(() => {
-  window.removeEventListener('resize', redimensionarGrafico);
-  chartInstance?.dispose();
-  chartInstance = null;
-});
 </script>
 
 <style scoped>
@@ -306,6 +287,48 @@ onUnmounted(() => {
 
 .chart-container {
   height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.donut-chart {
+  width: min(100%, 300px);
+  min-height: 0;
+  transform: rotate(-90deg);
+}
+
+.donut-track,
+.donut-segment {
+  fill: none;
+  stroke-width: 20;
+}
+
+.donut-track { stroke: #f1f5f9; }
+.donut-segment { transition: opacity 0.2s; }
+.donut-segment:hover { opacity: 0.8; }
+
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.legend-item i {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
 }
 
 .score-column {
