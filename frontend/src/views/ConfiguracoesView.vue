@@ -348,7 +348,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import VueSelect from 'vue3-select-component';
 import api from '../services/api';
@@ -379,6 +379,7 @@ const abaAtiva = ref(route.query.aba && abas.some(a => a.id === route.query.aba)
 
 watch(() => route.query.aba, (novaAba) => {
   if (novaAba && abas.some(a => a.id === novaAba) && novaAba !== abaAtiva.value) {
+    cancelarBuscaDados();
     abaAtiva.value = String(novaAba);
     modoModelos.value = 'lista';
     modoUsuarios.value = 'lista';
@@ -424,6 +425,7 @@ const dados = reactive({
 const form = reactive({
   id: null,
   nome: '',
+  ativo: true,
   ctq: false,
   perguntas: [],
   novaPerguntaInput: '',
@@ -489,19 +491,41 @@ const extrairArrayDeDados = (respostaData) => {
   return possivelArray || [];
 };
 
+let buscarDadosController = null;
+
+const cancelarBuscaDados = () => {
+  buscarDadosController?.abort();
+  buscarDadosController = null;
+  isLoading.value = false;
+};
+
 const buscarDados = async (forcarRefresh = false) => {
-  if (abaInfo.value?.tipo === 'custom') return;
-  if (!endpointAtivo.value) return;
-  if (!forcarRefresh && dados[abaAtiva.value]?.length > 0) return;
+  if (abaInfo.value?.tipo === 'custom') {
+    cancelarBuscaDados();
+    return;
+  }
+  const abaSolicitada = abaAtiva.value;
+  const endpointSolicitado = endpointAtivo.value;
+  if (!endpointSolicitado || (!forcarRefresh && dados[abaSolicitada]?.length > 0)) {
+    cancelarBuscaDados();
+    return;
+  }
+
+  cancelarBuscaDados();
+  const controller = new AbortController();
+  buscarDadosController = controller;
 
   isLoading.value = true;
   try {
-    const res = await api.get(endpointAtivo.value);
-    dados[abaAtiva.value] = extrairArrayDeDados(res.data);
+    const res = await api.get(endpointSolicitado, { signal: controller.signal });
+    if (controller.signal.aborted || buscarDadosController !== controller) return;
+    dados[abaSolicitada] = extrairArrayDeDados(res.data);
   } catch (err) {
-    console.error(`Erro ao carregar ${abaAtiva.value}:`, err);
+    if (!controller.signal.aborted && err?.code !== 'ERR_CANCELED') {
+      console.error(`Erro ao carregar ${abaSolicitada}:`, err);
+    }
   } finally {
-    isLoading.value = false;
+    if (buscarDadosController === controller) isLoading.value = false;
   }
 };
 
@@ -579,6 +603,7 @@ const mudarAba = (idAba) => {
     return;
   }
 
+  cancelarBuscaDados();
   abaAtiva.value = idAba;
   modoModelos.value = 'lista';
   modoUsuarios.value = 'lista';
@@ -612,6 +637,7 @@ const abrirModal = async (item = null) => {
   if (item) {
     form.id = item.id || item.id_setor || item.id_unidade || item.id_marca || item.id_celula || item.id_turno;
     form.nome = item.nome || item.descricao;
+    form.ativo = item.ativo !== 0 && item.ativo !== false;
     form.logo = undefined;
     form.logoPreview = abaAtiva.value === 'marcas' ? (urlLogoMarca(item) || '') : '';
     
@@ -635,6 +661,7 @@ const abrirModal = async (item = null) => {
   } else {
     form.id = null;
     form.nome = '';
+    form.ativo = true;
     form.ctq = false;
     form.perguntas = [];
     form.novaPerguntaInput = '';
@@ -679,6 +706,7 @@ const salvarItem = async () => {
   salvando.value = true;
   
   const payload = { nome: form.nome };
+  if (form.id && ['setores', 'unidades', 'celulas'].includes(abaAtiva.value)) payload.ativo = form.ativo;
   if (abaAtiva.value === 'marcas' && form.logo !== undefined) payload.logo = form.logo;
 
   if (abaAtiva.value === 'categorias') {
@@ -751,6 +779,8 @@ onMounted(() => {
     buscarDados(true);
   }
 });
+
+onBeforeUnmount(cancelarBuscaDados);
 </script>
 
 <style scoped>

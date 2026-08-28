@@ -97,7 +97,7 @@
 
 <script setup>
 import VueSelect from 'vue3-select-component'
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import PageHeader from '../components/PageHeader.vue'
@@ -163,6 +163,8 @@ watch(() => form.value.setor_selecionado, async (novoSetorId) => {
         await carregarModelos(marcaSelecionada.value, novoSetorId);
       }
     } else {
+      carregarModelosController?.abort();
+      carregarModelosController = null;
       opcoesCelulas.value = [];
       opcoesModelos.value = [];
     }
@@ -174,7 +176,12 @@ function filtrarCelulasPorSetor(idSetor) {
   opcoesCelulas.value = filtradas.map(c => ({ label: c.nome, value: c.id }));
 }
 
+let carregarModelosController = null;
+
 async function carregarModelos(marca, setorId) {
+  carregarModelosController?.abort();
+  const controller = new AbortController();
+  carregarModelosController = controller;
   try {
     const queryParams = { marca_id: marca.id };
 
@@ -182,12 +189,15 @@ async function carregarModelos(marca, setorId) {
         queryParams.setor_id = setorId;
     }
 
-    const response = await api.get('/dados/modelos', { params: queryParams });
+    const response = await api.get('/dados/modelos', { params: queryParams, signal: controller.signal });
+    if (controller.signal.aborted || carregarModelosController !== controller) return;
     opcoesModelos.value = response.data.dados.map(item => ({ label: item.nome, value: item.id }));
 
   } catch (error) {
-    console.error("Erro ao carregar modelos:", error);
-    toast.error('Erro ao carregar os modelos disponíveis para esta marca e setor.');
+    if (!controller.signal.aborted && error?.code !== 'ERR_CANCELED') {
+      console.error("Erro ao carregar modelos:", error);
+      toast.error('Erro ao carregar os modelos disponíveis para esta marca e setor.');
+    }
   }
 }
 
@@ -221,11 +231,15 @@ function marcarErroImagem(id) {
 }
 
 function resetarSelecao() { 
+  carregarModelosController?.abort();
+  carregarModelosController = null;
   marcaSelecionada.value = null; 
   opcoesModelos.value = []; 
   form.value.modelo = ''; 
   form.value.celula_selecionada = ''; 
 }
+
+onBeforeUnmount(() => carregarModelosController?.abort())
 </script>
 
 <style scoped>

@@ -172,7 +172,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onBeforeUnmount, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
@@ -230,6 +230,7 @@ const temFiltrosAtivos = computed(() => {
 
 const onInputBusca = () => {
   clearTimeout(timerBusca);
+  if (!filtros.value.busca) return;
   timerBusca = setTimeout(() => {
     buscarChecklists(1);
   }, 350);
@@ -237,7 +238,6 @@ const onInputBusca = () => {
 
 const limparBusca = () => {
   filtros.value.busca = '';
-  buscarChecklists(1);
 };
 
 const limparFiltros = () => {
@@ -249,7 +249,6 @@ const limparFiltros = () => {
     dataInicio: '',
     dataFim: ''
   };
-  buscarChecklists(1);
 };
 
 const extrairArray = (resData) => {
@@ -274,7 +273,12 @@ const carregarOpcoesFiltros = async () => {
   }
 };
 
+let buscarChecklistsController = null;
+
 const buscarChecklists = async (page = 1) => {
+  buscarChecklistsController?.abort();
+  const controller = new AbortController();
+  buscarChecklistsController = controller;
   isLoading.value = true;
   error.value = null;
 
@@ -290,7 +294,8 @@ const buscarChecklists = async (page = 1) => {
     if (filtros.value.dataInicio) params.dataInicio = filtros.value.dataInicio;
     if (filtros.value.dataFim) params.dataFim = filtros.value.dataFim;
 
-    const res = await api.get('/submissoes', { params });
+    const res = await api.get('/submissoes', { params, signal: controller.signal });
+    if (controller.signal.aborted || buscarChecklistsController !== controller) return;
     
     if (res.data.sucesso) {
       checklists.value = res.data.dados;
@@ -299,23 +304,29 @@ const buscarChecklists = async (page = 1) => {
       error.value = res.data.mensagem;
     }
   } catch (err) {
-    error.value = "Falha ao conectar com o servidor. Tente novamente.";
-    console.error(err);
+    if (!controller.signal.aborted && err?.code !== 'ERR_CANCELED') {
+      error.value = "Falha ao conectar com o servidor. Tente novamente.";
+      console.error(err);
+    }
   } finally {
-    isLoading.value = false;
+    if (buscarChecklistsController === controller) isLoading.value = false;
   }
 };
 
 // 📌 Filtragem dinâmica imediata para qualquer alteração de filtro
 watch(
   [
+    () => filtros.value.busca,
     () => filtros.value.setorId,
     () => filtros.value.modeloId,
     () => filtros.value.celulaId,
     () => filtros.value.dataInicio,
     () => filtros.value.dataFim
   ],
-  () => {
+  (novosFiltros, filtrosAnteriores) => {
+    const buscaMudou = novosFiltros[0] !== filtrosAnteriores[0];
+    if (buscaMudou && novosFiltros[0]) return;
+    clearTimeout(timerBusca);
     buscarChecklists(1);
   }
 );
@@ -323,6 +334,11 @@ watch(
 onMounted(() => {
   carregarOpcoesFiltros();
   buscarChecklists(1);
+});
+
+onBeforeUnmount(() => {
+  clearTimeout(timerBusca);
+  buscarChecklistsController?.abort();
 });
 </script>
 
