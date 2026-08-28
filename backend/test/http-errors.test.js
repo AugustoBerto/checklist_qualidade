@@ -53,6 +53,12 @@ test('cookie percent-encoded inválido retorna 401 JSON', async () => {
   assert.match(response.headers['content-type'], /application\/json/)
 })
 
+test('CORS aceita qualquer origem configurada na lista', async () => {
+  const response = await request('/api/health', { headers: { Origin: 'http://app.example' } })
+  assert.equal(response.headers['access-control-allow-origin'], 'http://app.example')
+  assert.equal(response.headers['access-control-allow-credentials'], 'true')
+})
+
 test('erro inesperado retorna 500 JSON sem stack', async () => {
   const response = await request('/api/test/error')
   assert.equal(response.status, 500)

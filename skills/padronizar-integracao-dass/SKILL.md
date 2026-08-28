@@ -337,6 +337,26 @@ Access-Control-Allow-Origin: *
 Access-Control-Allow-Credentials: true
 ```
 
+Use `CORS_ORIGINS` como nome canônico em serviços Node.js. O valor é uma lista
+de origens exatas separadas por vírgula:
+
+```env
+CORS_ORIGINS=http://localhost:5173,http://<HOST_DA_VPS>
+```
+
+Origem significa apenas `protocolo://host:porta`, sem caminho e sem barra final.
+`VITE_GATEWAY_URL` é o endereço que o navegador chama; `CORS_ORIGINS` é a lista
+que o servidor aceita. Elas se relacionam, mas não são a mesma configuração.
+
+Ao aplicar esta skill em uma aplicação existente, procure nomes legados como
+`FRONTEND_ORIGIN`, `CORS_ORIGIN`, `ALLOWED_ORIGIN` e `ALLOWED_ORIGINS`. Se
+representarem origens permitidas pelo CORS, migre para `CORS_ORIGINS` e atualize
+na mesma mudança todos os consumidores, `.env.example`, testes, documentação e
+manifestos de deploy. Preserve os valores existentes, converta valores únicos
+em listas de um item e remova os nomes antigos após confirmar que não restaram
+referências. Não mantenha aliases permanentes; use compatibilidade temporária
+somente quando um deploy coordenado for impossível e documente sua remoção.
+
 Evite adicionar `Access-Control-Allow-Origin: *` globalmente no Apache. Não
 altere um cabeçalho compartilhado sem avaliar as outras aplicações do
 VirtualHost.

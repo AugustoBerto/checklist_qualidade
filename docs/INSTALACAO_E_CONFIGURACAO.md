@@ -20,10 +20,9 @@ Preencha `backend/.env` sem versionar segredos:
 | Variável | Obrigatória | Uso |
 | --- | --- | --- |
 | `DATABASE_URL` | **Sim** | URL PostgreSQL completa, no formato `postgresql://usuario:senha@host:5432/banco`. |
-| `DB_POOL_MAX` | Não | Máximo de conexões do pool. |
 | `HOST` | Não | Interface da API; padrão `localhost`. |
 | `PORT` | Não | Porta da API; exemplo `7733`. |
-| `FRONTEND_ORIGIN` | Não | Origem aceita pelo CORS; padrão `http://localhost:5173`. |
+| `CORS_ORIGINS` | Não | Origens aceitas pelo CORS, separadas por vírgula; padrão `http://localhost:5173`. |
 | `JWT_SECRET` | **Sim** | Mesmo segredo usado para assinar tokens no `dass_auth`. |
 | `DASS_AUTH_BASE_URL` | Não | URL interna do `dass_auth`; padrão `http://localhost:2123`. |
 | `CHECKLIST_INITIAL_ADMIN_MATRICULA` | Para bootstrap | Única matrícula autorizada a criar o primeiro `ADMIN`. |

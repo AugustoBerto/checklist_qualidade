@@ -110,6 +110,6 @@ existência da matrícula no serviço central.
 - Erros internos são registrados no processo da API; respostas não expõem o erro bruto.
 - Não registre ou versione `.env`, JWTs, senhas ou refresh tokens.
 - Mantenha `JWT_SECRET` sincronizado com o `dass_auth` por um canal seguro.
-- Restrinja `FRONTEND_ORIGIN` à origem real do frontend.
+- Restrinja `CORS_ORIGINS` às origens reais dos frontends, separadas por vírgula.
 - Garanta que Gateway/proxy preserve cookies e cabeçalhos `Set-Cookie`.
 - Faça backup do PostgreSQL antes de migrations em ambientes persistentes.

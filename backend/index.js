@@ -5,6 +5,10 @@ const cors = require('cors');
 const app = express();
 const host = process.env.HOST || 'localhost';
 const port = process.env.PORT || 3000;
+const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET é obrigatório para validar tokens do dass_auth.');
@@ -14,7 +18,7 @@ if (process.env.JWT_SECRET === 'supersecretjwtkey12345') {
 }
 
 app.use(cors({
-  origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
+  origin: corsOrigins,
   credentials: true,
 }));
 app.use(express.json({ limit: '12mb', strict: false }));
