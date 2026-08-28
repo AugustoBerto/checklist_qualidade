@@ -3,7 +3,6 @@
     <PageHeader
       title="Consultar Histórico"
       subtitle="Acompanhe e visualize os checklists de qualidade finalizados."
-      icon="mdi mdi-text-box-search-outline"
     />
     
     <div class="card">
@@ -13,7 +12,6 @@
         <div class="toolbar-search-row">
           <div class="search-box">
             <div class="search-input-wrapper">
-              <i class="mdi mdi-magnify search-icon"></i>
               <input
                 type="text"
                 v-model="filtros.busca"
@@ -28,7 +26,7 @@
                 @click="limparBusca"
                 title="Limpar busca"
               >
-                <i class="mdi mdi-close"></i>
+                Limpar
               </button>
             </div>
           </div>
@@ -40,7 +38,6 @@
             @click="limparFiltros"
             title="Limpar todos os filtros"
           >
-            <i class="mdi mdi-filter-off-outline"></i>
             <span>Limpar Filtros</span>
           </button>
         </div>
@@ -100,7 +97,7 @@
         loading-message="Carregando histórico de relatórios..."
         empty-title="Nenhum checklist encontrado"
         empty-message="Não foram encontrados relatórios para os filtros informados."
-        empty-icon="mdi mdi-text-box-search-outline"
+        empty-icon=""
         @retry="buscarChecklists(1)"
         @change-page="buscarChecklists"
       >
@@ -110,8 +107,8 @@
             <th class="hide-mobile">Setor</th>
             <th class="hide-mobile">Linha / Célula</th>
             <th class="hide-mobile">Responsável</th>
+            <th>Conformidade</th>
             <th>Data e Hora</th>
-            <th class="col-chevron"></th>
           </tr>
         </template>
 
@@ -125,7 +122,6 @@
           >
             <td>
               <div class="model-cell">
-                <i class="mdi mdi-clipboard-text-outline model-icon"></i>
                 <div class="model-info">
                   <strong class="model-name">{{ checklist.nome_modelo }}</strong>
                   <span class="model-sub-mobile show-mobile-only">
@@ -136,12 +132,11 @@
             </td>
 
             <td class="hide-mobile">
-              <span class="badge-setor">{{ checklist.nome_setor || 'Geral' }}</span>
+              <span>{{ checklist.nome_setor || 'Geral' }}</span>
             </td>
 
             <td class="hide-mobile">
               <span v-if="checklist.nome_celula" class="cell-tag">
-                <i class="mdi mdi-factory"></i>
                 <span>{{ checklist.nome_celula }}</span>
               </span>
               <span v-else class="text-muted">--</span>
@@ -149,20 +144,18 @@
             
             <td class="hide-mobile">
               <div class="user-cell" :title="checklist.nome_usuario">
-                <i class="mdi mdi-account-circle-outline text-muted"></i>
                 <span class="user-name">{{ formatarNomeCurto(checklist.nome_usuario) }}</span>
               </div>
             </td>
 
-            <td>
-              <div class="date-cell">
-                <i class="mdi mdi-calendar-clock-outline text-muted"></i>
-                <span>{{ formatarDataHora(checklist.data_envio) }}</span>
-              </div>
+            <td class="conformity-cell">
+              <strong>{{ formatarPontuacao(checklist.pontuacao) }}</strong>
             </td>
 
-            <td class="col-chevron">
-              <i class="mdi mdi-chevron-right"></i>
+            <td>
+              <div class="date-cell">
+                <span>{{ formatarDataHora(checklist.data_envio) }}</span>
+              </div>
             </td>
           </tr>
         </template>
@@ -177,7 +170,7 @@ import { useRouter } from 'vue-router';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
 import DataTable from '../components/DataTable.vue';
-import { formatarDataHora, formatarNomeCurto } from '../services/formatters';
+import { extrairArrayDeDados, formatarDataHora, formatarNomeCurto } from '../services/formatters';
 
 const router = useRouter();
 const checklists = ref([]);
@@ -190,6 +183,8 @@ let timerBusca = null;
 const abrirDetalhe = (id) => {
   router.push(`/detalhe/${id}`);
 };
+
+const formatarPontuacao = (valor) => `${Number.isFinite(Number(valor)) ? Math.round(Number(valor)) : 0}%`;
 
 const isLoading = ref(true);
 const error = ref(null);
@@ -251,13 +246,6 @@ const limparFiltros = () => {
   };
 };
 
-const extrairArray = (resData) => {
-  if (Array.isArray(resData)) return resData;
-  if (resData && Array.isArray(resData.dados)) return resData.dados;
-  if (resData && resData.dados && Array.isArray(resData.dados.dados)) return resData.dados.dados;
-  return [];
-};
-
 const carregarOpcoesFiltros = async () => {
   try {
     const [resSetores, resModelos, resCelulas] = await Promise.all([
@@ -265,9 +253,9 @@ const carregarOpcoesFiltros = async () => {
       api.get('/dados/modelos'),
       api.get('/cadastros/celulas')
     ]);
-    setoresOptions.value = extrairArray(resSetores.data);
-    modelosOptions.value = extrairArray(resModelos.data);
-    celulasOptions.value = extrairArray(resCelulas.data);
+    setoresOptions.value = extrairArrayDeDados(resSetores.data);
+    modelosOptions.value = extrairArrayDeDados(resModelos.data);
+    celulasOptions.value = extrairArrayDeDados(resCelulas.data);
   } catch (err) {
     console.error('Erro ao carregar opções de filtros:', err);
   }
@@ -387,19 +375,9 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  font-size: 1.2rem;
-  pointer-events: none;
-}
-
 .input-search {
   width: 100%;
-  padding: 0.65rem 2.2rem 0.65rem 2.4rem;
+  padding: 0.65rem 4.5rem 0.65rem 0.85rem;
   border: 1.5px solid var(--border-color, #cbd5e1);
   border-radius: var(--radius-md, 8px);
   font-size: 0.9rem;
@@ -430,7 +408,8 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
   transition: all 0.2s;
 }
 
@@ -552,25 +531,9 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.model-icon {
-  font-size: 1.15rem;
-  color: var(--primary, #b1072c);
-}
-
 .model-name {
   color: var(--text-primary, #0f172a);
   font-weight: 700;
-}
-
-.badge-setor {
-  background: #fff1f2;
-  color: var(--primary, #b1072c);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
 }
 
 .cell-tag {
@@ -591,6 +554,11 @@ onBeforeUnmount(() => {
 .user-name {
   font-weight: 500;
   color: var(--text-primary, #0f172a);
+}
+
+.conformity-cell strong {
+  color: var(--text-primary, #0f172a);
+  font-variant-numeric: tabular-nums;
 }
 
 .text-muted {

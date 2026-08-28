@@ -1,5 +1,5 @@
 const db = require('../db');
-const { calcularPontuacao, normalizarResposta } = require('../utils/scoring');
+const { calcularPontuacao, agruparRespostasPorCategoria } = require('../utils/scoring');
 exports.buscarRelatorioPorId = async (req, res) => {
     const submissaoId = Number(req.params.id);
     
@@ -47,14 +47,7 @@ exports.buscarRelatorioPorId = async (req, res) => {
             nomesCategorias.forEach((row) => { mapaCategorias[row.id_pergunta] = row.nome_categoria; });
         }
 
-        const categoriasAgrupadas = Object.create(null);
-        respostasJSON.forEach(item => {
-            const nomeCat = mapaCategorias[item.id_pergunta] || 'Geral';
-            if (!categoriasAgrupadas[nomeCat]) {
-                categoriasAgrupadas[nomeCat] = [];
-            }
-            categoriasAgrupadas[nomeCat].push(normalizarResposta(item.resposta));
-        });
+        const categoriasAgrupadas = agruparRespostasPorCategoria(respostasJSON, mapaCategorias);
 
         const { total_C, total_NC, total_NP, total_NA } = calcularPontuacao(categoriasAgrupadas);
 

@@ -34,6 +34,31 @@ test('limita página solicitada ao teto de 10000', async () => {
   assert.equal(consultaPaginada.params.at(-1), 999900);
 });
 
+test('histórico calcula conformidade com a mesma regra por categoria do detalhe', async () => {
+  db.query = async (sql) => {
+    if (/count\(\*\)/.test(sql)) return { rows: [{ count: '1' }] };
+    return { rows: [{
+      id: 7,
+      respostas: [
+        { id_pergunta: 1, resposta: 'Conforme' },
+        { id_pergunta: 2, resposta: 'Não Conforme' },
+        { id_pergunta: 3, resposta: 'N/A' },
+      ],
+      snapshot: { perguntas: [
+        { id: 1, categoria: 'A' },
+        { id: 2, categoria: 'A' },
+        { id: 3, categoria: 'B' },
+      ] },
+    }] };
+  };
+  const res = resposta();
+
+  await submissoes.listarSubmissoes({ query: {} }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.dados, [{ id: 7, pontuacao: 50 }]);
+});
+
 test('rejeita filtros de ID, datas e valores não escalares antes do banco', async () => {
   let consultas = 0;
   db.query = async () => { consultas += 1; return { rows: [] }; };
@@ -103,7 +128,7 @@ test('histórico e relatório resolvem setor pela submissão', async () => {
   await relatorios.buscarRelatorioPorId({ params: { id: '1' } }, resposta());
 
   const sqlHistorico = consultas.find(({ sql }) => /ORDER BY s\.data_envio/.test(sql)).sql;
-  const sqlRelatorio = consultas.find(({ sql }) => /s\.respostas/.test(sql)).sql;
+  const sqlRelatorio = consultas.find(({ sql }) => /s\.respostas/.test(sql) && !/LIMIT/.test(sql)).sql;
   assert.match(sqlHistorico, /LEFT JOIN setores st_sub ON s\.id_setor = st_sub\.id/);
   assert.match(sqlHistorico, /snapshot -> 'setor' ->> 'nome'/);
   assert.match(sqlHistorico, /st_sub\.nome, st_cp\.nome, st_user\.nome,/);

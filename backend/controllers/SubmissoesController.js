@@ -1,5 +1,5 @@
 const db = require('../db');
-const { calcularPontuacao, normalizarResposta } = require('../utils/scoring');
+const { calcularPontuacao, agruparRespostasPorCategoria, calcularConformidade } = require('../utils/scoring');
 
 const MAX_PG_INT = 2147483647;
 const FILTRO_INVALIDO = 'FILTRO_INVALIDO';
@@ -90,6 +90,11 @@ const metadadosEvidencias = async (submissao) => {
     }));
 };
 
+// Mantém a interface interna usada pelos testes/consumidores existentes;
+// o cálculo agora vive no utilitário compartilhado.
+const calcularConformidadeSubmissao = (respostas = [], snapshot = {}) =>
+    calcularConformidade(respostas, snapshot?.perguntas);
+
 const validarFiltros = (query = {}) => {
     const page = query.page === undefined ? 1 : Math.min(inteiroPositivo(query.page, 'Página'), 10000);
     const pageSize = query.pageSize === undefined ? 25 : Math.min(inteiroPositivo(query.pageSize, 'Tamanho da página'), 100);
@@ -153,13 +158,17 @@ exports.listarSubmissoes = async (req, res) => {
 
         const where = filtros.length ? `WHERE ${filtros.join(' AND ')}` : '';
         const joins = `FROM formulario_submissoes s LEFT JOIN usuarios u ON s.id_usuario = u.id LEFT JOIN modelo m ON s.id_modelo = m.id LEFT JOIN marcas ma ON ma.id = m.id_marca_fk LEFT JOIN celulas_producao cp ON s.id_celula = cp.id LEFT JOIN setores st_sub ON s.id_setor = st_sub.id LEFT JOIN setores st_cp ON cp.id_setor_fk = st_cp.id LEFT JOIN setores st_user ON u.id_setor_fk = st_user.id`;
-        const sql = `SELECT s.id, s.data_envio, COALESCE(s.snapshot -> 'auditor' ->> 'nome', u.nome, 'Não informado') AS nome_usuario, COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome, 'Não informado') AS nome_modelo, COALESCE(s.snapshot -> 'celula' ->> 'nome', cp.nome, 'Não informada') AS nome_celula, COALESCE(s.snapshot -> 'setor' ->> 'nome', st_sub.nome, st_cp.nome, st_user.nome, 'Geral') AS nome_setor ${joins} ${where} ORDER BY s.data_envio DESC`;
+        const sql = `SELECT s.id, s.data_envio, s.respostas, s.snapshot, COALESCE(s.snapshot -> 'auditor' ->> 'nome', u.nome, 'Não informado') AS nome_usuario, COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome, 'Não informado') AS nome_modelo, COALESCE(s.snapshot -> 'celula' ->> 'nome', cp.nome, 'Não informada') AS nome_celula, COALESCE(s.snapshot -> 'setor' ->> 'nome', st_sub.nome, st_cp.nome, st_user.nome, 'Geral') AS nome_setor ${joins} ${where} ORDER BY s.data_envio DESC`;
         const [totalResult, resultado] = await Promise.all([
             db.query(`SELECT count(*) ${joins} ${where}`, valores),
             db.query(`${sql} LIMIT $${valores.length + 1} OFFSET $${valores.length + 2}`, [...valores, pageSize, (page - 1) * pageSize]),
         ]);
         const total = Number(totalResult.rows[0].count);
-        res.json({ sucesso: true, dados: resultado.rows, paginacao: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
+        const dados = resultado.rows.map(({ respostas, snapshot, ...submissao }) => ({
+            ...submissao,
+            pontuacao: calcularConformidade(respostas, snapshot?.perguntas),
+        }));
+        res.json({ sucesso: true, dados, paginacao: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
     } catch (error) {
         console.error('Erro ao listar submissões:', error);
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao listar submissões.' });
@@ -226,7 +235,7 @@ exports.buscarDetalhesSubmissao = async (req, res) => {
             },
             pontuacao: 0,
         };
-        const paraPontuar = Object.create(null);
+        const paraPontuar = agruparRespostasPorCategoria(submissao.respostas, perguntas);
         submissao.respostas.forEach((resposta) => {
             const pergunta = perguntas.get(Number(resposta.id_pergunta));
             const categoria = pergunta?.categoria || 'Geral';
@@ -238,7 +247,6 @@ exports.buscarDetalhesSubmissao = async (req, res) => {
                 observacao: resposta.observacao,
                 evidencia: evidencia ? { id: evidencia.id, disponivel: evidencia.disponivel } : null,
             });
-            (paraPontuar[categoria] ||= []).push(normalizarResposta(resposta.resposta));
         });
         const { total_C, total_NC, total_NP, total_NA } = calcularPontuacao(paraPontuar);
         const total = total_C + total_NC + total_NP + total_NA;
@@ -337,4 +345,4 @@ exports.baixarEvidenciaSubmissao = async (req, res) => {
     }
 };
 
-exports._internals = { inteiroPositivo, dataValida, validarFiltros };
+exports._internals = { inteiroPositivo, dataValida, validarFiltros, calcularConformidadeSubmissao };

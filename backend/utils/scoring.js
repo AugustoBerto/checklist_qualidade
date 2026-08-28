@@ -44,4 +44,51 @@ function normalizarResposta(resposta) {
     if (!resposta) return '';
     return resposta.trim().toLowerCase();
 }
-module.exports = { calcularPontuacao, normalizarResposta };
+
+/**
+ * Agrupa respostas pela categoria da pergunta, usando "Geral" quando a
+ * pergunta não consta no snapshot/mapa legado.
+ * @param {Array} respostas
+ * @param {Map|object} categoriasPorPergunta
+ * @returns {object} Objeto sem protótipo para aceitar qualquer nome de categoria.
+ */
+function agruparRespostasPorCategoria(respostas = [], categoriasPorPergunta = new Map()) {
+    const agrupadas = Object.create(null);
+    const itens = Array.isArray(respostas) ? respostas : [];
+
+    for (const item of itens) {
+        const idPergunta = Number(item.id_pergunta);
+        const categoria = categoriasPorPergunta instanceof Map
+            ? categoriasPorPergunta.get(idPergunta)
+            : categoriasPorPergunta[item.id_pergunta];
+        const nomeCategoria = typeof categoria === 'string' ? categoria : categoria?.categoria || 'Geral';
+        (agrupadas[nomeCategoria] ||= []).push(normalizarResposta(item.resposta));
+    }
+
+    return agrupadas;
+}
+
+/**
+ * Calcula o percentual de conformidade a partir das respostas e perguntas do
+ * snapshot. Conforme e N/A são positivos, conforme a regra histórica.
+ */
+function calcularConformidade(respostas = [], perguntas = []) {
+    const categoriasPorPergunta = new Map(
+        (Array.isArray(perguntas) ? perguntas : []).map((pergunta) => [
+            Number(pergunta.id),
+            pergunta.categoria || 'Geral',
+        ])
+    );
+    const { total_C, total_NC, total_NP, total_NA } = calcularPontuacao(
+        agruparRespostasPorCategoria(respostas, categoriasPorPergunta)
+    );
+    const total = total_C + total_NC + total_NP + total_NA;
+    return total ? Math.round(((total_C + total_NA) / total) * 100) : 100;
+}
+
+module.exports = {
+    calcularPontuacao,
+    normalizarResposta,
+    agruparRespostasPorCategoria,
+    calcularConformidade,
+};
