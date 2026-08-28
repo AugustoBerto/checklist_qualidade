@@ -165,7 +165,6 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import localforage from 'localforage'
 import { encerrarSessao, obterPerfilLocal } from './services/session'
-import { formatarNomeCurto } from './services/formatters'
 import ToastContainer from './components/ToastContainer.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 

@@ -10,7 +10,6 @@ export const dialogState = reactive({
   isOpen: false,
   title: '',
   message: '',
-  type: 'confirm', // 'confirm' | 'alert'
   variant: 'danger', // 'danger' | 'warning' | 'primary' | 'success'
   confirmText: 'Confirmar',
   cancelText: 'Cancelar',
@@ -73,28 +72,9 @@ export const dialog = {
       dialogState.isOpen = true;
       dialogState.title = title;
       dialogState.message = message;
-      dialogState.type = 'confirm';
       dialogState.variant = variant;
       dialogState.confirmText = confirmText;
       dialogState.cancelText = cancelText;
-      dialogState.resolver = resolve;
-    });
-  },
-
-  alert({
-    title = 'Atenção',
-    message = '',
-    confirmText = 'OK',
-    variant = 'primary'
-  } = {}) {
-    return new Promise((resolve) => {
-      dialogState.isOpen = true;
-      dialogState.title = title;
-      dialogState.message = message;
-      dialogState.type = 'alert';
-      dialogState.variant = variant;
-      dialogState.confirmText = confirmText;
-      dialogState.cancelText = '';
       dialogState.resolver = resolve;
     });
   },

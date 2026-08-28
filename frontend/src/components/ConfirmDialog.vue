@@ -27,7 +27,6 @@
 
           <div class="dialog-footer">
             <button
-              v-if="dialogState.type === 'confirm'"
               type="button"
               class="btn-outline btn-dialog-cancel"
               @click="handleCancel"
