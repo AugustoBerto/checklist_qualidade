@@ -10,20 +10,20 @@ exports.buscarRelatorioPorId = async (req, res) => {
     try {
         const queryRespostas = `
             SELECT 
-                u.nome as nome_usuario, 
-                m.nome as nome_modelo, 
+                COALESCE(s.snapshot -> 'auditor' ->> 'nome', u.nome) as nome_usuario,
+                COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome) as nome_modelo,
                 s.data_envio,
-                cp.nome as nome_celula,
-                COALESCE(st_sub.nome, st_cp.nome, st_user.nome) AS nome_setor,
+                COALESCE(s.snapshot -> 'celula' ->> 'nome', cp.nome) as nome_celula,
+                COALESCE(s.snapshot -> 'setor' ->> 'nome', st_sub.nome, st_cp.nome, st_user.nome) AS nome_setor,
                 s.respostas,
                 s.snapshot
             FROM formulario_submissoes s
-            JOIN usuarios u ON s.id_usuario = u.id
+            LEFT JOIN usuarios u ON s.id_usuario = u.id
             LEFT JOIN celulas_producao cp ON s.id_celula = cp.id
             LEFT JOIN setores st_sub ON s.id_setor = st_sub.id
             LEFT JOIN setores st_cp ON cp.id_setor_fk = st_cp.id
             LEFT JOIN setores st_user ON u.id_setor_fk = st_user.id
-            JOIN modelo m ON s.id_modelo = m.id
+            LEFT JOIN modelo m ON s.id_modelo = m.id
             WHERE s.id = $1
         `;
         const { rows } = await db.query(queryRespostas, [submissaoId]);

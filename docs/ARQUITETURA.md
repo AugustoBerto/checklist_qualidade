@@ -59,12 +59,19 @@ marcas ─┬─< celulas_producao >─ setores
 
 usuarios ─< formulario_submissoes >─ modelo
                     ├─ setor
-                    └─ célula
+                    ├─ célula
+                    └─< formulario_evidencias
 ```
 
 `formulario_submissoes` guarda respostas em JSONB, assinatura em `bytea` e um
-snapshot JSONB do modelo. O schema padrão é `checklist_app`; `DB_SCHEMA` permite
-outro identificador válido, inclusive em testes.
+snapshot JSONB versionado do documento. Para novas submissões, esse snapshot
+preserva também auditor, marca, setor, célula, perguntas e a contagem histórica
+de evidências. As fotos ficam em `formulario_evidencias`, com expiração própria,
+e não dentro das respostas permanentes. Consulte [Documentos de checklist e
+evidências](DOCUMENTOS_E_EVIDENCIAS.md).
+
+O schema padrão é `checklist_app`; `DB_SCHEMA` permite outro identificador
+válido, inclusive em testes.
 
 As migrations em `migrations/` são ordenadas por versão, registradas em
 `schema_migrations` e protegidas por checksum. Uma instalação vazia começa em
@@ -82,4 +89,3 @@ As migrations em `migrations/` são ordenadas por versão, registradas em
 Quando ainda não existe nenhum usuário local, a matrícula configurada em
 `CHECKLIST_INITIAL_ADMIN_MATRICULA` pode criar automaticamente o primeiro perfil
 `ADMIN`. Esse bootstrap não libera outras matrículas.
-

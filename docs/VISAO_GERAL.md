@@ -13,12 +13,13 @@ inspeção, respondem o formulário e consultam as submissões e seus indicadore
 3. O usuário seleciona setor, marca, célula e um modelo compatível.
 4. A aplicação carrega as perguntas ativas agrupadas por categoria.
 5. O usuário responde cada item, registra evidência quando necessária e assina.
-6. A API valida todo o conjunto e persiste a submissão e um snapshot do modelo.
+6. A API valida todo o conjunto e persiste a submissão, o snapshot documental e
+   as evidências em registros separados.
 7. A aplicação exibe o resumo de conformidade e permite consultar o histórico.
 
-O snapshot preserva nome do modelo, perguntas, categorias e marca usados no
-momento da inspeção. Alterações posteriores no cadastro não mudam o conteúdo
-histórico do relatório.
+O snapshot preserva modelo, marca, setor, célula, auditor, perguntas, categorias
+e a quantidade original de evidências existentes no momento da inspeção.
+Alterações posteriores nos cadastros não mudam o documento histórico.
 
 ## Papéis
 
@@ -63,8 +64,12 @@ A consulta de submissões oferece paginação e filtros por período, texto,
 usuário, marca, modelo, setor e célula. Há duas apresentações:
 
 - resumo gráfico da distribuição de respostas;
-- detalhe da auditoria, com respostas, observações, fotos e assinatura.
+- detalhe formal da auditoria, com respostas, observações e assinatura;
+- galeria separada para as evidências fotográficas ainda disponíveis.
+
+O documento é permanente. Evidências novas expiram em seis meses e deixam de ser
+servidas pela API, mas a quantidade originalmente registrada continua visível no
+documento. Consulte [Documentos de checklist e evidências](DOCUMENTOS_E_EVIDENCIAS.md).
 
 A pontuação detalhada considera respostas conformes e `N/A` como positivas em
 relação ao total armazenado.
-

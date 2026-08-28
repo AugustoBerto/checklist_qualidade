@@ -42,7 +42,9 @@ retorna `409` com o código `ULTIMO_ADMIN`.
 | `GET /checklists/perguntas/:modelo` | Perguntas ativas agrupadas por categoria. |
 | `POST /checklists/salvar` | Valida e cria uma submissão. |
 | `GET /submissoes` | Lista submissões paginadas e filtradas. |
-| `GET /submissoes/:id` | Detalhe completo, evidências, assinatura e pontuação. |
+| `GET /submissoes/:id` | Documento permanente, metadados de evidências, assinatura e pontuação. |
+| `GET /submissoes/:id/evidencias` | Quantidade histórica e metadados dos anexos. |
+| `GET /submissoes/:id/evidencias/:evidenciaId` | Conteúdo de uma evidência disponível. |
 | `GET /relatorios/:id` | Metadados e dataset do gráfico de conformidade. |
 
 Filtros de `GET /dados/modelos`: `marca_id` e `setor_id`.
@@ -75,6 +77,12 @@ Exemplo mínimo do corpo de uma submissão:
   ]
 }
 ```
+
+Em novas submissões, fotos são extraídas das respostas e armazenadas como
+evidências com retenção independente. O detalhe nunca incorpora seu conteúdo:
+cada item informa `disponivel`, e o endpoint de conteúdo retorna `410` com
+`EVIDENCIA_EXPIRADA` depois do prazo ou remoção. IDs no formato `legado-N`
+mantêm a leitura de fotos de submissões antigas.
 
 O retorno de sucesso é `201` com `id_relatorio`. Consulte as regras e limites em
 [Visão geral](VISAO_GERAL.md#regras-importantes-da-inspecao).

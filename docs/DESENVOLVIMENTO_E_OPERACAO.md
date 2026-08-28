@@ -58,6 +58,20 @@ Para uma migration nova:
 
 Detalhes adicionais estão em [Banco de dados e migrations](../migrations/README.md).
 
+## Retenção de evidências
+
+A API deixa de servir uma evidência seis meses após sua criação. Agende o comando
+abaixo no ambiente do backend para remover fisicamente os bytes expirados sem
+apagar seus metadados históricos:
+
+```bash
+npm run evidencias:cleanup
+```
+
+O comando é idempotente e informa quantos conteúdos foram removidos. Preserve
+essa saída nos logs do agendador. Consulte [Documentos de checklist e
+evidências](DOCUMENTOS_E_EVIDENCIAS.md) para o ciclo de vida completo.
+
 ## Diagnóstico
 
 ### API não inicia
@@ -100,4 +114,3 @@ central.
 - Restrinja `FRONTEND_ORIGIN` à origem real do frontend.
 - Garanta que Gateway/proxy preserve cookies e cabeçalhos `Set-Cookie`.
 - Faça backup do PostgreSQL antes de migrations em ambientes persistentes.
-

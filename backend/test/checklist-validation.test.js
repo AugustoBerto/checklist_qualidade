@@ -234,3 +234,46 @@ test('persiste o MIME original da assinatura', async () => {
     assert.equal(insert.params[5], 'image/jpeg');
     assert.ok(Buffer.isBuffer(insert.params[4]));
 });
+
+test('persiste snapshot v2 completo e separa fotos da resposta', async () => {
+    const consultas = [];
+    db.connect = async () => ({
+        async query(sql, params = []) {
+            consultas.push({ sql, params });
+            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{
+                id: 10, nome: 'Modelo', marca: 'FILA', id_marca_fk: 1, versao: 4,
+                setor_id: 20, setor_nome: 'MONTAGEM', celula_id: 30, celula_nome: '2222',
+            }] };
+            if (/FROM usuarios u/.test(sql)) return { rows: [{
+                id: 99, nome: 'Auditor', matricula: 'A-99', funcao: 'LIDER', papel: 'LIDER', unidade_id: 8, unidade_nome: 'ITAPIPOCA',
+            }] };
+            if (/FROM perguntas/.test(sql)) return { rows: [{ id: 1, pergunta: 'Pergunta', identificacao: 'pergunta_1', categoria: 'Categoria', ctq: false }] };
+            if (/INSERT INTO formulario_submissoes/.test(sql)) return { rows: [{ id: 50 }] };
+            return { rows: [] };
+        },
+        release() {},
+    });
+    const req = submissaoValida();
+    req.body.respostas[0].foto = imagemJpeg;
+    const res = resposta();
+
+    await checklist.salvarChecklist(req, res);
+
+    const insert = consultas.find(({ sql }) => /INSERT INTO formulario_submissoes/.test(sql));
+    const snapshot = JSON.parse(insert.params[8]);
+    const respostasPersistidas = JSON.parse(insert.params[6]);
+    const evidencia = consultas.find(({ sql }) => /INSERT INTO formulario_evidencias/.test(sql));
+    assert.equal(res.statusCode, 201);
+    assert.equal(snapshot.schema, 2);
+    assert.deepEqual(snapshot.modelo, { id: 10, nome: 'Modelo', marca: 'FILA', id_marca_fk: 1, versao: 4 });
+    assert.deepEqual(snapshot.setor, { id: 20, nome: 'MONTAGEM' });
+    assert.deepEqual(snapshot.celula, { id: 30, nome: '2222' });
+    assert.deepEqual(snapshot.auditor, { id: 99, nome: 'Auditor', matricula: 'A-99', funcao: 'LIDER', papel: 'LIDER' });
+    assert.deepEqual(snapshot.unidade, { id: 8, nome: 'ITAPIPOCA' });
+    assert.equal(snapshot.evidencias.total, 1);
+    assert.equal(Object.hasOwn(respostasPersistidas[0], 'foto'), false);
+    assert.equal(evidencia.params[0], 50);
+    assert.equal(evidencia.params[1], 1);
+    assert.equal(evidencia.params[2], 'image/jpeg');
+    assert.ok(Buffer.isBuffer(evidencia.params[4]));
+});

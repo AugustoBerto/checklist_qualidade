@@ -69,6 +69,67 @@ const idObrigatorioValido = (id) => (typeof id === 'number' || typeof id === 'st
 const timestampOpcionalValido = (valor) => valor == null
     || (typeof valor === 'string' && valor.trim().length > 0 && Number.isFinite(Date.parse(valor)));
 
+const prepararRespostas = (respostas) => {
+    const evidencias = [];
+    const respostasPersistidas = respostas.map((item) => {
+        const resposta = {
+            id_pergunta: Number(item.id_pergunta),
+            resposta: item.resposta,
+            observacao: item.observacao ?? null,
+        };
+        if (item.foto != null) {
+            const imagem = base64ParaImagem(item.foto, MAX_FOTO_BYTES, 'A foto');
+            evidencias.push({
+                idPergunta: resposta.id_pergunta,
+                mime: imagem.mime,
+                tamanho: imagem.buffer.length,
+                conteudo: imagem.buffer,
+            });
+        }
+        return resposta;
+    });
+    return { respostasPersistidas, evidencias };
+};
+
+const snapshotV2 = ({ modelo, setorId, celulaId, auditor, perguntas, inicio, totalEvidencias }) => ({
+    schema: 2,
+    modelo: {
+        id: modelo.id,
+        nome: modelo.nome,
+        marca: modelo.marca ?? null,
+        id_marca_fk: modelo.id_marca_fk ?? null,
+        versao: modelo.versao ?? 1,
+    },
+    marca: {
+        id: modelo.id_marca_fk ?? null,
+        nome: modelo.marca ?? null,
+    },
+    setor: {
+        id: modelo.setor_id ?? setorId,
+        nome: modelo.setor_nome ?? null,
+    },
+    celula: {
+        id: modelo.celula_id ?? celulaId,
+        nome: modelo.celula_nome ?? null,
+    },
+    auditor: {
+        id: auditor?.id ?? null,
+        nome: auditor?.nome ?? null,
+        matricula: auditor?.matricula ?? null,
+        funcao: auditor?.funcao ?? null,
+        papel: auditor?.papel ?? null,
+    },
+    unidade: {
+        id: auditor?.unidade_id ?? null,
+        nome: auditor?.unidade_nome ?? null,
+    },
+    inicio: inicio || null,
+    evidencias: { total: totalEvidencias },
+    perguntas: perguntas.map(({ id, pergunta, identificacao, categoria, ctq }) => ({
+        id, pergunta, identificacao, categoria, ctq,
+    })),
+});
+
 exports.buscarPerguntas = async (req, res) => {
     const modeloId = idObrigatorioValido(req.params.modelo) ? Number(req.params.modelo) : null;
     if (modeloId === null) return res.status(400).json({ sucesso: false, mensagem: 'Modelo inválido.' });
@@ -110,7 +171,9 @@ exports.salvarChecklist = async (req, res) => {
     try {
         const result = await withTransaction(db, async (client) => {
             const modeloRes = await client.query(`
-                SELECT m.id, m.nome, COALESCE(ma.nome, m.marca) AS marca, m.id_marca_fk
+                SELECT m.id, m.nome, COALESCE(ma.nome, m.marca) AS marca, m.id_marca_fk,
+                    m.versao, s.id AS setor_id, s.nome AS setor_nome,
+                    c.id AS celula_id, c.nome AS celula_nome
                 FROM modelo m
                 LEFT JOIN marcas ma ON ma.id = m.id_marca_fk
                 JOIN setores s ON s.id = $2 AND s.ativo = 1
@@ -123,6 +186,14 @@ exports.salvarChecklist = async (req, res) => {
                 FOR SHARE OF m, s, c
             `, [id_modelo, id_setor, id_celula]);
             if (!modeloRes.rows.length) throw new ErroValidacao('Modelo, setor ou célula inválidos ou incompatíveis.');
+            const auditorRes = await client.query(
+                `SELECT u.id, u.nome, u.matricula, u.funcao, u.papel,
+                    un.id AS unidade_id, un.nome AS unidade_nome
+                 FROM usuarios u
+                 LEFT JOIN unidades un ON un.id = u.id_unidade_fk
+                 WHERE u.id = $1 FOR SHARE OF u`,
+                [idUsuarioFinal]
+            );
             const perguntasRes = await client.query(`
                 SELECT p.id, p.pergunta, p.identificacao, c.categoria, c.ctq
                 FROM perguntas p JOIN categorias c ON c.id = p.id_categoria
@@ -131,12 +202,29 @@ exports.salvarChecklist = async (req, res) => {
             if (!perguntasRes.rows.length) throw new ErroValidacao('O modelo não possui perguntas ativas.');
             validarRespostas(respostas, perguntasRes.rows);
             const assinaturaImagem = base64ParaImagem(assinatura, MAX_ASSINATURA_BYTES, 'A assinatura');
-            const snapshot = { modelo: modeloRes.rows[0], perguntas: perguntasRes.rows.map(({ id, pergunta, identificacao, categoria, ctq }) => ({ id, pergunta, identificacao, categoria, ctq })) };
-            return client.query(`
+            const { respostasPersistidas, evidencias } = prepararRespostas(respostas);
+            const snapshot = snapshotV2({
+                modelo: modeloRes.rows[0],
+                setorId: id_setor,
+                celulaId: id_celula,
+                auditor: auditorRes.rows[0] || { id: idUsuarioFinal },
+                perguntas: perguntasRes.rows,
+                inicio: inicio_checklist,
+                totalEvidencias: evidencias.length,
+            });
+            const submissao = await client.query(`
                 INSERT INTO formulario_submissoes
                     (id_usuario, id_modelo, id_setor, id_celula, assinatura, assinatura_mime, respostas, inicio_checklist, snapshot, data_envio)
                 VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9::jsonb, NOW()) RETURNING id
-            `, [idUsuarioFinal, id_modelo, id_setor, id_celula, assinaturaImagem.buffer, assinaturaImagem.mime, JSON.stringify(respostas), inicio_checklist || null, JSON.stringify(snapshot)]);
+            `, [idUsuarioFinal, id_modelo, id_setor, id_celula, assinaturaImagem.buffer, assinaturaImagem.mime, JSON.stringify(respostasPersistidas), inicio_checklist || null, JSON.stringify(snapshot)]);
+            for (const evidencia of evidencias) {
+                await client.query(`
+                    INSERT INTO formulario_evidencias
+                        (id_submissao, id_pergunta, mime, tamanho, conteudo, criada_em, expira_em)
+                    VALUES ($1, $2, $3, $4, $5, NOW(), NOW() + INTERVAL '6 months')
+                `, [submissao.rows[0].id, evidencia.idPergunta, evidencia.mime, evidencia.tamanho, evidencia.conteudo]);
+            }
+            return submissao;
         });
         res.status(201).json({ sucesso: true, mensagem: 'Checklist salvo com sucesso.', id_relatorio: result.rows[0].id });
     } catch (error) {
@@ -146,4 +234,4 @@ exports.salvarChecklist = async (req, res) => {
     }
 };
 
-exports._internals = { base64ParaBuffer, base64ParaImagem, validarRespostas, RESPOSTAS_VALIDAS, idObrigatorioValido, timestampOpcionalValido };
+exports._internals = { base64ParaBuffer, base64ParaImagem, validarRespostas, prepararRespostas, snapshotV2, RESPOSTAS_VALIDAS, idObrigatorioValido, timestampOpcionalValido };

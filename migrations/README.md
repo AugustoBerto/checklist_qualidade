@@ -27,6 +27,11 @@ Ela cria toda a estrutura de tabelas, relacionamentos, chaves estrangeiras e ín
    otimista de versão aos modelos e preserva o tipo real das assinaturas. Não
    altere migrations já aplicadas: o runner valida seus checksums.
 
+   A migration `006_formulario_evidencias.sql` separa fotos das respostas,
+   registra MIME, tamanho, criação, expiração em seis meses e eventual remoção.
+   O prazo controla a disponibilidade na API; a limpeza física do conteúdo deve
+   ser feita por tarefa operacional agendada e auditável.
+
 4. Inicie a API (`npm run dev` ou `npm start`). No primeiro login autenticado com a matrícula de administrador, o perfil `ADMIN` será criado automaticamente.
 
 ## Testes de Integração com Banco Descartável

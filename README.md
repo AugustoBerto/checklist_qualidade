@@ -48,6 +48,7 @@ em [Instalação e configuração](docs/INSTALACAO_E_CONFIGURACAO.md).
 - [Desenvolvimento, testes e operação](docs/DESENVOLVIMENTO_E_OPERACAO.md)
 - [Integração entre Gateway, dass_auth e aplicações](docs/INTEGRACAO_GATEWAY_DASS_AUTH.md)
 - [Banco de dados e migrations](migrations/README.md)
+- [Documentos permanentes e retenção de evidências](docs/DOCUMENTOS_E_EVIDENCIAS.md)
 
 ## Comandos principais
 
@@ -59,7 +60,7 @@ em [Instalação e configuração](docs/INSTALACAO_E_CONFIGURACAO.md).
 | `backend` | `npm run test:integration` | Testes com PostgreSQL descartável via Docker |
 | `backend` | `npm run test:all` | Testes unitários e de integração |
 | `backend` | `npm run db:status` | Estado das migrations |
+| `backend` | `npm run evidencias:cleanup` | Remove o conteúdo de evidências expiradas |
 | `frontend` | `npm run dev` | Servidor Vite de desenvolvimento |
 | `frontend` | `npm test` | Testes Vitest |
 | `frontend` | `npm run build` | Build de produção |
-

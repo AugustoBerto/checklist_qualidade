@@ -8,7 +8,8 @@
     "test:all": "npm run test:unit && npm run test:integration",
     "db:init": "node scripts/db.js init",
     "db:migrate": "node scripts/db.js migrate",
-    "db:status": "node scripts/db.js status"
+    "db:status": "node scripts/db.js status",
+    "evidencias:cleanup": "node scripts/cleanup-evidencias.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

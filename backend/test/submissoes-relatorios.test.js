@@ -85,7 +85,8 @@ test('filtro de marca usa nome da FK canônica e mantém texto somente como fall
 
   const sql = consultas[0].sql;
   assert.match(sql, /LEFT JOIN marcas ma ON ma\.id = m\.id_marca_fk/);
-  assert.match(sql, /COALESCE\(ma\.nome, m\.marca\) = \$1/);
+  assert.match(sql, /snapshot -> 'marca' ->> 'nome'/);
+  assert.match(sql, /ma\.nome, m\.marca\) = \$1/);
   assert.deepEqual(consultas[0].params, ['UMBRO']);
 });
 
@@ -104,10 +105,12 @@ test('histórico e relatório resolvem setor pela submissão', async () => {
   const sqlHistorico = consultas.find(({ sql }) => /ORDER BY s\.data_envio/.test(sql)).sql;
   const sqlRelatorio = consultas.find(({ sql }) => /s\.respostas/.test(sql)).sql;
   assert.match(sqlHistorico, /LEFT JOIN setores st_sub ON s\.id_setor = st_sub\.id/);
-  assert.match(sqlHistorico, /COALESCE\(st_sub\.nome, st_cp\.nome, st_user\.nome,/);
+  assert.match(sqlHistorico, /snapshot -> 'setor' ->> 'nome'/);
+  assert.match(sqlHistorico, /st_sub\.nome, st_cp\.nome, st_user\.nome,/);
   assert.doesNotMatch(sqlHistorico, /st_mod/);
   assert.match(sqlRelatorio, /LEFT JOIN setores st_sub ON s\.id_setor = st_sub\.id/);
-  assert.match(sqlRelatorio, /COALESCE\(st_sub\.nome, st_cp\.nome, st_user\.nome\) AS nome_setor/);
+  assert.match(sqlRelatorio, /snapshot -> 'setor' ->> 'nome'/);
+  assert.match(sqlRelatorio, /st_sub\.nome, st_cp\.nome, st_user\.nome\) AS nome_setor/);
 });
 
 test('rejeita ID de relatório não decimal ou não positivo antes do banco', async () => {
@@ -176,4 +179,97 @@ test('detalhes e gráfico aceitam categorias com nomes reservados', async () => 
   assert.equal(detalhesRes.body.dados.categorias.__proto__[0].pergunta, 'Pergunta');
   assert.equal(relatorioRes.statusCode, 200);
   assert.deepEqual(relatorioRes.body.dadosGrafico[1], ['Conforme', 1, '#67C23A']);
+});
+
+test('detalhe usa snapshot v2 e retorna somente metadados das evidências', async () => {
+  const submissao = {
+    id: 7,
+    data_envio: '2026-08-27T00:00:00Z',
+    inicio_checklist: '2026-08-27T00:00:00Z',
+    assinatura: null,
+    respostas: [{ id_pergunta: 1, resposta: 'Não Conforme', observacao: 'Falha' }],
+    snapshot: {
+      schema: 2,
+      modelo: { id: 2, nome: 'Modelo congelado', marca: 'FILA', versao: 4 },
+      setor: { id: 3, nome: 'Setor congelado' },
+      celula: { id: 4, nome: 'Célula congelada' },
+      auditor: { id: 5, nome: 'Auditor congelado', matricula: 'A-5' },
+      unidade: { id: 6, nome: 'Unidade congelada' },
+      perguntas: [{ id: 1, pergunta: 'Pergunta congelada', categoria: 'Categoria' }],
+      evidencias: { total: 1 },
+    },
+    id_modelo: 2,
+    nome_usuario: 'Nome vivo alterado',
+    nome_modelo: 'Modelo vivo alterado',
+    nome_celula: 'Célula viva alterada',
+    nome_setor: 'Setor vivo alterado',
+  };
+  db.query = async (sql) => {
+    if (/FROM formulario_evidencias/.test(sql)) return { rows: [{
+      id_evidencia: 11, id_pergunta: 1, mime: 'image/jpeg', tamanho: 1234,
+      criada_em: '2026-08-27T00:00:00Z', expira_em: '2027-02-27T00:00:00Z',
+      removida_em: null, disponivel: true,
+    }] };
+    if (/FROM formulario_submissoes s/.test(sql)) return { rows: [submissao] };
+    throw new Error(`consulta inesperada: ${sql}`);
+  };
+  const res = resposta();
+
+  await submissoes.buscarDetalhesSubmissao({ params: { id: '7' } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.dados.nomeModelo, 'Modelo congelado');
+  assert.equal(res.body.dados.nomeUsuario, 'Auditor congelado');
+  assert.equal(res.body.dados.nomeSetor, 'Setor congelado');
+  assert.equal(res.body.dados.nomeCelula, 'Célula congelada');
+  assert.equal(res.body.dados.unidade, 'Unidade congelada');
+  assert.equal(res.body.dados.evidencias.total, 1);
+  assert.deepEqual(res.body.dados.evidencias.itens[0], {
+    id: 11, idPergunta: 1, mime: 'image/jpeg', tamanho: 1234,
+    criadaEm: '2026-08-27T00:00:00Z', expiraEm: '2027-02-27T00:00:00Z',
+    removidaEm: null, disponivel: true, legado: false, pergunta: 'Pergunta congelada',
+  });
+  assert.equal(Object.hasOwn(res.body.dados.categorias.Categoria[0], 'foto'), false);
+  assert.deepEqual(res.body.dados.categorias.Categoria[0].evidencia, { id: 11, disponivel: true });
+});
+
+test('conteúdo de evidência respeita vínculo com a submissão e expiração', async () => {
+  const conteudo = Buffer.from('imagem');
+  const criarRespostaBinaria = () => ({
+    statusCode: 200,
+    body: null,
+    headers: {},
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+    set(headers) { this.headers = headers; return this; },
+    send(body) { this.body = body; return this; },
+  });
+
+  db.query = async (sql, params) => {
+    assert.match(sql, /WHERE id = \$1 AND id_submissao = \$2/);
+    assert.deepEqual(params, [11, 7]);
+    return { rows: [{ mime: 'image/jpeg', tamanho: conteudo.length, conteudo, expira_em: '2999-01-01T00:00:00Z', removida_em: null, disponivel: true }] };
+  };
+  const disponivel = criarRespostaBinaria();
+  await submissoes.baixarEvidenciaSubmissao({ params: { id: '7', evidenciaId: '11' } }, disponivel);
+  assert.equal(disponivel.statusCode, 200);
+  assert.equal(disponivel.headers['Content-Type'], 'image/jpeg');
+  assert.deepEqual(disponivel.body, conteudo);
+
+  db.query = async () => ({ rows: [{ mime: 'image/jpeg', tamanho: conteudo.length, conteudo, expira_em: '2020-01-01T00:00:00Z', removida_em: null, disponivel: false }] });
+  const expirada = criarRespostaBinaria();
+  await submissoes.baixarEvidenciaSubmissao({ params: { id: '7', evidenciaId: '11' } }, expirada);
+  assert.equal(expirada.statusCode, 410);
+  assert.equal(expirada.body.codigo, 'EVIDENCIA_EXPIRADA');
+});
+
+test('rejeita ID numérico de evidência fora do limite antes do banco', async () => {
+  let consultas = 0;
+  db.query = async () => { consultas += 1; return { rows: [] }; };
+  const res = resposta();
+
+  await submissoes.baixarEvidenciaSubmissao({ params: { id: '7', evidenciaId: '2147483648' } }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(consultas, 0);
 });
