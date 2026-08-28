@@ -52,7 +52,7 @@
         :is-loading="carregando"
         loading-message="Carregando perfis de usuários..."
         empty-title="Nenhum perfil encontrado"
-        :empty-message="temFiltrosAtivos ? 'Nenhum perfil de usuário corresponde aos filtros selecionados.' : 'Os colaboradores aparecerão aqui após o primeiro login.'"
+        :empty-message="temFiltrosAtivos ? 'Nenhum perfil de usuário corresponde aos filtros selecionados.' : 'Cadastre o primeiro colaborador para atribuir permissões.'"
         empty-icon="mdi mdi-account-search-outline"
       >
         <template #header>
@@ -106,7 +106,7 @@
     <!-- Formulário -->
     <div v-else class="card form-card">
       <div class="form-header-row">
-        <h3>Editar Perfil Operacional</h3>
+        <h3>{{ form.id ? 'Editar Perfil Operacional' : 'Novo Perfil Operacional' }}</h3>
       </div>
 
       <form class="form-grid" @submit.prevent="salvar">
@@ -327,6 +327,7 @@ const dependencias = async () => {
   unidades.value = dados(u); setores.value = dados(s); celulas.value = dados(c); turnos.value = dados(t)
 }
 
+const novo = () => { Object.assign(form, vazio()); erro.value = ''; sucesso.value = ''; modo.value = 'formulario' }
 const editar = (perfil) => {
   Object.assign(form, vazio(), perfil)
   form.ativo = perfil.ativo !== 0 && perfil.ativo !== false && perfil.ativo !== '0' && perfil.ativo !== 'false'
@@ -356,7 +357,7 @@ const salvar = async () => {
     payload.id_setor_fk = payload.id_setor_fk ? Number(payload.id_setor_fk) : null
     payload.id_celula_fk = payload.id_celula_fk ? Number(payload.id_celula_fk) : null
     payload.id_turno_fk = payload.id_turno_fk ? Number(payload.id_turno_fk) : null
-    await api.put(`/perfis/${form.id}`, payload)
+    if (form.id) await api.put(`/perfis/${form.id}`, payload); else await api.post('/perfis', payload)
     sucesso.value = 'Perfil salvo com sucesso.'; modo.value = 'lista'; await carregar()
   } catch (e) {
     erro.value = e.response?.data?.mensagem || 'Não foi possível salvar o perfil.'
@@ -369,6 +370,7 @@ onMounted(async () => { await Promise.all([carregar(), dependencias()]) })
 
 defineExpose({
   modo,
+  novo,
   voltarParaLista: () => { modo.value = 'lista'; }
 })
 </script>

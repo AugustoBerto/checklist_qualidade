@@ -20,12 +20,12 @@ Preencha `backend/.env` sem versionar segredos:
 | Variável | Obrigatória | Uso |
 | --- | --- | --- |
 | `DATABASE_URL` | **Sim** | URL PostgreSQL completa, no formato `postgresql://usuario:senha@host:5432/banco`. |
-| `DB_SCHEMA` | Não | Schema da aplicação; padrão `checklist_app`. |
 | `DB_POOL_MAX` | Não | Máximo de conexões do pool. |
 | `HOST` | Não | Interface da API; padrão `localhost`. |
 | `PORT` | Não | Porta da API; exemplo `7733`. |
 | `FRONTEND_ORIGIN` | Não | Origem aceita pelo CORS; padrão `http://localhost:5173`. |
 | `JWT_SECRET` | **Sim** | Mesmo segredo usado para assinar tokens no `dass_auth`. |
+| `DASS_AUTH_BASE_URL` | Não | URL interna do `dass_auth`; padrão `http://localhost:2123`. |
 | `CHECKLIST_INITIAL_ADMIN_MATRICULA` | Para bootstrap | Única matrícula autorizada a criar o primeiro `ADMIN`. |
 
 Caracteres reservados em usuário ou senha de `DATABASE_URL` (como `@`, `:`,
@@ -64,9 +64,7 @@ Variáveis disponíveis:
 | Variável | Padrão/finalidade |
 | --- | --- |
 | `VITE_APP_BASE_URL` | Base pública do SPA; exemplo `/checklist/`. |
-| `VITE_API_URL` | Base absoluta da API pelo Gateway; exemplo `http://localhost:2399/api/checklist-app/api`. |
-| `VITE_AUTH_API_URL` | Base absoluta das rotas de autenticação; exemplo `http://localhost:2399/api`. |
-| `VITE_GATEWAY_URL` | Destino do proxy Vite de desenvolvimento; exemplo `http://localhost:2399`. |
+| `VITE_GATEWAY_URL` | Origem do Gateway usada pelos clientes HTTP e pelo proxy Vite; exemplo `http://localhost:2399`. |
 | `VITE_API_TIMEOUT_MS` | Timeout dos clientes HTTP; padrão 15000 ms. |
 
 O Vite escuta em `0.0.0.0:5173` e usa a base configurada. O proxy de
@@ -78,8 +76,6 @@ Na VPS, defina o host acessível pelo navegador antes de gerar o bundle:
 
 ```env
 VITE_APP_BASE_URL=/checklist/
-VITE_AUTH_API_URL=http://<HOST_DA_VPS>:2399/api
-VITE_API_URL=http://<HOST_DA_VPS>:2399/api/checklist-app/api
 VITE_GATEWAY_URL=http://<HOST_DA_VPS>:2399
 ```
 
@@ -93,12 +89,12 @@ o `.env` depois do build não altera o frontend já publicado.
 3. Inicie banco, `dass_auth`, Gateway, backend e frontend.
 4. Entre com a conta corporativa dessa matrícula.
 5. O primeiro perfil local `ADMIN` será criado se ainda não existir nenhum perfil configurado.
-6. Nos demais logins, a identidade é sincronizada do JWT como `PENDENTE` e o acesso é recusado.
-7. Use Configurações para atribuir papel, vínculos operacionais, ativar e liberar os perfis pendentes.
+6. Use Configurações para cadastrar previamente os demais colaboradores por matrícula.
+7. Somente colaboradores com cadastro ativo conseguem entrar no Checklist.
 
-Nome, função e matrícula são sincronizados a partir do JWT validado em cada
-acesso. A API não consulta diretamente o `dass_auth`, e senha e tokens não são
-copiados para o banco local.
+No cadastro manual, a API consulta
+`DASS_AUTH_BASE_URL/colaborador/:matricula` para obter nome e função. Senha e
+tokens não são copiados para o banco local.
 
 ## Build e processo da API
 

@@ -15,35 +15,42 @@ const extrairCookie = (cabecalho, nome) => {
     return item ? decodeURIComponent(item.slice(prefixo.length)) : null;
 };
 
-const sincronizarPerfil = async (usuarioDecodificado) => {
+const buscarOuCriarPerfilBootstrap = async (usuarioDecodificado) => {
     const matricula = String(usuarioDecodificado.matricula);
-    const nome = usuarioDecodificado.nome || usuarioDecodificado.usuario || matricula;
-    const funcao = usuarioDecodificado.funcao || null;
-    const codBar = usuarioDecodificado.codbarras || null;
-    const sincronizado = await db.query(`
-        INSERT INTO usuarios (nome, "codBar", ativo, funcao, matricula, papel)
-        VALUES ($1, $2, 0, $3, $4, 'PENDENTE')
+    const perfilExistente = await db.query(`
+        SELECT ${camposPerfil}
+          FROM usuarios
+         WHERE matricula = $1 AND ativo = 1 AND papel <> 'PENDENTE'
+         LIMIT 1
+    `, [matricula]);
+    if (perfilExistente.rows.length > 0) return perfilExistente.rows[0];
+
+    if (!INITIAL_ADMIN_MATRICULA || matricula !== INITIAL_ADMIN_MATRICULA) return null;
+
+    const { rows } = await db.query(`
+        INSERT INTO usuarios (nome, "codBar", ativo, funcao, nivelusuario, matricula, papel)
+        SELECT $1, $2, 1, $3, -1, $4, 'ADMIN'
+         WHERE NOT EXISTS (SELECT 1 FROM usuarios WHERE papel <> 'PENDENTE')
         ON CONFLICT (matricula) DO UPDATE SET
             nome = EXCLUDED.nome,
             "codBar" = COALESCE(EXCLUDED."codBar", usuarios."codBar"),
-            funcao = EXCLUDED.funcao
+            funcao = EXCLUDED.funcao,
+            papel = 'ADMIN',
+            ativo = 1
+        WHERE usuarios.papel = 'PENDENTE'
+          AND NOT EXISTS (SELECT 1 FROM usuarios configurados WHERE configurados.papel <> 'PENDENTE')
         RETURNING ${camposPerfil}
-    `, [nome, codBar, funcao, matricula]);
-    let perfil = sincronizado.rows[0];
+    `, [usuarioDecodificado.nome || usuarioDecodificado.usuario || matricula,
+        usuarioDecodificado.codbarras || null, usuarioDecodificado.funcao || 'ADMIN', matricula]);
+    if (rows.length > 0) return rows[0];
 
-    if (INITIAL_ADMIN_MATRICULA && matricula === INITIAL_ADMIN_MATRICULA && perfil.papel === 'PENDENTE') {
-        const bootstrap = await db.query(`
-            UPDATE usuarios
-               SET papel = 'ADMIN', ativo = 1
-             WHERE id = $1
-               AND papel = 'PENDENTE'
-               AND NOT EXISTS (SELECT 1 FROM usuarios WHERE papel <> 'PENDENTE')
-            RETURNING ${camposPerfil}
-        `, [perfil.id]);
-        perfil = bootstrap.rows[0] || perfil;
-    }
-
-    return perfil;
+    const perfilCriadoPorOutraRequisicao = await db.query(`
+        SELECT ${camposPerfil}
+          FROM usuarios
+         WHERE matricula = $1 AND ativo = 1 AND papel = 'ADMIN'
+         LIMIT 1
+    `, [matricula]);
+    return perfilCriadoPorOutraRequisicao.rows[0] || null;
 };
 
 const autorizar = (...permissoesPermitidas) => {
@@ -72,12 +79,12 @@ const autorizar = (...permissoesPermitidas) => {
                 });
             }
 
-            const perfil = await sincronizarPerfil(usuarioDecodificado);
-            if (!perfil || perfil.papel === 'PENDENTE' || Number(perfil.ativo) !== 1) {
+            const perfil = await buscarOuCriarPerfilBootstrap(usuarioDecodificado);
+            if (!perfil) {
                 return res.status(403).json({
                     sucesso: false,
-                    codigo: 'PERFIL_CHECKLIST_PENDENTE',
-                    mensagem: 'Seu perfil foi identificado e aguarda liberação por um administrador do Checklist.',
+                    codigo: 'PERFIL_CHECKLIST_NAO_LIBERADO',
+                    mensagem: 'Seu usuário corporativo não possui cadastro ativo no Checklist. Solicite acesso a um administrador.',
                 });
             }
             const eAdmin = perfil.papel === 'ADMIN';
@@ -108,4 +115,4 @@ const autorizar = (...permissoesPermitidas) => {
 };
 
 module.exports = autorizar;
-module.exports.sincronizarPerfil = sincronizarPerfil;
+module.exports.buscarOuCriarPerfilBootstrap = buscarOuCriarPerfilBootstrap;

@@ -28,8 +28,6 @@ Use URLs absolutas do Gateway no `.env` utilizado pelo build da VPS:
 
 ```env
 VITE_APP_BASE_URL=/checklist/
-VITE_AUTH_API_URL=http://<HOST_DA_VPS>:2399/api
-VITE_API_URL=http://<HOST_DA_VPS>:2399/api/checklist-app/api
 VITE_GATEWAY_URL=http://<HOST_DA_VPS>:2399
 ```
 
@@ -80,11 +78,11 @@ Adote uma única URL de conexão e não combine `DATABASE_URL` com variáveis
 
 ```env
 DATABASE_URL=postgresql://<USUARIO>:<SENHA>@<HOST>:5432/<BANCO>
-DB_SCHEMA=checklist_app
 HOST=0.0.0.0
 PORT=7733
 FRONTEND_ORIGIN=http://<HOST_DA_VPS>
 JWT_SECRET=<MESMA_CHAVE_DO_DASS_AUTH>
+DASS_AUTH_BASE_URL=http://127.0.0.1:2123
 CHECKLIST_INITIAL_ADMIN_MATRICULA=<MATRICULA>
 ```
 
@@ -127,17 +125,19 @@ O navegador usa o Gateway para autenticação e para a API da aplicação. O
 backend valida o JWT com a chave compartilhada, mas não recebe nem armazena a
 senha corporativa.
 
-O padrão de usuários é provisionamento no primeiro acesso com menor privilégio:
+Antes de implementar usuários, classifique a aplicação. O Checklist usa o
+modelo fechado com pré-cadastro:
 
 1. o `dass_auth` autentica e emite o JWT;
 2. a aplicação valida o token;
-3. identidade corporativa é criada/atualizada localmente;
-4. o novo perfil fica `PENDENTE` e inativo;
-5. um administrador atribui papel e escopo operacional e ativa o perfil;
-6. somente então as rotas de negócio são liberadas.
+3. a matrícula precisa existir previamente na tabela local e estar ativa;
+4. um administrador cria o perfil por matrícula, papel e escopo operacional;
+5. o backend consulta o serviço central somente para validar e obter a identidade;
+6. login sem cadastro retorna `403` sem criar registro local.
 
-Isso evita consulta direta ao banco ou API interna de autenticação e impede
-que o simples vínculo corporativo conceda permissão na aplicação.
+Sistemas menos restritos podem usar provisionamento no primeiro acesso com
+perfil pendente, desde que essa decisão seja explícita e o primeiro login não
+conceda permissões de negócio.
 
 ## Validação ponta a ponta
 
@@ -162,7 +162,7 @@ O health deve retornar `200` e `database: up`. O login vazio deve retornar
 | Gateway retorna `502` | Listener da API e URL do serviço registrada no Gateway |
 | Health retorna `503` | `DATABASE_URL`, rede, permissões, banco e schema |
 | PM2 reinicia continuamente | `pm2 logs`, `.env`, migration pendente, porta ocupada |
-| Login funciona, aplicação retorna `403` | Perfil pendente/inativo ou papel insuficiente |
+| Login funciona, aplicação retorna `403` | Sem pré-cadastro, perfil inativo ou papel insuficiente |
 
 Antes de declarar o deploy concluído, teste a raiz da SPA, uma rota interna com
 recarregamento, login, health pelo Gateway e uma operação autenticada da API.

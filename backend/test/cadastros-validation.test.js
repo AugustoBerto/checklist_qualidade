@@ -543,6 +543,39 @@ test('criação e atualização de célula validam e escrevem no mesmo cliente t
   }
 });
 
+test('cadastro manual de perfil valida a matrícula no dass_auth e persiste os vínculos', async () => {
+  const originalFetch = global.fetch;
+  const consultas = [];
+  let urlConsultada;
+  global.fetch = async (url) => {
+    urlConsultada = url;
+    return { status: 200, ok: true, async json() { return { data: { nome: 'Pessoa', funcao: 'Inspetor' } }; } };
+  };
+  db.connect = async () => ({
+    async query(sql, params = []) {
+      consultas.push({ sql, params });
+      if (/INSERT INTO usuarios/.test(sql)) return { rows: [{ id: 4, matricula: '123', papel: 'INSPETOR', ativo: 1 }] };
+      return { rows: [] };
+    },
+    release() {},
+  });
+
+  try {
+    const res = resposta();
+    await perfis.criar({ body: {
+      matricula: '123', papel: 'INSPETOR', id_unidade_fk: null,
+      id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
+    } }, res);
+
+    assert.equal(res.statusCode, 201);
+    assert.match(urlConsultada, /\/colaborador\/123$/);
+    const insert = consultas.find(({ sql }) => /INSERT INTO usuarios/.test(sql));
+    assert.deepEqual(insert.params.slice(-4), [null, null, null, null]);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('atualização de perfil valida e escreve no mesmo cliente transacional', async () => {
   const eventos = [];
   let consultasNoPool = 0;

@@ -75,15 +75,13 @@ No Checklist:
 2. O cookie `token` chega ao Checklist através do Gateway.
 3. O middleware do Checklist valida a assinatura do JWT com o mesmo `JWT_SECRET` do dass_auth.
 4. A aplicação lê a `matricula` do token e procura o perfil local em `checklist_app.usuarios`.
-5. A identidade do JWT é criada ou atualizada no banco local.
-6. Um novo colaborador recebe `papel=PENDENTE` e `ativo=0`.
-7. Enquanto estiver pendente ou inativo, a aplicação retorna `403 PERFIL_CHECKLIST_PENDENTE`; o frontend informa o bloqueio e faz logout central.
-8. Um administrador atribui `ADMIN`, `LIDER` ou `INSPETOR`, configura os vínculos operacionais e ativa o perfil.
-9. Quando liberado, o Checklist responde com os dados permitidos e aplica as regras da rota.
+5. Se não existir perfil ativo, a aplicação retorna `403 PERFIL_CHECKLIST_NAO_LIBERADO` sem criar registro local.
+6. Um administrador cadastra previamente a matrícula, atribui `ADMIN`, `LIDER` ou `INSPETOR` e configura os vínculos operacionais.
+7. Quando cadastrado e ativo, o Checklist responde com os dados permitidos e aplica as regras da rota.
 
-O primeiro perfil `ADMIN` é uma exceção controlada: enquanto todos os perfis
-existentes estiverem pendentes, apenas a matrícula definida em
-`CHECKLIST_INITIAL_ADMIN_MATRICULA` pode assumir esse papel no primeiro acesso.
+O primeiro perfil `ADMIN` é uma exceção controlada: enquanto não houver perfil
+configurado, apenas a matrícula definida em `CHECKLIST_INITIAL_ADMIN_MATRICULA`
+pode assumir esse papel no primeiro acesso.
 
 ## Quem pede e quem responde
 
@@ -92,7 +90,7 @@ existentes estiverem pendentes, apenas a matrícula definida em
 | Login por senha | Frontend | Gateway → dass_auth → `autenticacao.usuarios` | dass_auth, com cookies de sessão |
 | Restaurar sessão | Frontend | Gateway → dass_auth | dass_auth, validando/renovando tokens |
 | Ver perfil do Checklist | Frontend | Gateway → Checklist → `checklist_app.usuarios` | Checklist |
-| Sincronizar perfil local | Colaborador autenticado | Gateway → Checklist → banco local, usando os dados do JWT | Checklist |
+| Cadastrar perfil local | ADMIN do Checklist | Checklist → dass_auth `/colaborador/:matricula` → banco local | Checklist |
 | Salvar checklist | Frontend | Gateway → Checklist | Checklist, depois de validar cookie e perfil |
 | Logout | Frontend | Gateway → dass_auth | dass_auth, invalidando e limpando sessão |
 

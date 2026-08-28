@@ -49,7 +49,7 @@ Para uma migration nova:
 
 1. crie em `migrations/` um arquivo com versão crescente, por exemplo
    `005_descricao.sql`;
-2. escreva SQL dirigido ao schema `checklist_app` (o runner adapta `DB_SCHEMA`);
+2. escreva SQL dirigido ao schema fixo `checklist_app`;
 3. não repita uma versão e não modifique arquivos já aplicados;
 4. valide com o banco descartável;
 5. em ambientes existentes, execute `npm run db:migrate` e confira
@@ -90,20 +90,19 @@ evidências](DOCUMENTOS_E_EVIDENCIAS.md) para o ciclo de vida completo.
 - confirme se o JWT possui `matricula`;
 - confirme perfil local ativo e papel válido;
 - no primeiro acesso, confira `CHECKLIST_INITIAL_ADMIN_MATRICULA`;
-- para outros usuários, confirme se o primeiro login criou um perfil `PENDENTE`;
-- um `ADMIN` deve atribuir papel e vínculos e ativar esse perfil pela configuração.
+- para outros usuários, confirme se um `ADMIN` cadastrou previamente a matrícula e manteve o perfil ativo.
 
 ### Frontend chama o destino errado
 
-- confira `VITE_APP_BASE_URL`, `VITE_AUTH_API_URL`, `VITE_API_URL` e `VITE_GATEWAY_URL`;
+- confira `VITE_APP_BASE_URL` e `VITE_GATEWAY_URL`;
 - reinicie o Vite após mudar variáveis `VITE_*`;
 - confirme o prefixo `/api/checklist-app` no Gateway.
 
-### Perfil não aparece para liberação
+### Cadastro de perfil falha
 
-O colaborador precisa concluir um login central para que sua identidade seja
-sincronizada como `PENDENTE`. Confira o JWT, especialmente `matricula`, e os logs
-da API. Não existe consulta direta do Checklist ao serviço de autenticação.
+O cadastro administrativo consulta `DASS_AUTH_BASE_URL/colaborador/:matricula`
+com timeout de cinco segundos. Verifique a URL interna, a conectividade e a
+existência da matrícula no serviço central.
 
 ## Observabilidade e segurança operacional
 

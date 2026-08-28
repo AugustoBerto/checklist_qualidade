@@ -14,8 +14,8 @@ const {
 } = require('../scripts/db');
 
 test('configuração do banco exige DATABASE_URL', () => {
-  assert.throws(() => createPool({ DB_SCHEMA: 'checklist_app' }), /DATABASE_URL é obrigatória/);
-  const pool = createPool({ DATABASE_URL: 'postgresql://user:pass@localhost:5432/database', DB_SCHEMA: 'checklist_app' });
+  assert.throws(() => createPool({}), /DATABASE_URL é obrigatória/);
+  const pool = createPool({ DATABASE_URL: 'postgresql://user:pass@localhost:5432/database' });
   assert.equal(pool.options.connectionString, 'postgresql://user:pass@localhost:5432/database');
   return pool.end();
 });
@@ -72,25 +72,24 @@ describe('fundação DB', () => {
     const database = process.env.DB_TEST_DATABASE || 'checklist_test';
     const env = {
       DATABASE_URL: `postgresql://${encodeURIComponent(process.env.DB_TEST_USER || 'checklist_test')}:${encodeURIComponent(process.env.DB_TEST_PASSWORD || 'checklist_test_only')}@${process.env.DB_TEST_HOST || '127.0.0.1'}:${process.env.DB_TEST_PORT || '55432'}/${encodeURIComponent(database)}`,
-      DB_SCHEMA: process.env.DB_TEST_SCHEMA || 'checklist_app'
     };
-    const migrationEnv = { ...env, DB_SCHEMA: `${env.DB_TEST_SCHEMA || 'checklist_app'}_marca` };
-    const pool = createPool(migrationEnv);
+    const migrationSchema = 'checklist_app_marca';
+    const pool = createPool(env, migrationSchema);
     try {
-      await pool.query(`DROP SCHEMA IF EXISTS ${migrationEnv.DB_SCHEMA} CASCADE`);
+      await pool.query(`DROP SCHEMA IF EXISTS ${migrationSchema} CASCADE`);
 
-      const first = await initDatabase({ pool, env: migrationEnv });
+      const first = await initDatabase({ pool, env, schema: migrationSchema });
       assert.deepEqual(first.applied, ['001_initial_schema.sql']);
-      await assert.rejects(initDatabase({ pool, env: migrationEnv }), /db:init recusado/);
+      await assert.rejects(initDatabase({ pool, env, schema: migrationSchema }), /db:init recusado/);
 
       const marcas = await pool.query(`
-        INSERT INTO ${migrationEnv.DB_SCHEMA}.marcas (nome)
+        INSERT INTO ${migrationSchema}.marcas (nome)
         VALUES ('MARCA ÚNICA'), ('DUPLICADA'), ('DUPLICADA')
         RETURNING id, nome
       `);
       const [unica, duplicadaA] = marcas.rows;
       await pool.query(`
-        INSERT INTO ${migrationEnv.DB_SCHEMA}.modelo (nome, marca, id_marca_fk, id_setor_fk)
+        INSERT INTO ${migrationSchema}.modelo (nome, marca, id_marca_fk, id_setor_fk)
         VALUES
           ('NUMÉRICO', $1, NULL, NULL),
           ('NOME', ' marca única ', NULL, NULL),
@@ -99,11 +98,11 @@ describe('fundação DB', () => {
           ('PRESERVADO', 'LEGADO', $2, NULL)
       `, [String(unica.id), duplicadaA.id]);
 
-      const migrated = await migrateDatabase({ pool, env: migrationEnv });
+      const migrated = await migrateDatabase({ pool, env, schema: migrationSchema });
       assert.deepEqual(migrated.applied, ['002_modelo_marca_fk.sql', '003_categorias_padrao.sql', '004_marca_logo.sql', '005_modelo_versao_assinatura_mime.sql', '006_formulario_evidencias.sql', '007_remover_assinatura_path.sql', '008_perfis_pendentes.sql']);
       const modelos = await pool.query(`
         SELECT nome, marca, id_marca_fk
-        FROM ${migrationEnv.DB_SCHEMA}.modelo
+        FROM ${migrationSchema}.modelo
         ORDER BY nome
       `);
       const porNome = new Map(modelos.rows.map((modelo) => [modelo.nome, modelo]));
@@ -114,11 +113,11 @@ describe('fundação DB', () => {
       assert.equal(porNome.get('AMBÍGUO').id_marca_fk, null);
       assert.equal(porNome.get('PRESERVADO').id_marca_fk, duplicadaA.id);
 
-      const status = await statusDatabase({ pool, env: migrationEnv });
+      const status = await statusDatabase({ pool, env, schema: migrationSchema });
       assert.equal(status.initialized, true);
       assert.deepEqual(status.migrations.map((item) => item.applied), [true, true, true, true, true, true, true, true]);
     } finally {
-      await pool.query(`DROP SCHEMA IF EXISTS ${migrationEnv.DB_SCHEMA} CASCADE`);
+      await pool.query(`DROP SCHEMA IF EXISTS ${migrationSchema} CASCADE`);
       await pool.end();
     }
   });

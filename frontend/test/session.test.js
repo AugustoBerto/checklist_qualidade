@@ -25,7 +25,11 @@ vi.stubGlobal('localStorage', {
 vi.mock('../src/services/api', () => ({ default: api }));
 vi.mock('../src/services/auth', () => ({ authApi }));
 
-const { restaurarSessao } = await import('../src/services/session');
+const {
+  autenticarComSenha,
+  consumirFalhaRestauracao,
+  restaurarSessao,
+} = await import('../src/services/session');
 
 describe('restaurarSessao', () => {
   beforeEach(() => {
@@ -47,5 +51,37 @@ describe('restaurarSessao', () => {
     resolverAuth();
     await expect(primeira).resolves.toEqual({ nome: 'Pessoa', papel: 'ADMIN' });
     expect(api.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('informa falta de autorização local sem encerrar a sessão Unix', async () => {
+    authApi.post.mockResolvedValue({});
+    api.get.mockRejectedValue({
+      response: {
+        status: 403,
+        data: { mensagem: 'Acesso ao Checklist não liberado.' },
+      },
+    });
+
+    await expect(restaurarSessao()).resolves.toBeNull();
+
+    expect(consumirFalhaRestauracao()).toBe('Acesso ao Checklist não liberado.');
+    expect(consumirFalhaRestauracao()).toBeNull();
+    expect(authApi.post).toHaveBeenCalledOnce();
+    expect(authApi.post).toHaveBeenCalledWith('/auth/me');
+  });
+
+  it('não encerra a sessão Unix quando o login é válido mas falta autorização local', async () => {
+    authApi.post.mockResolvedValue({});
+    api.get.mockRejectedValue({ response: { status: 403 } });
+
+    await expect(autenticarComSenha('pessoa', 'senha')).rejects.toMatchObject({
+      response: { status: 403 },
+    });
+
+    expect(authApi.post).toHaveBeenCalledOnce();
+    expect(authApi.post).toHaveBeenCalledWith('/auth/login', {
+      usuario: 'pessoa',
+      senha: 'senha',
+    });
   });
 });

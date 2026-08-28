@@ -2,6 +2,7 @@ const db = require('../db');
 const { withTransaction } = require('../database/transaction');
 
 const PAPEIS = new Set(['ADMIN', 'LIDER', 'INSPETOR']);
+const DASS_AUTH_BASE_URL = process.env.DASS_AUTH_BASE_URL || 'http://localhost:2123';
 const MAX_PG_INT = 2147483647;
 const ADMIN_MUTATION_LOCK_KEY = 1837465921;
 
@@ -9,6 +10,30 @@ const camposPerfil = `
     id, nome, matricula, papel, ativo, funcao,
     id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk
 `;
+
+const validarPerfil = (dados) => {
+    if (!dados || !dados.matricula || !PAPEIS.has(dados.papel)) {
+        return 'Matrícula e papel válido são obrigatórios.';
+    }
+    return null;
+};
+
+const buscarColaboradorCentral = async (matricula) => {
+    let resposta;
+    try {
+        const baseUrl = DASS_AUTH_BASE_URL.replace(/\/$/, '');
+        resposta = await fetch(`${baseUrl}/colaborador/${encodeURIComponent(matricula)}`, {
+            signal: AbortSignal.timeout(5000),
+        });
+    } catch (error) {
+        if (error.name === 'TimeoutError' || error.name === 'AbortError') throw new Error('VALIDACAO_CENTRAL_TIMEOUT');
+        throw new Error('VALIDACAO_CENTRAL_INDISPONIVEL');
+    }
+    if (resposta.status === 404) return null;
+    if (!resposta.ok) throw new Error('VALIDACAO_CENTRAL_INDISPONIVEL');
+    const corpo = await resposta.json();
+    return corpo.data || null;
+};
 
 const idValido = (id) => {
     const numero = Number(id);
@@ -53,6 +78,38 @@ exports.listar = async (_req, res) => {
     } catch (error) {
         console.error('Erro ao listar perfis:', error);
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao listar perfis.' });
+    }
+};
+
+exports.criar = async (req, res) => {
+    const erro = validarPerfil(req.body);
+    if (erro) return res.status(400).json({ sucesso: false, mensagem: erro });
+
+    const { matricula, papel, id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk } = req.body;
+    try {
+        const colaborador = await buscarColaboradorCentral(matricula);
+        if (!colaborador) return res.status(400).json({ sucesso: false, mensagem: 'Matrícula não encontrada no dass_auth.' });
+        const { rows } = await withTransaction(db, async (client) => {
+            await validarReferencias(client, req.body);
+            if (papel === 'ADMIN') await bloquearMutacaoAdministrativa(client);
+            return client.query(`
+                INSERT INTO usuarios (
+                    nome, matricula, papel, ativo, funcao,
+                    id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk
+                ) VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8)
+                RETURNING ${camposPerfil}
+            `, [colaborador.nome || null, matricula, papel, colaborador.funcao || null,
+                normalizarIdFk(id_unidade_fk), normalizarIdFk(id_setor_fk),
+                normalizarIdFk(id_celula_fk), normalizarIdFk(id_turno_fk)]);
+        });
+        return res.status(201).json({ sucesso: true, perfil: rows[0] });
+    } catch (error) {
+        console.error('Erro ao criar perfil:', error);
+        if (error.code === '23505') return res.status(409).json({ sucesso: false, mensagem: 'Já existe um perfil para esta matrícula.' });
+        if (error.message === 'FK_INVALIDA') return res.status(400).json({ sucesso: false, mensagem: 'Uma referência informada não existe ou está inativa.' });
+        if (error.message === 'VALIDACAO_CENTRAL_TIMEOUT') return res.status(504).json({ sucesso: false, mensagem: 'A validação central excedeu o tempo limite.' });
+        if (error.message === 'VALIDACAO_CENTRAL_INDISPONIVEL') return res.status(503).json({ sucesso: false, mensagem: 'A validação central está indisponível.' });
+        return res.status(500).json({ sucesso: false, mensagem: 'Não foi possível criar o perfil.' });
     }
 };
 

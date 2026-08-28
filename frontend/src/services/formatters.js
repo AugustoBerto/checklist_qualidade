@@ -2,6 +2,8 @@
  * Utilitários compartilhados de formatação de datas, horas e textos.
  */
 
+import { CHECKLIST_API_URL } from './endpoints'
+
 export const formatarDataHora = (dataString) => {
   if (!dataString) return '--/--/---- --:--';
   const data = new Date(dataString);
@@ -27,7 +29,7 @@ export const formatarHora = (horaString) => {
 
 export const urlLogoMarca = (
   marca,
-  apiBase = import.meta.env.VITE_API_URL || '/api/checklist-app/api',
+  apiBase = CHECKLIST_API_URL,
   baseUrl = import.meta.env.BASE_URL || '/'
 ) => {
   if (marca?.tem_logo) {

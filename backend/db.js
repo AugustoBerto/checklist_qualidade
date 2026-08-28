@@ -2,9 +2,9 @@ require('dotenv').config();
 const { Pool } = require('pg');
 
 const IDENTIFIER = /^[a-z_][a-z0-9_]*$/;
+const DB_SCHEMA = 'checklist_app';
 
-const createDbConfig = (env = process.env) => {
-  const schema = env.DB_SCHEMA || 'checklist_app';
+const createDbConfig = (env = process.env, schema = DB_SCHEMA) => {
   if (!IDENTIFIER.test(schema)) throw new Error('DB_SCHEMA deve ser um identificador PostgreSQL válido');
   if (!env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL é obrigatória para conectar ao PostgreSQL');
 
@@ -15,7 +15,7 @@ const createDbConfig = (env = process.env) => {
   };
 };
 
-const createPool = (env = process.env) => new Pool(createDbConfig(env));
+const createPool = (env = process.env, schema = DB_SCHEMA) => new Pool(createDbConfig(env, schema));
 const registrarErroPool = (pool, logger = console) => {
   pool.on('error', (error) => logger.error(`Erro assíncrono do pool PostgreSQL: ${error.message}`));
   return pool;
@@ -31,3 +31,4 @@ module.exports = pool;
 module.exports.createPool = createPool;
 module.exports.createDbConfig = createDbConfig;
 module.exports.registrarErroPool = registrarErroPool;
+module.exports.DB_SCHEMA = DB_SCHEMA;

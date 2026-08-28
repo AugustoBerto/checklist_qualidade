@@ -10,6 +10,8 @@ const salvarPerfil = (perfil) => {
   return perfil
 }
 
+let falhaRestauracao = null
+
 const carregarPerfil = async (exigirAdmin = false) => {
   const { data } = await api.get('/perfis/me')
   const perfil = data.perfil
@@ -31,7 +33,7 @@ export const autenticarComSenha = async (usuario, senha, exigirAdmin = false) =>
   try {
     return await carregarPerfil(exigirAdmin)
   } catch (erro) {
-    await encerrarSessaoCentral()
+    limparPerfil()
     throw erro
   }
 }
@@ -40,10 +42,16 @@ export const restaurarSessao = () => {
   if (restauracaoEmAndamento) return restauracaoEmAndamento
 
   restauracaoEmAndamento = (async () => {
+    falhaRestauracao = null
     try {
       await authApi.post('/auth/me')
       return await carregarPerfil()
-    } catch {
+    } catch (erro) {
+      if (erro.response?.status === 403) {
+        falhaRestauracao = erro.response.data?.mensagem
+          || erro.response.data?.message
+          || 'Seu usuário não possui acesso ao Checklist.'
+      }
       limparPerfil()
       return null
     } finally {
@@ -55,6 +63,12 @@ export const restaurarSessao = () => {
 }
 
 export const encerrarSessao = encerrarSessaoCentral
+
+export const consumirFalhaRestauracao = () => {
+  const falha = falhaRestauracao
+  falhaRestauracao = null
+  return falha
+}
 
 export const obterPerfilLocal = () => {
   try {

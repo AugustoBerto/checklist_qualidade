@@ -32,7 +32,7 @@ Ela cria toda a estrutura de tabelas, relacionamentos, chaves estrangeiras e ín
    O prazo controla a disponibilidade na API; a limpeza física do conteúdo deve
    ser feita por tarefa operacional agendada e auditável.
 
-4. Inicie a API (`npm run dev` ou `npm start`). No primeiro login autenticado com a matrícula de administrador, o perfil `ADMIN` será criado automaticamente. Os demais colaboradores são sincronizados como `PENDENTE` até a liberação administrativa.
+4. Inicie a API (`npm run dev` ou `npm start`). No primeiro login autenticado com a matrícula de administrador, o perfil `ADMIN` será criado automaticamente. Esse administrador deve cadastrar previamente os demais colaboradores.
 
 ## Testes de Integração com Banco Descartável
 

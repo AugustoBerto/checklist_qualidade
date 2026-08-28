@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { authApi } from './auth';
+import { CHECKLIST_API_URL } from './endpoints';
 
-const API_LOCAL_URL = import.meta.env.VITE_API_URL || '/api/checklist-app/api';
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS) || 15000;
 
 const api = axios.create({
-    baseURL: API_LOCAL_URL,
+    baseURL: CHECKLIST_API_URL,
     withCredentials: true,
     timeout: REQUEST_TIMEOUT_MS,
 });

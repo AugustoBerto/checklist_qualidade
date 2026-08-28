@@ -88,8 +88,6 @@ Mantenha um `.env.example` sem segredos. Para desenvolvimento local:
 
 ```env
 VITE_APP_BASE_URL=/<spa>/
-VITE_AUTH_API_URL=http://localhost:2399/api
-VITE_API_URL=http://localhost:2399/api/<app>/api
 VITE_GATEWAY_URL=http://localhost:2399
 ```
 
@@ -97,10 +95,15 @@ Para o build publicado, use o host acessível pelo navegador:
 
 ```env
 VITE_APP_BASE_URL=/<spa>/
-VITE_AUTH_API_URL=http://<HOST_DA_VPS>:2399/api
-VITE_API_URL=http://<HOST_DA_VPS>:2399/api/<app>/api
 VITE_GATEWAY_URL=http://<HOST_DA_VPS>:2399
 ```
+
+Quando autenticação e API da aplicação passam pelo mesmo Gateway, exponha
+somente sua origem em `VITE_GATEWAY_URL` e componha no código os prefixos
+estáveis (`/api` e `/api/<app>/api`). Isso evita três variáveis representando o
+mesmo serviço. Mantenha variáveis separadas apenas quando os serviços estiverem
+em origens realmente diferentes. `VITE_APP_BASE_URL` não é redundante: ela
+define o subcaminho público da SPA, não a origem das APIs.
 
 Nunca use `localhost` no bundle da VPS: ele apontaria para o computador do
 usuário. Variáveis `VITE_*` são incorporadas no build; reinicie o servidor Vite
@@ -222,43 +225,99 @@ Use exclusivamente:
 
 ```env
 DATABASE_URL=postgresql://<USUARIO>:<SENHA>@<HOST>:5432/<BANCO>
-DB_SCHEMA=<schema_da_aplicacao>
 ```
 
 Não mantenha caminhos alternativos por `DB_HOST`, `DB_USER`, `DB_PASSWORD` e
 `DB_DATABASE`. Codifique caracteres reservados de usuário e senha no formato
 URL. Não imprima, versione ou copie a URL real para destinos externos.
 
-Migrations devem ser incrementais, ordenadas, imutáveis depois de aplicadas e
-registradas com checksum. Para instalação existente:
+Quando cada aplicação possui um schema fixo, mantenha-o na configuração do ORM,
+na entidade/modelo ou no código de acesso ao banco. Não exponha `DB_SCHEMA` no
+`.env` apenas para repetir uma decisão fixa da aplicação. Testes descartáveis
+podem receber um schema alternativo internamente.
 
-```bash
-npm run db:migrate
-npm run db:status
-```
+Antes de criar ou executar migrations, detecte o mecanismo já usado pelo
+repositório a partir das dependências, arquivos de configuração, scripts e
+histórico existente. Preserve o stack encontrado:
 
-Use `db:init` somente em banco/schema vazio. Aplique migrations compatíveis
-antes de iniciar uma versão do backend que dependa delas. Valide mudanças de
-schema em PostgreSQL descartável quando houver infraestrutura de integração.
+| Stack encontrado | Conduta |
+| --- | --- |
+| TypeORM | Use o `DataSource`, CLI e scripts existentes; gere ou escreva migrations no diretório configurado |
+| Prisma | Use o schema e o fluxo de migrations do Prisma já adotado pela aplicação |
+| Runner SQL próprio | Preserve a tabela de controle, ordenação, checksums e comandos `db:*` implementados pelo projeto |
+| Outro ORM/runner | Siga suas convenções existentes sem introduzir TypeORM, Prisma ou um runner paralelo |
+| Projeto sem mecanismo | Escolha o mecanismo mais simples compatível com o stack atual; TypeORM é a preferência apenas quando ele já é a camada de persistência ou a convenção estabelecida do projeto |
+
+Não adicione um segundo sistema de migrations a uma aplicação já funcional e
+não converta o mecanismo existente apenas para uniformizar nomes de comandos.
+Descubra os comandos reais em `package.json` e na configuração do projeto; não
+presuma que existam `db:migrate`, `db:status`, `migration:run` ou `db:init`.
+
+Independentemente da ferramenta, migrations aplicadas devem permanecer
+imutáveis, novas mudanças devem ser incrementais e a ordem de deploy deve
+aplicar alterações compatíveis antes de iniciar o backend que depende delas.
+Inicialização destrutiva ou criação integral de schema só pode ser usada em
+banco vazio e com o propósito confirmado. Quando houver infraestrutura,
+valide a mudança em PostgreSQL descartável usando o mesmo mecanismo da
+aplicação.
 
 ## Autenticação e perfis locais
 
-Adote provisionamento just-in-time com menor privilégio:
+Escolha explicitamente o modelo de ingresso antes de implementar. Não presuma
+que todas as aplicações possuem o mesmo grau de abertura:
 
-1. o frontend autentica em `/api/auth/login` pelo Gateway;
-2. o `dass_auth` valida a credencial e emite JWT/cookies;
-3. o backend valida a assinatura com a chave compartilhada;
-4. matrícula, nome, função e demais campos confiáveis do JWT são sincronizados
-   por `upsert` na tabela local;
-5. um novo perfil nasce `PENDENTE` e inativo;
-6. enquanto pendente/inativo, qualquer rota de negócio retorna `403`;
-7. um administrador atribui papel e escopo operacional e ativa o perfil;
-8. logins posteriores atualizam identidade corporativa sem sobrescrever papel,
-   estado ou vínculos definidos localmente.
+| Modelo | Use quando | Comportamento do primeiro login |
+| --- | --- | --- |
+| Fechado com pré-cadastro | Dados ou operações exigem autorização prévia | Retorna `403` e não cria usuário |
+| Autoidentificação pendente | Qualquer colaborador pode solicitar acesso | Cria `PENDENTE` inativo e retorna `403` |
 
-Não armazene senha, refresh token ou JWT no banco da aplicação. Prefira
-cookie HTTP-only. Não consulte diretamente o banco do `dass_auth` nem sua rota
-`/colaborador/:matricula` quando os dados necessários já existem no JWT.
+O Checklist usa o modelo fechado. Nele:
+
+1. um administrador informa matrícula, papel e escopo operacional;
+2. o backend consulta a fonte corporativa aprovada, como
+   `DASS_AUTH_BASE_URL/colaborador/:matricula`, para validar e obter identidade;
+3. o perfil local é criado ativo somente depois dessa validação;
+4. no login, o JWT é validado e a matrícula precisa corresponder a um perfil
+   local ativo;
+5. uma matrícula desconhecida recebe `403` sem escrita no banco local.
+
+No modelo de autoidentificação pendente:
+
+1. o backend valida o JWT;
+2. sincroniza por `upsert` somente campos de identidade confiáveis;
+3. cria o perfil `PENDENTE` e inativo;
+4. um administrador atribui papel e escopo e ativa o perfil;
+5. logins posteriores não sobrescrevem autorização ou vínculos locais.
+
+Nos dois modelos, não armazene senha, refresh token ou JWT no banco da
+aplicação. Prefira cookie HTTP-only e nunca consulte diretamente o banco do
+`dass_auth`.
+
+### Login direto a partir do Portal Unix
+
+Quando a aplicação e o Portal Unix compartilham o mesmo serviço de autenticação,
+restaure a sessão central durante o bootstrap do frontend, antes de montar a
+aplicação:
+
+1. chame `POST /api/auth/me` com credenciais/cookies habilitados;
+2. valide em seguida o perfil e a autorização local no backend da aplicação;
+3. se ambos forem válidos, grave somente o perfil local necessário à interface
+   e encaminhe o usuário para a área autenticada;
+4. sem sessão central, apresente o login normalmente;
+5. com sessão central válida, mas sem autorização local, apresente o login com
+   uma mensagem de acesso não liberado e não crie perfil automaticamente no
+   modelo fechado;
+6. não execute logout central apenas porque uma aplicação recusou o acesso. O
+   logout do Portal Unix deve ocorrer somente por ação explícita do usuário ou
+   por invalidação da própria sessão central.
+
+Os cookies de autenticação devem ser HTTP-only, enviados ao Gateway e possuir
+escopo compatível com todas as aplicações integradas. Não use o `localStorage`
+como prova da sessão central; ele pode guardar apenas estado derivado para a UI.
+Uma aplicação com seleção obrigatória de unidade ou tenant precisa obter essa
+informação do link/contexto de entrada ou solicitar a seleção antes de concluir
+a autorização; não condicione um primeiro SSO a dados que só existiriam após um
+login anterior naquela aplicação.
 
 Para bootstrap, permita que uma única matrícula configurada assuma o primeiro
 `ADMIN` somente enquanto nenhum perfil estiver configurado. Proteja a operação
@@ -308,7 +367,7 @@ cabeçalhos relevantes. Remova apenas o prefixo registrado para a aplicação.
 4. Implemente health check, build e PM2 coerentes com o runtime.
 5. Registre o serviço no Gateway sem colidir com o catch-all.
 6. Configure base/URLs do frontend e fallback da SPA.
-7. Implemente ou adeque autenticação e perfis pendentes.
+7. Implemente o modelo de ingresso escolhido: pré-cadastro ou perfil pendente.
 8. Crie migrations para mudanças de banco; não edite migrations aplicadas.
 9. Atualize documentação da aplicação e `.env.example`.
 10. Valide cada camada e depois o caminho completo.
@@ -352,8 +411,8 @@ Resultados esperados: health direto e pelo Gateway em `200`; login vazio em
 - carregamento de JS/CSS sem `404`;
 - `F5` em rota interna;
 - login real e restauração de sessão;
-- criação de perfil pendente;
-- liberação por administrador;
+- no modelo fechado: recusa sem cadastro, cadastro administrativo e login posterior;
+- no modelo pendente: criação pendente e liberação administrativa;
 - acesso autorizado depois da liberação;
 - acesso administrativo recusado para papéis comuns.
 
@@ -373,7 +432,7 @@ Identifique quem produziu a resposta antes de alterar configuração:
 | Gateway `502` | Conexão recusada/host errado | Interface de bind e rede host/container |
 | API health `503` | PostgreSQL indisponível | `DATABASE_URL`, rede, banco, permissões e schema |
 | API `500` após deploy | Migration/configuração incompatível | logs, `db:status`, ordem do deploy |
-| Login funciona; app `403` | Perfil pendente/inativo | tabela local e fluxo de liberação |
+| Login funciona; app `403` | Sem pré-cadastro ou perfil pendente/inativo | modelo escolhido e tabela local |
 | PM2 reinicia | porta, `.env`, artefato ou startup | `pm2 logs`, listener, script configurado |
 
 Um `404` com HTML e `Server: Apache` não é erro do backend. Um erro devolvido
@@ -404,4 +463,3 @@ Atualize portas, topologia ou contratos somente após verificar a configuração
 ativa. Quando a skill crescer a ponto de carregar detalhes irrelevantes para a
 maioria das tarefas, mova procedimentos condicionais para `references/` e
 mantenha aqui o roteamento para eles.
-

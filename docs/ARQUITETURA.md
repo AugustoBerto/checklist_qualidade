@@ -70,8 +70,8 @@ de evidências. As fotos ficam em `formulario_evidencias`, com expiração próp
 e não dentro das respostas permanentes. Consulte [Documentos de checklist e
 evidências](DOCUMENTOS_E_EVIDENCIAS.md).
 
-O schema padrão é `checklist_app`; `DB_SCHEMA` permite outro identificador
-válido, inclusive em testes.
+O schema da aplicação é fixo em `checklist_app`; ele não é uma variável do
+ambiente de execução.
 
 As migrations em `migrations/` são ordenadas por versão, registradas em
 `schema_migrations` e protegidas por checksum. Uma instalação vazia começa em
@@ -83,9 +83,9 @@ As migrations em `migrations/` são ordenadas por versão, registradas em
 2. O navegador recebe cookies HTTP-only.
 3. Chamadas do Checklist passam pelo Gateway e levam o cookie `token`.
 4. O middleware valida o JWT com o `JWT_SECRET` compartilhado.
-5. Matrícula, nome e função do JWT são sincronizados em `checklist_app.usuarios`.
-6. Um novo perfil é criado como `PENDENTE` e inativo.
-7. Depois da liberação administrativa, o papel local autoriza ou rejeita a rota.
+5. A matrícula localiza um cadastro ativo em `checklist_app.usuarios`.
+6. O papel local autoriza ou rejeita a rota.
+7. Matrículas sem cadastro prévio recebem `403` e não são persistidas.
 
 Quando ainda não existe nenhum perfil configurado, a matrícula definida em
 `CHECKLIST_INITIAL_ADMIN_MATRICULA` pode assumir automaticamente o primeiro

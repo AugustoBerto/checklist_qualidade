@@ -46,7 +46,7 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { autenticarComSenha } from '../services/session'
+import { autenticarComSenha, consumirFalhaRestauracao } from '../services/session'
 
 const router = useRouter();
 
@@ -57,7 +57,7 @@ const form = reactive({
 
 const mostrarSenha = ref(false);
 const carregando = ref(false);
-const erroLogin = ref('');
+const erroLogin = ref(consumirFalhaRestauracao() || '');
 
 const fazerLogin = async () => {
   erroLogin.value = '';

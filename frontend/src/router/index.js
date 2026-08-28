@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { obterPerfilLocal, possuiPerfilLocal, restaurarSessao } from '../services/session'
+import { obterPerfilLocal, possuiPerfilLocal } from '../services/session'
 
 const routes = [
   { path: '/', name: 'Home', component: () => import('../views/HomeView.vue') },
@@ -62,9 +62,6 @@ const router = createRouter({
 const getIsAdmin = () => obterPerfilLocal()?.papel === 'ADMIN'
 
 router.beforeEach(async (to) => {
-  if (to.meta.requiresAuth && !possuiPerfilLocal()) {
-    await restaurarSessao()
-  }
   const autenticado = possuiPerfilLocal()
   const isAdmin = getIsAdmin()
 

@@ -1,8 +1,8 @@
 # ChecklistApp Frontend
 
-Interface Vue do sistema de checklist. As chamadas ao backend usam
-`VITE_API_URL` e a autenticação central usa `VITE_AUTH_API_URL`. Ambas apontam
-diretamente para o API Gateway.
+Interface Vue do sistema de checklist. As chamadas ao backend e à autenticação
+central usam a origem definida em `VITE_GATEWAY_URL`; os prefixos estáveis das
+rotas são centralizados no código.
 
 ## Desenvolvimento local no WSL
 

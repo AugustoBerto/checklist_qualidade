@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { createPool } = require('../db');
+const { createPool, DB_SCHEMA } = require('../db');
 const { withTransaction } = require('../database/transaction');
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../migrations');
@@ -43,7 +43,6 @@ const readMigrationSql = (migration) => fs.readFileSync(migration.file, 'utf8')
 const migrationSqlForSchema = (migration, schema) => readMigrationSql(migration)
   .replace(/\bchecklist_app\b/g, schema);
 
-const getSchema = (env = process.env) => env.DB_SCHEMA || 'checklist_app';
 const assertIdentifier = (value) => {
   if (!/^[a-z_][a-z0-9_]*$/.test(value)) throw new Error('DB_SCHEMA deve ser um identificador PostgreSQL válido');
   return value;
@@ -61,9 +60,9 @@ const safeDbError = (error) => {
   return new Error('Falha na operação de banco de dados.');
 };
 
-async function initDatabase({ pool, env = process.env, migrationsDir = MIGRATIONS_DIR } = {}) {
+async function initDatabase({ pool, env = process.env, migrationsDir = MIGRATIONS_DIR, schema = DB_SCHEMA } = {}) {
   const ownedPool = pool || createPool(env);
-  const schema = assertIdentifier(getSchema(env));
+  assertIdentifier(schema);
   const migrations = validateMigrationSet(listMigrationFiles(migrationsDir));
   const initial = migrations.find((migration) => migration.version === 1);
   try {
@@ -107,9 +106,9 @@ const validateApplied = (applied, migrations) => {
   if (first && first.version !== 1) throw new Error('A migration 001 precisa ser a primeira migration registrada.');
 };
 
-async function migrateDatabase({ pool, env = process.env, migrationsDir = MIGRATIONS_DIR } = {}) {
+async function migrateDatabase({ pool, env = process.env, migrationsDir = MIGRATIONS_DIR, schema = DB_SCHEMA } = {}) {
   const ownedPool = pool || createPool(env);
-  const schema = assertIdentifier(getSchema(env));
+  assertIdentifier(schema);
   const migrations = validateMigrationSet(listMigrationFiles(migrationsDir));
   try {
     if (!await schemaExists(ownedPool, schema)) throw new Error(`O schema ${schema} não existe; execute db:init.`);
@@ -136,9 +135,9 @@ async function migrateDatabase({ pool, env = process.env, migrationsDir = MIGRAT
   }
 }
 
-async function statusDatabase({ pool, env = process.env, migrationsDir = MIGRATIONS_DIR } = {}) {
+async function statusDatabase({ pool, env = process.env, migrationsDir = MIGRATIONS_DIR, schema = DB_SCHEMA } = {}) {
   const ownedPool = pool || createPool(env);
-  const schema = assertIdentifier(getSchema(env));
+  assertIdentifier(schema);
   const migrations = validateMigrationSet(listMigrationFiles(migrationsDir));
   try {
     if (!await schemaExists(ownedPool, schema)) return { schema, initialized: false, migrations: [] };

@@ -1,10 +1,13 @@
 const assert = require('node:assert/strict');
 const { after, test } = require('node:test');
 const pool = require('../../db');
+const { DB_SCHEMA } = pool;
 const { initDatabase, statusDatabase } = require('../../scripts/db');
 const dados = require('../../controllers/DadosController');
 const cadastros = require('../../controllers/CadastrosController');
 const perfis = require('../../controllers/PerfisController');
+process.env.CHECKLIST_INITIAL_ADMIN_MATRICULA = 'bootstrap-integration';
+const autorizar = require('../../middlewares/auth');
 
 const database = (() => {
   try { return new URL(process.env.DATABASE_URL).pathname.slice(1); } catch { return ''; }
@@ -29,7 +32,7 @@ test('baseline consolidado deixa o schema operacional', async () => {
     SELECT data_type, column_default
       FROM information_schema.columns
      WHERE table_schema = $1 AND table_name = 'modelo' AND column_name = 'versao'
-  `, [process.env.DB_SCHEMA || 'checklist_app']);
+  `, [DB_SCHEMA]);
   assert.equal(modeloVersion.rowCount, 1);
   assert.equal(modeloVersion.rows[0].data_type, 'integer');
   assert.equal(modeloVersion.rows[0].column_default, '1');
@@ -38,12 +41,12 @@ test('baseline consolidado deixa o schema operacional', async () => {
     SELECT data_type
       FROM information_schema.columns
      WHERE table_schema = $1 AND table_name = 'formulario_submissoes' AND column_name = 'assinatura_mime'
-  `, [process.env.DB_SCHEMA || 'checklist_app']);
+  `, [DB_SCHEMA]);
   assert.equal(assinaturaMime.rowCount, 1);
   assert.equal(assinaturaMime.rows[0].data_type, 'character varying');
 
   const evidencias = await pool.query('SELECT to_regclass($1)::text AS tabela', [
-    `${process.env.DB_SCHEMA || 'checklist_app'}.formulario_evidencias`,
+    `${DB_SCHEMA}.formulario_evidencias`,
   ]);
   assert.ok(evidencias.rows[0].tabela);
 
@@ -51,7 +54,7 @@ test('baseline consolidado deixa o schema operacional', async () => {
     SELECT data_type, column_default
       FROM information_schema.columns
      WHERE table_schema = $1 AND table_name = 'unidades' AND column_name = 'ativo'
-  `, [process.env.DB_SCHEMA || 'checklist_app']);
+  `, [DB_SCHEMA]);
   assert.equal(column.rowCount, 1);
   assert.equal(column.rows[0].data_type, 'integer');
 
@@ -59,9 +62,26 @@ test('baseline consolidado deixa o schema operacional', async () => {
     SELECT indexname FROM pg_indexes
      WHERE schemaname = $1
        AND indexname IN ('modelo_ativo_nome_idx', 'celulas_ativo_nome_idx', 'formulario_submissoes_celula_data_idx')
-  `, [process.env.DB_SCHEMA || 'checklist_app']);
+  `, [DB_SCHEMA]);
   assert.equal(indexes.rowCount, 3);
   await assert.rejects(initDatabase({ pool, env: process.env }), /db:init recusado/);
+});
+
+test('modo fechado cria somente o administrador inicial e não persiste desconhecidos', async () => {
+  try {
+    const admin = await autorizar.buscarOuCriarPerfilBootstrap({
+      matricula: 'bootstrap-integration', nome: 'Bootstrap Integração', funcao: 'Administrador',
+    });
+    assert.equal(admin.papel, 'ADMIN');
+    assert.equal(Number(admin.ativo), 1);
+
+    const desconhecido = await autorizar.buscarOuCriarPerfilBootstrap({ matricula: 'sem-cadastro-integration' });
+    assert.equal(desconhecido, null);
+    const persistido = await pool.query('SELECT id FROM usuarios WHERE matricula = $1', ['sem-cadastro-integration']);
+    assert.equal(persistido.rowCount, 0);
+  } finally {
+    await pool.query('DELETE FROM usuarios WHERE matricula = $1', ['bootstrap-integration']);
+  }
 });
 
 test('controllers executam filtros e atualizações no PostgreSQL real', async () => {

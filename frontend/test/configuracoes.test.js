@@ -30,11 +30,11 @@ vi.mock('vue-router', () => ({
 
 const respostaLista = { data: { dados: [] } }
 
-const montar = async (aba) => {
+const montar = async (aba, options = {}) => {
   route.query = { aba }
   api.get.mockResolvedValue(respostaLista)
   api.put.mockResolvedValue({ data: { sucesso: true } })
-  const wrapper = shallowMount(ConfiguracoesView)
+  const wrapper = shallowMount(ConfiguracoesView, options)
   await flushPromises()
   return wrapper
 }
@@ -114,5 +114,17 @@ describe('edição de cadastros administrativos', () => {
     await flushPromises()
 
     expect(api.get).toHaveBeenCalledWith('/cadastros/categorias-padrao', expect.any(Object))
+  })
+
+  it('exibe ação de novo usuário enquanto a lista está aberta', async () => {
+    const wrapper = await montar('usuarios', {
+      global: {
+        stubs: {
+          PageHeader: { template: '<header><slot name="actions" /></header>' },
+        },
+      },
+    })
+
+    expect(wrapper.find('header button').text()).toContain('Novo Usuário')
   })
 })
