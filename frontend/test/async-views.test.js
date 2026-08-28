@@ -177,6 +177,28 @@ describe('respostas assíncronas vigentes', () => {
     ])
   })
 
+  it('preserva o modelo escolhido antes do setor quando ele continua disponível', async () => {
+    api.get.mockImplementation((url, config = {}) => {
+      if (url === '/cadastros/marcas') return Promise.resolve(respostaLista([{ id: 1, nome: 'FILA' }]))
+      if (url === '/cadastros/celulas') return Promise.resolve(respostaLista([]))
+      if (url === '/cadastros/setores') return Promise.resolve(respostaLista([{ id: 5, nome: 'Produção' }]))
+      if (url === '/dados/modelos') return Promise.resolve(respostaLista([
+        { id: 7, nome: 'Modelo A', id_setor_fk: config.params?.setor_id || 5 },
+      ]))
+      throw new Error(`requisição inesperada: ${url}`)
+    })
+    const wrapper = shallowMount(CheckSelecao)
+    await flushPromises()
+
+    await wrapper.vm.selecionarMarca({ id: 1, nome: 'FILA' })
+    wrapper.vm.form.modelo = 7
+    wrapper.vm.form.setor_selecionado = 5
+    await flushPromises()
+
+    expect(wrapper.vm.form.modelo).toBe(7)
+    expect(wrapper.vm.opcoesModelos).toEqual([{ label: 'Modelo A', value: 7 }])
+  })
+
   it('mantém o histórico da busca mais recente', async () => {
     const buscaA = deferred()
     const buscaB = deferred()

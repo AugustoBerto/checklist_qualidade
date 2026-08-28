@@ -155,18 +155,24 @@ onMounted(carregarDadosIniciais)
 
 watch(() => form.value.setor_selecionado, async (novoSetorId) => {
     form.value.celula_selecionada = '';
-    form.value.modelo = '';
+    const modeloSelecionado = form.value.modelo;
     
     if (novoSetorId) {
       filtrarCelulasPorSetor(novoSetorId);
       if (marcaSelecionada.value) {
         await carregarModelos(marcaSelecionada.value, novoSetorId);
+        if (String(form.value.setor_selecionado) === String(novoSetorId)
+          && modeloSelecionado
+          && !opcoesModelos.value.some((modelo) => String(modelo.value) === String(modeloSelecionado))) {
+          form.value.modelo = '';
+        }
       }
     } else {
       carregarModelosController?.abort();
       carregarModelosController = null;
       opcoesCelulas.value = [];
       opcoesModelos.value = [];
+      form.value.modelo = '';
     }
 })
 
