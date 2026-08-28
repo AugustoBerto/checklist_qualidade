@@ -45,3 +45,17 @@ export const formatarNomeCurto = (nomeCompleto) => {
   if (partes.length <= 2) return partes.join(' ');
   return `${partes[0]} ${partes[partes.length - 1]}`;
 };
+
+/** Extrai listas dos envelopes usados pelos endpoints do frontend. */
+export const extrairArrayDeDados = (respostaData) => {
+  if (Array.isArray(respostaData)) return respostaData;
+  if (!respostaData || typeof respostaData !== 'object') return [];
+  if (Array.isArray(respostaData.dados)) return respostaData.dados;
+  if (respostaData.dados && Array.isArray(respostaData.dados.dados)) return respostaData.dados.dados;
+  if (Array.isArray(respostaData.rows)) return respostaData.rows;
+
+  for (const chave of ['modelos', 'setores', 'marcas', 'categorias', 'celulas', 'usuarios', 'unidades', 'turnos']) {
+    if (Array.isArray(respostaData[chave])) return respostaData[chave];
+  }
+  return Object.values(respostaData).find((valor) => Array.isArray(valor)) || [];
+};

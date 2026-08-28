@@ -359,7 +359,7 @@ import TableToolbar from '../components/TableToolbar.vue';
 import DataTable from '../components/DataTable.vue';
 import ModelosTab from '../components/admin/ModelosTab.vue';
 import UsuariosTab from '../components/admin/UsuariosTab.vue';
-import { formatarHora, urlLogoMarca } from '../services/formatters';
+import { extrairArrayDeDados, formatarHora, urlLogoMarca } from '../services/formatters';
 import { toast, dialog } from '../services/feedback';
 
 const route = useRoute();
@@ -483,14 +483,6 @@ const abaInfo = computed(() => abas.find(a => a.id === abaAtiva.value));
 const nomeAbaAtiva = computed(() => abaInfo.value?.titulo || '');
 const placeholderExemplo = computed(() => abaInfo.value?.ex || '');
 const endpointAtivo = computed(() => abaInfo.value?.endpoint || '');
-
-const extrairArrayDeDados = (respostaData) => {
-  if (Array.isArray(respostaData)) return respostaData;
-  if (respostaData.dados && Array.isArray(respostaData.dados)) return respostaData.dados;
-  if (respostaData.rows && Array.isArray(respostaData.rows)) return respostaData.rows;
-  const possivelArray = Object.values(respostaData).find(val => Array.isArray(val));
-  return possivelArray || [];
-};
 
 let buscarDadosController = null;
 
@@ -927,94 +919,6 @@ onBeforeUnmount(cancelarBuscaDados);
   padding: 1.5rem;
 }
 
-.toolbar-search {
-  margin-bottom: 1.25rem;
-}
-
-.search-box {
-  position: relative;
-  width: 100%;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  font-size: 1.2rem;
-}
-
-.input-search {
-  width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 2.4rem;
-  border: 1.5px solid var(--border-color, #e2e8f0);
-  border-radius: var(--radius-md, 10px);
-  font-size: 0.95rem;
-  color: var(--text-primary, #0f172a);
-  background-color: #f8fafc;
-  box-sizing: border-box;
-  min-height: 44px;
-}
-
-.input-search:focus {
-  outline: none;
-  border-color: var(--primary, #b1072c);
-  background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(177, 7, 44, 0.15);
-}
-
-.clear-input-btn {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.clear-input-btn:hover { color: #475569; }
-
-.table-responsive {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.data-table th {
-  background: #f8fafc;
-  color: #475569;
-  font-weight: 600;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 0.9rem 1rem;
-  border-bottom: 1.5px solid #e2e8f0;
-}
-
-.data-table td {
-  padding: 1rem;
-  border-bottom: 1px solid #f1f5f9;
-  color: var(--text-primary, #0f172a);
-  font-size: 0.95rem;
-}
-
-.data-table tbody tr:hover td {
-  background-color: #f8fafc;
-}
-
-.text-right { text-align: right; }
-.text-center { text-align: center; }
 .text-muted { color: #94a3b8; }
 
 .badge {
@@ -1282,31 +1186,6 @@ onBeforeUnmount(cancelarBuscaDados);
 
 .btn-outline:hover { background: #f1f5f9; }
 
-.btn-header-link {
-  background: white;
-  border: 1.5px solid #cbd5e1;
-  color: #334155;
-  padding: 0.75rem 1.15rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
-  min-height: 44px;
-  text-decoration: none;
-  box-sizing: border-box;
-}
-
-.btn-header-link:hover {
-  background: #f8fafc;
-  border-color: var(--primary, #b1072c);
-  color: var(--primary, #b1072c);
-  transform: translateY(-1px);
-}
-
 @media (max-width: 768px) {
   .tabs-container.desktop-tabs {
     display: none;
@@ -1320,9 +1199,6 @@ onBeforeUnmount(cancelarBuscaDados);
   .card {
     padding: 1rem;
     border-radius: 12px;
-  }
-  .data-table {
-    min-width: 560px;
   }
   .time-row {
     grid-template-columns: 1fr;

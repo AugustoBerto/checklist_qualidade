@@ -281,6 +281,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import VueSelect from 'vue3-select-component';
 import api from '../../services/api';
 import { toast } from '../../services/feedback';
+import { extrairArrayDeDados } from '../../services/formatters';
 import TableToolbar from '../TableToolbar.vue';
 import DataTable from '../DataTable.vue';
 const props = defineProps({
@@ -401,15 +402,6 @@ const opcoesCategoriasPadrao = computed(() =>
 const marcaReferencia = ref(null);
 const modeloReferencia = ref(null);
 const opcoesModelosReferencia = ref([]);
-
-const extrairArrayDeDados = (respostaData) => {
-  if (Array.isArray(respostaData)) return respostaData;
-  if (respostaData.dados && Array.isArray(respostaData.dados)) return respostaData.dados;
-  if (respostaData.modelos) return respostaData.modelos;
-  if (respostaData.setores) return respostaData.setores;
-  if (respostaData.marcas) return respostaData.marcas;
-  return Object.values(respostaData).find(val => Array.isArray(val)) || [];
-};
 
 // ==========================================
 // 1. CARREGAMENTO INICIAL
