@@ -348,6 +348,12 @@ Origem significa apenas `protocolo://host:porta`, sem caminho e sem barra final.
 `VITE_GATEWAY_URL` é o endereço que o navegador chama; `CORS_ORIGINS` é a lista
 que o servidor aceita. Elas se relacionam, mas não são a mesma configuração.
 
+Para imagens, fontes ou outros recursos autenticados que o frontend incorpora
+por uma origem diferente, configure também `Cross-Origin-Resource-Policy` como
+`cross-origin` na resposta específica do recurso. Não remova a proteção de toda
+a API indiscriminadamente; `Access-Control-Allow-Origin` e credenciais continuam
+responsáveis por controlar chamadas HTTP feitas pelo JavaScript.
+
 Ao aplicar esta skill em uma aplicação existente, procure nomes legados como
 `FRONTEND_ORIGIN`, `CORS_ORIGIN`, `ALLOWED_ORIGIN` e `ALLOWED_ORIGINS`. Se
 representarem origens permitidas pelo CORS, migre para `CORS_ORIGINS` e atualize

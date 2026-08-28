@@ -375,7 +375,13 @@ exports.buscarLogoMarca = async (req, res) => {
     try {
         const { rows } = await db.query('SELECT logo, logo_mime, "ultimaAlteracao" FROM marcas WHERE id = $1 AND logo IS NOT NULL', [req.params.id]);
         if (!rows.length) return res.status(404).json({ sucesso: false, mensagem: 'Logo não encontrada.' });
-        return res.set({ 'Content-Type': rows[0].logo_mime, 'Cache-Control': 'public, max-age=3600' }).send(rows[0].logo);
+        return res.set({
+            'Content-Type': rows[0].logo_mime,
+            'Cache-Control': 'public, max-age=3600',
+            // O frontend é servido por outra origem (porta 5173/80) e precisa
+            // poder embutir a imagem devolvida pelo Gateway.
+            'Cross-Origin-Resource-Policy': 'cross-origin',
+        }).send(rows[0].logo);
     } catch (error) {
         console.error('Erro ao buscar logo da marca:', error);
         return res.status(500).json({ sucesso: false, mensagem: 'Erro interno.' });

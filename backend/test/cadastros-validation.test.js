@@ -59,6 +59,7 @@ test('endpoint da logo devolve bytes e cache, ou 404 quando não existe', async 
   assert.equal(encontrada.statusCode, 200);
   assert.equal(encontrada.headers['Content-Type'], 'image/webp');
   assert.equal(encontrada.headers['Cache-Control'], 'public, max-age=3600');
+  assert.equal(encontrada.headers['Cross-Origin-Resource-Policy'], 'cross-origin');
   assert.deepEqual(encontrada.body, Buffer.from('imagem'));
 
   const ausente = resposta();
