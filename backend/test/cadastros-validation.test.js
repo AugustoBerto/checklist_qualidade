@@ -288,11 +288,13 @@ test('filtro de modelos por marca usa id_marca_fk', async () => {
 
 test('detalhe do modelo devolve o ID canônico da marca para edição', async () => {
   let chamada = 0;
-  db.query = async () => {
+  let consultaDetalhes;
+  db.query = async (sql) => {
     chamada += 1;
     if (chamada === 1) return {
       rows: [{ id: 9, nome: 'Modelo', marca: 'LEGADO', id_marca_fk: 7, nome_marca: 'MARCA', ativo: true, id_setor_fk: 3 }],
     };
+    consultaDetalhes = sql;
     return { rows: [{ categoria: 'COSTURA', ctq: false, pergunta: 'Pergunta' }] };
   };
 
@@ -302,6 +304,8 @@ test('detalhe do modelo devolve o ID canônico da marca para edição', async ()
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.modelo.nomeMarca, 7);
   assert.equal(res.body.modelo.nome_marca, 'MARCA');
+  assert.match(consultaDetalhes, /JOIN perguntas p ON c\.id = p\.id_categoria AND p\.ativo = 1/);
+  assert.doesNotMatch(consultaDetalhes, /LEFT JOIN perguntas/);
 });
 
 test('listagem preserva marca como ID ou texto legado e expõe o nome separadamente', async () => {

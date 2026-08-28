@@ -169,7 +169,7 @@ exports.buscarModeloPorId = async (req, res) => {
         const queryDetalhes = `
             SELECT c.categoria, c.ctq, p.pergunta
             FROM categorias c
-            LEFT JOIN perguntas p ON c.id = p.id_categoria AND p.ativo = 1
+            JOIN perguntas p ON c.id = p.id_categoria AND p.ativo = 1
             WHERE c.id_modelo = $1
             ORDER BY c.id, p.id
         `;
