@@ -3,6 +3,11 @@ const db = require('../db');
 const JWT_SECRET = process.env.JWT_SECRET;
 const INITIAL_ADMIN_MATRICULA = process.env.CHECKLIST_INITIAL_ADMIN_MATRICULA;
 
+const camposPerfil = `
+    id, nome, matricula, papel, ativo, funcao,
+    id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk
+`;
+
 const extrairCookie = (cabecalho, nome) => {
     if (!cabecalho) return null;
     const prefixo = `${nome}=`;
@@ -10,37 +15,35 @@ const extrairCookie = (cabecalho, nome) => {
     return item ? decodeURIComponent(item.slice(prefixo.length)) : null;
 };
 
-const buscarOuCriarPerfilBootstrap = async (usuarioDecodificado) => {
+const sincronizarPerfil = async (usuarioDecodificado) => {
     const matricula = String(usuarioDecodificado.matricula);
-    const perfilExistente = await db.query(`
-        SELECT id, nome, matricula, papel, ativo, funcao,
-               id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk
-        FROM usuarios
-        WHERE matricula = $1 AND ativo = 1
-        LIMIT 1
-    `, [matricula]);
-    if (perfilExistente.rows.length > 0) return perfilExistente.rows[0];
+    const nome = usuarioDecodificado.nome || usuarioDecodificado.usuario || matricula;
+    const funcao = usuarioDecodificado.funcao || null;
+    const codBar = usuarioDecodificado.codbarras || null;
+    const sincronizado = await db.query(`
+        INSERT INTO usuarios (nome, "codBar", ativo, funcao, matricula, papel)
+        VALUES ($1, $2, 0, $3, $4, 'PENDENTE')
+        ON CONFLICT (matricula) DO UPDATE SET
+            nome = EXCLUDED.nome,
+            "codBar" = COALESCE(EXCLUDED."codBar", usuarios."codBar"),
+            funcao = EXCLUDED.funcao
+        RETURNING ${camposPerfil}
+    `, [nome, codBar, funcao, matricula]);
+    let perfil = sincronizado.rows[0];
 
-    if (!INITIAL_ADMIN_MATRICULA || matricula !== INITIAL_ADMIN_MATRICULA) return null;
+    if (INITIAL_ADMIN_MATRICULA && matricula === INITIAL_ADMIN_MATRICULA && perfil.papel === 'PENDENTE') {
+        const bootstrap = await db.query(`
+            UPDATE usuarios
+               SET papel = 'ADMIN', ativo = 1
+             WHERE id = $1
+               AND papel = 'PENDENTE'
+               AND NOT EXISTS (SELECT 1 FROM usuarios WHERE papel <> 'PENDENTE')
+            RETURNING ${camposPerfil}
+        `, [perfil.id]);
+        perfil = bootstrap.rows[0] || perfil;
+    }
 
-    const { rows } = await db.query(`
-        INSERT INTO usuarios (nome, "codBar", ativo, funcao, nivelusuario, matricula, papel)
-        SELECT $1, $2, 1, 'ADMIN', -1, $3, 'ADMIN'
-        WHERE NOT EXISTS (SELECT 1 FROM usuarios)
-        ON CONFLICT (matricula) WHERE matricula IS NOT NULL DO NOTHING
-        RETURNING id, nome, matricula, papel, ativo, funcao,
-                  id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk
-    `, [usuarioDecodificado.nome || usuarioDecodificado.usuario, usuarioDecodificado.codbarras || null, matricula]);
-
-    if (rows.length > 0) return rows[0];
-    const perfilCriadoPorOutraRequisicao = await db.query(`
-        SELECT id, nome, matricula, papel, ativo, funcao,
-               id_unidade_fk, id_setor_fk, id_celula_fk, id_turno_fk
-        FROM usuarios
-        WHERE matricula = $1 AND ativo = 1
-        LIMIT 1
-    `, [matricula]);
-    return perfilCriadoPorOutraRequisicao.rows[0] || null;
+    return perfil;
 };
 
 const autorizar = (...permissoesPermitidas) => {
@@ -69,12 +72,12 @@ const autorizar = (...permissoesPermitidas) => {
                 });
             }
 
-            const perfil = await buscarOuCriarPerfilBootstrap(usuarioDecodificado);
-            if (!perfil || !perfil.papel) {
+            const perfil = await sincronizarPerfil(usuarioDecodificado);
+            if (!perfil || perfil.papel === 'PENDENTE' || Number(perfil.ativo) !== 1) {
                 return res.status(403).json({
                     sucesso: false,
-                    codigo: 'PERFIL_CHECKLIST_NAO_LIBERADO',
-                    mensagem: 'Seu usuário corporativo não possui acesso liberado ao Checklist.',
+                    codigo: 'PERFIL_CHECKLIST_PENDENTE',
+                    mensagem: 'Seu perfil foi identificado e aguarda liberação por um administrador do Checklist.',
                 });
             }
             const eAdmin = perfil.papel === 'ADMIN';
@@ -105,3 +108,4 @@ const autorizar = (...permissoesPermitidas) => {
 };
 
 module.exports = autorizar;
+module.exports.sincronizarPerfil = sincronizarPerfil;

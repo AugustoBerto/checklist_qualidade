@@ -25,6 +25,7 @@ Alterações posteriores nos cadastros não mudam o documento histórico.
 
 | Papel | Acesso |
 | --- | --- |
+| `PENDENTE` | Identidade sincronizada, sem acesso até liberação administrativa. |
 | `ADMIN` | Todos os fluxos e a área de configurações, modelos e perfis. |
 | `LIDER` | Execução e consulta de checklists. |
 | `INSPETOR` | Execução e consulta de checklists. |
@@ -52,7 +53,7 @@ A configuração administrativa reúne:
 - setores, unidades, células de produção e turnos;
 - categorias padrão reutilizáveis;
 - modelos, categorias e perguntas;
-- perfis locais ligados a uma matrícula corporativa.
+- perfis locais sincronizados no primeiro login e ligados a uma matrícula corporativa.
 
 Setores, unidades, células e categorias padrão são desativados logicamente nas
 operações de exclusão. Marcas e turnos são removidos fisicamente quando não há

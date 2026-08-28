@@ -23,13 +23,13 @@ ou expirada, `403` para perfil/permissão insuficiente, `404` para recurso ausen
 | `GET /health` | Público | Verifica API e banco. |
 | `GET /perfis/me` | Autenticado | Retorna identidade combinada com o perfil local. |
 | `GET /perfis` | `ADMIN` | Lista perfis locais. |
-| `POST /perfis` | `ADMIN` | Cria perfil após validar a matrícula no `dass_auth`. |
 | `PUT /perfis/:id` | `ADMIN` | Atualiza papel, estado e vínculos operacionais. |
 
-Criação de perfil exige `matricula`, `papel` e os quatro campos de vínculo
-`id_unidade_fk`, `id_setor_fk`, `id_celula_fk`, `id_turno_fk`, cada um com ID
-válido ou `null`. Papéis válidos: `ADMIN`, `LIDER` e `INSPETOR`. Atualização
-exige `papel`, `ativo` e os mesmos campos de vínculo.
+O primeiro acesso sincroniza automaticamente um perfil `PENDENTE` a partir do
+JWT, mas retorna `403` até sua liberação. A atualização administrativa exige
+`papel`, `ativo` e os quatro campos de vínculo `id_unidade_fk`, `id_setor_fk`,
+`id_celula_fk`, `id_turno_fk`, cada um com ID válido ou `null`. Papéis
+liberados: `ADMIN`, `LIDER` e `INSPETOR`.
 
 A API impede desativar ou rebaixar o último administrador ativo. Essa tentativa
 retorna `409` com o código `ULTIMO_ADMIN`.

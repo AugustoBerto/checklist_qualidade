@@ -7,7 +7,7 @@
     >
       <template #actions>
         <button
-          v-if="modoAbaAtual === 'lista'"
+          v-if="modoAbaAtual === 'lista' && abaAtiva !== 'usuarios'"
           @click="executarAcaoCriacaoAba"
           class="btn-primary"
           :title="`Adicionar ${rotuloBotaoNovo}`"
@@ -555,7 +555,6 @@ const modoAbaAtual = computed(() => {
 const rotuloBotaoNovo = computed(() => {
   switch (abaAtiva.value) {
     case 'modelos': return 'Novo Modelo';
-    case 'usuarios': return 'Novo Perfil';
     case 'unidades': return 'Nova Unidade';
     case 'setores': return 'Novo Setor';
     case 'celulas': return 'Nova Célula';
@@ -570,9 +569,6 @@ const executarAcaoCriacaoAba = () => {
   if (abaAtiva.value === 'modelos') {
     modelosTabRef.value?.abrirCriacao();
     modoModelos.value = 'formulario';
-  } else if (abaAtiva.value === 'usuarios') {
-    usuariosTabRef.value?.novo();
-    modoUsuarios.value = 'formulario';
   } else {
     abrirModal();
   }

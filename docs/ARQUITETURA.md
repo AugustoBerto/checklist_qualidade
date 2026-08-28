@@ -83,9 +83,10 @@ As migrations em `migrations/` são ordenadas por versão, registradas em
 2. O navegador recebe cookies HTTP-only.
 3. Chamadas do Checklist passam pelo Gateway e levam o cookie `token`.
 4. O middleware valida o JWT com o `JWT_SECRET` compartilhado.
-5. A matrícula localiza um registro ativo em `checklist_app.usuarios`.
-6. O papel local autoriza ou rejeita a rota.
+5. Matrícula, nome e função do JWT são sincronizados em `checklist_app.usuarios`.
+6. Um novo perfil é criado como `PENDENTE` e inativo.
+7. Depois da liberação administrativa, o papel local autoriza ou rejeita a rota.
 
-Quando ainda não existe nenhum usuário local, a matrícula configurada em
-`CHECKLIST_INITIAL_ADMIN_MATRICULA` pode criar automaticamente o primeiro perfil
-`ADMIN`. Esse bootstrap não libera outras matrículas.
+Quando ainda não existe nenhum perfil configurado, a matrícula definida em
+`CHECKLIST_INITIAL_ADMIN_MATRICULA` pode assumir automaticamente o primeiro
+perfil `ADMIN`. Esse bootstrap não libera outras matrículas.

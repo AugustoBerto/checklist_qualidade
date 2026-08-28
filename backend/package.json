@@ -1,9 +1,10 @@
 {
   "scripts": {
+    "build": "node --check index.js",
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "npm run test:unit",
-    "test:unit": "node --test --test-concurrency=1 test/*.test.js",
+    "test:unit": "node --require ./test/setup-env.js --test --test-concurrency=1 test/*.test.js",
     "test:integration": "node scripts/test-integration.js",
     "test:all": "npm run test:unit && npm run test:integration",
     "db:init": "node scripts/db.js init",

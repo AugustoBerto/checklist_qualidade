@@ -8,7 +8,7 @@ Estas migrations pertencem somente ao Checklist. Elas não criam nem alteram o
 O sistema conta com uma migration consolidada principal: `001_initial_schema.sql`.
 Ela cria toda a estrutura de tabelas, relacionamentos, chaves estrangeiras e índices necessários para a operação completa do Checklist.
 
-1. Crie um banco PostgreSQL vazio e preencha `backend/.env` a partir de `backend/.env.example` com os dados de conexão.
+1. Crie um banco PostgreSQL vazio e preencha `DATABASE_URL` em `backend/.env` a partir de `backend/.env.example`.
 2. Defina `JWT_SECRET` e `CHECKLIST_INITIAL_ADMIN_MATRICULA`.
 3. Inicialize o banco executando os comandos a partir de `checklistApp/backend`:
 
@@ -32,7 +32,7 @@ Ela cria toda a estrutura de tabelas, relacionamentos, chaves estrangeiras e ín
    O prazo controla a disponibilidade na API; a limpeza física do conteúdo deve
    ser feita por tarefa operacional agendada e auditável.
 
-4. Inicie a API (`npm run dev` ou `npm start`). No primeiro login autenticado com a matrícula de administrador, o perfil `ADMIN` será criado automaticamente.
+4. Inicie a API (`npm run dev` ou `npm start`). No primeiro login autenticado com a matrícula de administrador, o perfil `ADMIN` será criado automaticamente. Os demais colaboradores são sincronizados como `PENDENTE` até a liberação administrativa.
 
 ## Testes de Integração com Banco Descartável
 

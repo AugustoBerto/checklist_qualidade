@@ -47,6 +47,8 @@ em [Instalação e configuração](docs/INSTALACAO_E_CONFIGURACAO.md).
 - [Referência da API](docs/API.md)
 - [Desenvolvimento, testes e operação](docs/DESENVOLVIMENTO_E_OPERACAO.md)
 - [Integração entre Gateway, dass_auth e aplicações](docs/INTEGRACAO_GATEWAY_DASS_AUTH.md)
+- [Padrão de deploy de aplicações](docs/PADRAO_DEPLOY_APLICACOES.md)
+- [Skill para padronizar integrações DASS](skills/padronizar-integracao-dass/SKILL.md)
 - [Banco de dados e migrations](migrations/README.md)
 - [Documentos permanentes e retenção de evidências](docs/DOCUMENTOS_E_EVIDENCIAS.md)
 
@@ -54,6 +56,7 @@ em [Instalação e configuração](docs/INSTALACAO_E_CONFIGURACAO.md).
 
 | Diretório | Comando | Finalidade |
 | --- | --- | --- |
+| `backend` | `npm run build` | Valida a sintaxe do ponto de entrada da API (sem gerar artefatos). |
 | `backend` | `npm run dev` | API com recarga automática |
 | `backend` | `npm start` | API sem recarga automática |
 | `backend` | `npm test` | Testes unitários |

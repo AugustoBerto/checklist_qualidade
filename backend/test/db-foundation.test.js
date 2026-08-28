@@ -13,6 +13,13 @@ const {
   statusDatabase
 } = require('../scripts/db');
 
+test('configuração do banco exige DATABASE_URL', () => {
+  assert.throws(() => createPool({ DB_SCHEMA: 'checklist_app' }), /DATABASE_URL é obrigatória/);
+  const pool = createPool({ DATABASE_URL: 'postgresql://user:pass@localhost:5432/database', DB_SCHEMA: 'checklist_app' });
+  assert.equal(pool.options.connectionString, 'postgresql://user:pass@localhost:5432/database');
+  return pool.end();
+});
+
 describe('fundação DB', () => {
   test('pool registra erros assíncronos sem emitir uncaught error', () => {
     const pool = new EventEmitter();
@@ -55,19 +62,16 @@ describe('fundação DB', () => {
 
   test('descobre as migrations em ordem', () => {
     const migrations = validateMigrationSet(listMigrationFiles());
-    assert.deepEqual(migrations.map(({ version }) => version), [1, 2, 3, 4, 5, 6, 7]);
+    assert.deepEqual(migrations.map(({ version }) => version), [1, 2, 3, 4, 5, 6, 7, 8]);
     assert.match(readMigrationSql(migrations[0]), /^CREATE SCHEMA checklist_app;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /^BEGIN;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /COMMIT;\s*$/);
   });
 
   test('integra init, migrate, status e recusa init repetido no PostgreSQL de teste', { skip: process.env.RUN_DB_INTEGRATION !== '1' }, async () => {
+    const database = process.env.DB_TEST_DATABASE || 'checklist_test';
     const env = {
-      DB_HOST: process.env.DB_TEST_HOST || '127.0.0.1',
-      DB_PORT: process.env.DB_TEST_PORT || '55432',
-      DB_USER: process.env.DB_TEST_USER || 'checklist_test',
-      DB_PASSWORD: process.env.DB_TEST_PASSWORD || 'checklist_test_only',
-      DB_DATABASE: process.env.DB_TEST_DATABASE || 'checklist_test',
+      DATABASE_URL: `postgresql://${encodeURIComponent(process.env.DB_TEST_USER || 'checklist_test')}:${encodeURIComponent(process.env.DB_TEST_PASSWORD || 'checklist_test_only')}@${process.env.DB_TEST_HOST || '127.0.0.1'}:${process.env.DB_TEST_PORT || '55432'}/${encodeURIComponent(database)}`,
       DB_SCHEMA: process.env.DB_TEST_SCHEMA || 'checklist_app'
     };
     const migrationEnv = { ...env, DB_SCHEMA: `${env.DB_TEST_SCHEMA || 'checklist_app'}_marca` };
@@ -96,7 +100,7 @@ describe('fundação DB', () => {
       `, [String(unica.id), duplicadaA.id]);
 
       const migrated = await migrateDatabase({ pool, env: migrationEnv });
-      assert.deepEqual(migrated.applied, ['002_modelo_marca_fk.sql', '003_categorias_padrao.sql', '004_marca_logo.sql', '005_modelo_versao_assinatura_mime.sql', '006_formulario_evidencias.sql', '007_remover_assinatura_path.sql']);
+      assert.deepEqual(migrated.applied, ['002_modelo_marca_fk.sql', '003_categorias_padrao.sql', '004_marca_logo.sql', '005_modelo_versao_assinatura_mime.sql', '006_formulario_evidencias.sql', '007_remover_assinatura_path.sql', '008_perfis_pendentes.sql']);
       const modelos = await pool.query(`
         SELECT nome, marca, id_marca_fk
         FROM ${migrationEnv.DB_SCHEMA}.modelo
@@ -112,7 +116,7 @@ describe('fundação DB', () => {
 
       const status = await statusDatabase({ pool, env: migrationEnv });
       assert.equal(status.initialized, true);
-      assert.deepEqual(status.migrations.map((item) => item.applied), [true, true, true, true, true, true, true]);
+      assert.deepEqual(status.migrations.map((item) => item.applied), [true, true, true, true, true, true, true, true]);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS ${migrationEnv.DB_SCHEMA} CASCADE`);
       await pool.end();

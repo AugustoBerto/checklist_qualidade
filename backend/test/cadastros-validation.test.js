@@ -515,76 +515,6 @@ test('rejeita setor inativo ou marca inexistente ao atualizar célula', async ()
   }
 });
 
-test('rejeita perfil com FK de setor, célula ou turno inválida sem inserir', async () => {
-  const originalFetch = global.fetch;
-  global.fetch = async () => ({ status: 200, ok: true, async json() { return { data: { nome: 'Pessoa' } }; } });
-  try {
-    for (const caso of [
-      { campo: 'id_unidade_fk', tabela: 'unidades', registro: null },
-      { campo: 'id_setor_fk', tabela: 'setores', registro: { id: 99, ativo: 0 } },
-      { campo: 'id_celula_fk', tabela: 'celulas_producao', registro: { id: 99, ativo: 0 } },
-      { campo: 'id_turno_fk', tabela: 'turnos', registro: null },
-    ]) {
-    const { campo, tabela, registro } = caso;
-    let inseriu = false;
-    const consultas = [];
-    const query = async (sql, params) => {
-      consultas.push({ sql, params });
-      if (/^(BEGIN|COMMIT|ROLLBACK)$/.test(sql)) return { rows: [], rowCount: 0 };
-      if (new RegExp(`FROM ${tabela}`).test(sql)) {
-        if (!registro || /ativo\s*=\s*1/.test(sql)) return { rows: [], rowCount: 0 };
-        return { rows: [registro], rowCount: 1 };
-      }
-      if (/INSERT INTO usuarios/.test(sql)) inseriu = true;
-      return { rows: [{ id: 1 }], rowCount: 1 };
-    };
-    db.query = query;
-    db.connect = async () => ({ query, release() {} });
-    const res = resposta();
-
-    await perfis.criar({ body: {
-      matricula: '123', papel: 'INSPETOR', id_unidade_fk: null,
-      id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
-      [campo]: 99,
-    } }, res);
-
-    assert.equal(res.statusCode, 400);
-    assert.equal(inseriu, false);
-    const validacao = consultas.find(({ sql }) => new RegExp(`FROM ${tabela}`).test(sql));
-    if (campo === 'id_unidade_fk' || campo === 'id_setor_fk' || campo === 'id_celula_fk') assert.match(validacao.sql, /ativo\s*=\s*1/);
-    else assert.doesNotMatch(validacao.sql, /ativo/);
-    }
-  } finally {
-    global.fetch = originalFetch;
-  }
-});
-
-test('perfil aceita FKs nulas explicitamente e persiste null', async () => {
-  const originalFetch = global.fetch;
-  const consultas = [];
-  global.fetch = async () => ({ status: 200, ok: true, async json() { return { data: { nome: 'Pessoa', funcao: 'Função' } }; } });
-  const query = async (sql, params = []) => {
-    consultas.push({ sql, params });
-    if (/INSERT INTO usuarios/.test(sql)) return { rows: [{ id: 1, matricula: '123' }], rowCount: 1 };
-    return { rows: [], rowCount: 0 };
-  };
-  db.query = query;
-  db.connect = async () => ({ query, release() {} });
-
-  try {
-    const res = resposta();
-    await perfis.criar({ body: {
-      matricula: '123', papel: 'INSPETOR', id_unidade_fk: null,
-      id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
-    } }, res);
-    const insert = consultas.find(({ sql }) => /INSERT INTO usuarios/.test(sql));
-    assert.equal(res.statusCode, 201);
-    assert.deepEqual(insert.params.slice(-4), [null, null, null, null]);
-  } finally {
-    global.fetch = originalFetch;
-  }
-});
-
 test('criação e atualização de célula validam e escrevem no mesmo cliente transacional', async () => {
   for (const [acao, req] of [
     ['criarCelula', { body: { nome: 'Célula', id_setor_fk: 3, id_marca_fk: null } }],
@@ -613,37 +543,28 @@ test('criação e atualização de célula validam e escrevem no mesmo cliente t
   }
 });
 
-test('criação e atualização de perfil validam e escrevem no mesmo cliente transacional', async () => {
-  const originalFetch = global.fetch;
-  try {
-    for (const [acao, req] of [
-      ['criar', { body: { matricula: '123', papel: 'INSPETOR', id_unidade_fk: 1, id_setor_fk: null, id_celula_fk: null, id_turno_fk: null } }],
-      ['atualizar', { params: { id: 4 }, body: { papel: 'INSPETOR', ativo: true, id_unidade_fk: 1, id_setor_fk: null, id_celula_fk: null, id_turno_fk: null } }],
-    ]) {
-      const eventos = [];
-      let consultasNoPool = 0;
-      global.fetch = async () => { eventos.push('fetch'); return { status: 200, ok: true, async json() { return { data: { nome: 'Pessoa', funcao: 'Função' } }; } }; };
-      db.query = async () => { consultasNoPool += 1; throw new Error('pool não deve executar validação ou escrita'); };
-      db.connect = async () => ({ async query(sql, params = []) {
-        eventos.push(sql);
-        if (/FROM unidades/.test(sql)) return { rows: [{ id: 1 }], rowCount: 1 };
-        if (/usuarios/.test(sql)) return { rows: [{ id: 4 }], rowCount: 1 };
-        return { rows: [], rowCount: 0 };
-      }, release() { eventos.push('release'); } });
+test('atualização de perfil valida e escreve no mesmo cliente transacional', async () => {
+  const eventos = [];
+  let consultasNoPool = 0;
+  db.query = async () => { consultasNoPool += 1; throw new Error('pool não deve executar validação ou escrita'); };
+  db.connect = async () => ({ async query(sql, params = []) {
+    eventos.push(sql);
+    if (/FROM unidades/.test(sql)) return { rows: [{ id: 1 }], rowCount: 1 };
+    if (/usuarios/.test(sql)) return { rows: [{ id: 4 }], rowCount: 1 };
+    return { rows: [], rowCount: 0 };
+  }, release() { eventos.push('release'); } });
 
-      const res = resposta();
-      await perfis[acao](req, res);
+  const res = resposta();
+  await perfis.atualizar({ params: { id: 4 }, body: {
+    papel: 'INSPETOR', ativo: true, id_unidade_fk: 1,
+    id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
+  } }, res);
 
-      assert.equal(res.statusCode, acao === 'criar' ? 201 : 200);
-      assert.equal(consultasNoPool, 0);
-      if (acao === 'criar') assert.equal(eventos[0], 'fetch');
-      assert.equal(eventos[eventos.indexOf('BEGIN') + 1].includes('FROM unidades'), true);
-      assert.equal(eventos.at(-2), 'COMMIT');
-      assert.equal(eventos.at(-1), 'release');
-    }
-  } finally {
-    global.fetch = originalFetch;
-  }
+  assert.equal(res.statusCode, 200);
+  assert.equal(consultasNoPool, 0);
+  assert.equal(eventos[eventos.indexOf('BEGIN') + 1].includes('FROM unidades'), true);
+  assert.equal(eventos.at(-2), 'COMMIT');
+  assert.equal(eventos.at(-1), 'release');
 });
 
 test('não permite remover o último administrador ativo', async () => {

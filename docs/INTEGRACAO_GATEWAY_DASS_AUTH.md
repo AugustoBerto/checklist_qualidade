@@ -12,7 +12,7 @@ Navegador
 api-gateway (porta 2399)
    |                                      |
    v                                      v
-dass_auth_service (porta 2400)       Checklist API (porta 7733)
+dass_auth_service (porta 2123)       Checklist API (porta 7733)
    |                                      |
    v                                      v
 autenticacao.usuarios                checklist_app.usuarios
@@ -75,11 +75,15 @@ No Checklist:
 2. O cookie `token` chega ao Checklist através do Gateway.
 3. O middleware do Checklist valida a assinatura do JWT com o mesmo `JWT_SECRET` do dass_auth.
 4. A aplicação lê a `matricula` do token e procura o perfil local em `checklist_app.usuarios`.
-5. O perfil local fornece `papel` (`ADMIN`, `LIDER` ou `INSPETOR`) e dados operacionais.
-6. Se não existir perfil ativo, a aplicação retorna `403 PERFIL_CHECKLIST_NAO_LIBERADO`; o frontend informa o bloqueio e faz logout central.
-7. Se houver perfil, o Checklist responde com os dados permitidos e aplica as regras da rota.
+5. A identidade do JWT é criada ou atualizada no banco local.
+6. Um novo colaborador recebe `papel=PENDENTE` e `ativo=0`.
+7. Enquanto estiver pendente ou inativo, a aplicação retorna `403 PERFIL_CHECKLIST_PENDENTE`; o frontend informa o bloqueio e faz logout central.
+8. Um administrador atribui `ADMIN`, `LIDER` ou `INSPETOR`, configura os vínculos operacionais e ativa o perfil.
+9. Quando liberado, o Checklist responde com os dados permitidos e aplica as regras da rota.
 
-O primeiro perfil `ADMIN` é uma exceção controlada: quando a allowlist está vazia, apenas a matrícula definida em `CHECKLIST_INITIAL_ADMIN_MATRICULA` pode criar esse perfil no primeiro acesso autenticado.
+O primeiro perfil `ADMIN` é uma exceção controlada: enquanto todos os perfis
+existentes estiverem pendentes, apenas a matrícula definida em
+`CHECKLIST_INITIAL_ADMIN_MATRICULA` pode assumir esse papel no primeiro acesso.
 
 ## Quem pede e quem responde
 
@@ -88,7 +92,7 @@ O primeiro perfil `ADMIN` é uma exceção controlada: quando a allowlist está 
 | Login por senha | Frontend | Gateway → dass_auth → `autenticacao.usuarios` | dass_auth, com cookies de sessão |
 | Restaurar sessão | Frontend | Gateway → dass_auth | dass_auth, validando/renovando tokens |
 | Ver perfil do Checklist | Frontend | Gateway → Checklist → `checklist_app.usuarios` | Checklist |
-| Criar perfil local | ADMIN do Checklist | Gateway → Checklist → dass_auth `/colaborador/:matricula` e banco local | Checklist |
+| Sincronizar perfil local | Colaborador autenticado | Gateway → Checklist → banco local, usando os dados do JWT | Checklist |
 | Salvar checklist | Frontend | Gateway → Checklist | Checklist, depois de validar cookie e perfil |
 | Logout | Frontend | Gateway → dass_auth | dass_auth, invalidando e limpando sessão |
 

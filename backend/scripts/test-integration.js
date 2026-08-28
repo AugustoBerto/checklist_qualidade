@@ -10,11 +10,7 @@ if (!database.endsWith('_test')) {
 
 const env = {
   ...process.env,
-  DB_HOST: process.env.DB_TEST_HOST || '127.0.0.1',
-  DB_PORT: process.env.DB_TEST_PORT || '55432',
-  DB_USER: process.env.DB_TEST_USER || 'checklist_test',
-  DB_PASSWORD: process.env.DB_TEST_PASSWORD || 'checklist_test_only',
-  DB_DATABASE: database,
+  DATABASE_URL: `postgresql://${encodeURIComponent(process.env.DB_TEST_USER || 'checklist_test')}:${encodeURIComponent(process.env.DB_TEST_PASSWORD || 'checklist_test_only')}@${process.env.DB_TEST_HOST || '127.0.0.1'}:${process.env.DB_TEST_PORT || '55432'}/${encodeURIComponent(database)}`,
   DB_SCHEMA: process.env.DB_TEST_SCHEMA || 'checklist_app',
   RUN_DB_INTEGRATION: '1'
 };

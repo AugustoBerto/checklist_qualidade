@@ -4,11 +4,10 @@
 
 ```text
 checklist_app/
-├── backend/       API, acesso a dados, scripts e testes Node
+├── backend/       API, acesso a dados, scripts, testes Node e configuração PM2
 ├── frontend/      SPA Vue, componentes, serviços e testes Vitest
 ├── migrations/    schema e evoluções SQL
-├── docs/          documentação do projeto
-└── ecosystem.config.cjs
+└── docs/          documentação do projeto
 ```
 
 Os diretórios `backend` e `frontend` têm dependências e comandos npm separados.
@@ -83,7 +82,7 @@ evidências](DOCUMENTOS_E_EVIDENCIAS.md) para o ciclo de vida completo.
 ### Health check degradado
 
 - teste host, porta, banco e credenciais PostgreSQL;
-- confira `DATABASE_URL` primeiro, pois ela prevalece sobre variáveis `DB_*`;
+- confira formato, host, porta, banco e credenciais de `DATABASE_URL`;
 - confirme se o schema foi inicializado e se o usuário tem permissão.
 
 ### Login funciona, mas o Checklist retorna 403
@@ -91,19 +90,20 @@ evidências](DOCUMENTOS_E_EVIDENCIAS.md) para o ciclo de vida completo.
 - confirme se o JWT possui `matricula`;
 - confirme perfil local ativo e papel válido;
 - no primeiro acesso, confira `CHECKLIST_INITIAL_ADMIN_MATRICULA`;
-- para outros usuários, um `ADMIN` deve criar o perfil pela configuração.
+- para outros usuários, confirme se o primeiro login criou um perfil `PENDENTE`;
+- um `ADMIN` deve atribuir papel e vínculos e ativar esse perfil pela configuração.
 
 ### Frontend chama o destino errado
 
-- confira `VITE_APP_BASE_URL`, `VITE_API_URL` e `VITE_GATEWAY_URL`;
+- confira `VITE_APP_BASE_URL`, `VITE_AUTH_API_URL`, `VITE_API_URL` e `VITE_GATEWAY_URL`;
 - reinicie o Vite após mudar variáveis `VITE_*`;
 - confirme o prefixo `/api/checklist-app` no Gateway.
 
-### Cadastro de perfil falha
+### Perfil não aparece para liberação
 
-A criação consulta diretamente `DASS_AUTH_BASE_URL` com timeout de cinco
-segundos. Verifique a conectividade e a rota `/colaborador/:matricula` no serviço
-central.
+O colaborador precisa concluir um login central para que sua identidade seja
+sincronizada como `PENDENTE`. Confira o JWT, especialmente `matricula`, e os logs
+da API. Não existe consulta direta do Checklist ao serviço de autenticação.
 
 ## Observabilidade e segurança operacional
 

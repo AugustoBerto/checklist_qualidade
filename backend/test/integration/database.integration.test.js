@@ -6,7 +6,9 @@ const dados = require('../../controllers/DadosController');
 const cadastros = require('../../controllers/CadastrosController');
 const perfis = require('../../controllers/PerfisController');
 
-const database = process.env.DB_DATABASE || '';
+const database = (() => {
+  try { return new URL(process.env.DATABASE_URL).pathname.slice(1); } catch { return ''; }
+})();
 if (!database.endsWith('_test')) throw new Error('Integração recusada fora de banco com sufixo _test.');
 
 after(async () => pool.end());
@@ -21,7 +23,7 @@ const resposta = () => ({
 test('baseline consolidado deixa o schema operacional', async () => {
   const status = await statusDatabase({ pool, env: process.env });
   assert.equal(status.initialized, true);
-  assert.deepEqual(status.migrations.map(({ applied }) => applied), [true, true, true, true, true, true, true]);
+  assert.deepEqual(status.migrations.map(({ applied }) => applied), [true, true, true, true, true, true, true, true]);
 
   const modeloVersion = await pool.query(`
     SELECT data_type, column_default
