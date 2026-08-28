@@ -63,6 +63,7 @@
       v-if="abaAtiva === 'modelos'"
       ref="modelosTabRef"
       v-model:modo="modoModelos"
+      @catalogo-atualizado="invalidarCatalogoCategorias"
     />
 
     <!-- Módulo de Usuários & Perfis -->
@@ -548,6 +549,10 @@ const modelosTabRef = ref(null);
 const usuariosTabRef = ref(null);
 const modoModelos = ref('lista');
 const modoUsuarios = ref('lista');
+
+const invalidarCatalogoCategorias = () => {
+  dados.categorias = [];
+};
 
 const modoAbaAtual = computed(() => {
   if (abaAtiva.value === 'modelos') return modoModelos.value;

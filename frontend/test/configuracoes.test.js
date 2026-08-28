@@ -90,4 +90,15 @@ describe('edição de cadastros administrativos', () => {
       id_marca_fk: 5,
     })
   })
+
+  it('recarrega categorias após um modelo sincronizar o catálogo', async () => {
+    const wrapper = await montar('modelos')
+    wrapper.vm.dados.categorias = [{ id: 1, nome: 'ANTIGA' }]
+
+    wrapper.findComponent({ name: 'ModelosTab' }).vm.$emit('catalogo-atualizado')
+    wrapper.vm.mudarAba('categorias')
+    await flushPromises()
+
+    expect(api.get).toHaveBeenCalledWith('/cadastros/categorias-padrao', expect.any(Object))
+  })
 })

@@ -261,15 +261,15 @@ exports.atualizarModelo = async (req, res) => {
                 const identificacao = `${slugify(nomeCategoria)}_${index + 1}`;
                 
                 const resPerg = await client.query(
-                    'SELECT id FROM perguntas WHERE id_categoria = $1 AND pergunta = $2', 
-                    [categoriaId, textoPergunta]
+                    'SELECT id FROM perguntas WHERE id_modelo = $1 AND identificacao = $2',
+                    [id, identificacao]
                 );
 
                 if (resPerg.rows.length > 0) {
                     const pergId = resPerg.rows[0].id;
                     await client.query(
-                        'UPDATE perguntas SET ativo = 1, identificacao = $1 WHERE id = $2', 
-                        [identificacao, pergId]
+                        'UPDATE perguntas SET pergunta = $1, id_categoria = $2, ativo = 1 WHERE id = $3',
+                        [textoPergunta, categoriaId, pergId]
                     );
                     perguntasMantidasIds.push(pergId);
                 } else {

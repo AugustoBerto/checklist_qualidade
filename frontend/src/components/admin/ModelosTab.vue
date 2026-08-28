@@ -281,7 +281,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modo']);
+const emit = defineEmits(['update:modo', 'catalogo-atualizado']);
 
 const modoAtual = ref(props.modo || 'lista'); 
 const marcasOptions = ref([]);
@@ -629,13 +629,29 @@ const salvarChecklist = async () => {
   if (!form.nomeMarca) { erroForm.value = 'A marca é obrigatória.'; return; }
   if (categoriasUI.value.length === 0) { erroForm.value = 'Adicione pelo menos uma categoria.'; return; }
 
+  const nomesCategorias = new Set();
+  for (const cat of categoriasUI.value) {
+    const nomeNormalizado = cat.nome.trim().toUpperCase();
+    if (nomeNormalizado && nomesCategorias.has(nomeNormalizado)) {
+      erroForm.value = `Existem categorias duplicadas com o nome "${cat.nome.trim()}".`;
+      return;
+    }
+    nomesCategorias.add(nomeNormalizado);
+  }
+
   const payloadCategorias = {};
   categoriasUI.value.forEach(cat => {
     const nomeLimpo = cat.nome.trim();
-    if (nomeLimpo && cat.perguntas.length > 0) {
+    const perguntas = cat.perguntas.map(p => p.texto.trim()).filter(Boolean);
+    const perguntasPendentes = String(cat.novaPergunta || '')
+      .split('\n')
+      .map(texto => texto.trim())
+      .filter(Boolean);
+    perguntas.push(...perguntasPendentes);
+    if (nomeLimpo && perguntas.length > 0) {
       payloadCategorias[nomeLimpo] = {
         ctq: !!cat.ctq,
-        perguntas: cat.perguntas.map(p => p.texto.trim()).filter(t => t !== '')
+        perguntas
       };
     }
   });
@@ -662,6 +678,7 @@ const salvarChecklist = async () => {
       await api.post('/cadastros/modelos', payload);
       sucessoGlobal.value = 'Novo modelo criado com sucesso!';
     }
+    emit('catalogo-atualizado');
     voltarParaLista();
     setTimeout(() => { sucessoGlobal.value = ''; }, 3000);
   } catch (err) {

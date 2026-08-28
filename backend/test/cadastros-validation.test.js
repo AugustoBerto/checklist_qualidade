@@ -230,6 +230,44 @@ test('atualização grava a marca canônica e exige ativo booleano', async () =>
   assert.deepEqual(update.params, ['Modelo', 7, false, 3, 9]);
 });
 
+test('atualização preserva perguntas repetidas usando a identificação posicional', async () => {
+  const consultas = [];
+  let proximoId = 40;
+  db.connect = async () => ({
+    async query(sql, params = []) {
+      consultas.push({ sql, params });
+      if (/SELECT id FROM marcas/.test(sql)) return { rows: [{ id: 7 }], rowCount: 1 };
+      if (/SELECT id FROM setores/.test(sql)) return { rows: [{ id: 3 }], rowCount: 1 };
+      if (/UPDATE modelo SET/.test(sql)) return { rows: [], rowCount: 1 };
+      if (/SELECT id FROM categorias/.test(sql)) return { rows: [{ id: 12 }], rowCount: 1 };
+      if (/SELECT id FROM perguntas/.test(sql)) {
+        return { rows: [{ id: proximoId++ }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 1 };
+    },
+    release() {},
+  });
+
+  const res = resposta();
+  await cadastros.atualizarModelo({
+    params: { id: 9 },
+    body: {
+      nomeModelo: 'Modelo', nomeMarca: 7, id_setor: 3, ativo: true,
+      categorias: { TESTE: { ctq: false, perguntas: ['Repetida', 'Repetida', 'Única'] } },
+    },
+  }, res);
+
+  const buscas = consultas.filter(({ sql }) => /SELECT id FROM perguntas/.test(sql));
+  const atualizacoes = consultas.filter(({ sql }) => /UPDATE perguntas SET pergunta =/.test(sql));
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(buscas.map(({ params }) => params), [
+    [9, 'teste_1'], [9, 'teste_2'], [9, 'teste_3'],
+  ]);
+  assert.deepEqual(atualizacoes.map(({ params }) => params.slice(0, 3)), [
+    ['Repetida', 12, 40], ['Repetida', 12, 41], ['Única', 12, 42],
+  ]);
+});
+
 test('filtro de modelos por marca usa id_marca_fk', async () => {
   let consulta;
   db.query = async (sql, params) => {
