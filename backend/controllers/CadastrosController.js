@@ -2,9 +2,10 @@ const db = require('../db');
 const { withTransaction } = require('../database/transaction');
 
 const nomeValido = (nome) => typeof nome === 'string' && nome.trim().length > 0 && nome.trim().length <= 255;
+const MAX_PG_INT = 2147483647;
 const idValido = (id) => {
     const numero = Number(id);
-    return Number.isSafeInteger(numero) && numero > 0
+    return Number.isSafeInteger(numero) && numero > 0 && numero <= MAX_PG_INT
         && (typeof id === 'number' || typeof id === 'string' && /^\d+$/.test(id.trim()));
 };
 const normalizarNome = (nome) => nome.trim().toUpperCase();
@@ -136,7 +137,7 @@ exports.listarModelos = async (req, res) => {
     try {
         const result = await db.query(`
             SELECT m.id, m.nome, COALESCE(m.id_marca_fk::text, m.marca) AS marca,
-                m.id_marca_fk, ma.nome AS nome_marca, m.ativo, m.id_setor_fk
+                m.id_marca_fk, ma.nome AS nome_marca, m.ativo, m.id_setor_fk, m.versao
             FROM modelo m
             LEFT JOIN marcas ma ON ma.id = m.id_marca_fk
             ORDER BY m.nome ASC
@@ -150,11 +151,12 @@ exports.listarModelos = async (req, res) => {
 
 exports.buscarModeloPorId = async (req, res) => {
     const { id } = req.params;
+    if (!idValido(id)) return res.status(400).json({ sucesso: false, mensagem: 'ID de modelo inválido.' });
     
     try {
         const modeloResult = await db.query(`
             SELECT m.id, m.nome, m.marca, m.id_marca_fk, ma.nome AS nome_marca,
-                m.ativo, m.id_setor_fk
+                m.ativo, m.id_setor_fk, m.versao
             FROM modelo m
             LEFT JOIN marcas ma ON ma.id = m.id_marca_fk
             WHERE m.id = $1
@@ -199,6 +201,7 @@ exports.buscarModeloPorId = async (req, res) => {
                 nome_marca: modelo.nome_marca || modelo.marca,
                 ativo: modelo.ativo,
                 id_setor: modelo.id_setor_fk,
+                versao: modelo.versao,
                 categorias: categoriasFormatadas
             }
         });
@@ -211,11 +214,11 @@ exports.buscarModeloPorId = async (req, res) => {
 
 exports.atualizarModelo = async (req, res) => {
     const { id } = req.params;
-    const { nomeModelo, categorias, ativo, id_setor } = req.body;
+    const { nomeModelo, categorias, ativo, id_setor, versao } = req.body;
     const idMarca = obterMarcaId(req.body);
 
-    if (!idValido(id) || !nomeValido(nomeModelo) || !idValido(idMarca) || !idValido(id_setor) || typeof ativo !== 'boolean' || !categoriasValidas(categorias)) {
-        return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos. Setor e categorias são obrigatórios.' });
+    if (!idValido(id) || !nomeValido(nomeModelo) || !idValido(idMarca) || !idValido(id_setor) || !idValido(versao) || typeof ativo !== 'boolean' || !categoriasValidas(categorias)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos. Setor, categorias e versão são obrigatórios.' });
     }
 
     const client = await db.connect();
@@ -226,12 +229,18 @@ exports.atualizarModelo = async (req, res) => {
         await validarSetor(client, Number(id_setor));
 
         const modeloAtualizado = await client.query(
-            'UPDATE modelo SET nome = $1, id_marca_fk = $2, ativo = $3, id_setor_fk = $4 WHERE id = $5',
-            [nomeModelo.trim(), Number(idMarca), ativo, Number(id_setor), id]
+            'UPDATE modelo SET nome = $1, id_marca_fk = $2, ativo = $3, id_setor_fk = $4, versao = versao + 1 WHERE id = $5 AND versao = $6 RETURNING versao',
+            [nomeModelo.trim(), Number(idMarca), ativo, Number(id_setor), id, Number(versao)]
         );
         if (!modeloAtualizado.rowCount) {
+            const existe = await client.query('SELECT id FROM modelo WHERE id = $1 FOR SHARE', [id]);
             await client.query('ROLLBACK');
-            return res.status(404).json({ sucesso: false, mensagem: 'Modelo não encontrado.' });
+            if (!existe.rows.length) return res.status(404).json({ sucesso: false, mensagem: 'Modelo não encontrado.' });
+            return res.status(409).json({
+                sucesso: false,
+                codigo: 'MODELO_ALTERADO_CONCORRENTEMENTE',
+                mensagem: 'Este modelo foi alterado por outro usuário. Recarregue os dados e tente novamente.'
+            });
         }
 
         const perguntasMantidasIds = [];
@@ -293,7 +302,7 @@ exports.atualizarModelo = async (req, res) => {
         }
 
         await client.query('COMMIT');
-        res.status(200).json({ sucesso: true, mensagem: 'Modelo atualizado com sucesso!' });
+        res.status(200).json({ sucesso: true, mensagem: 'Modelo atualizado com sucesso!', versao: modeloAtualizado.rows[0]?.versao });
 
     } catch (error) {
         await client.query('ROLLBACK');

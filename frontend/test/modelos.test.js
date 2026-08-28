@@ -39,6 +39,35 @@ describe('edição de modelos', () => {
     expect(wrapper.emitted('catalogo-atualizado')).toHaveLength(1)
   })
 
+  it('envia a versão recebida no detalhe e orienta revisão em conflito concorrente', async () => {
+    api.get.mockImplementation((url) => {
+      if (url === '/cadastros/modelos/9') {
+        return Promise.resolve({ data: {
+          sucesso: true,
+          modelo: {
+            id: 9, nome: 'Modelo', nomeMarca: 7, id_setor: 3, ativo: true, versao: 4,
+            categorias: { CATEGORIA: { ctq: false, perguntas: ['Pergunta'] } }
+          }
+        } })
+      }
+      return Promise.resolve({ data: { dados: [] } })
+    })
+    const wrapper = shallowMount(ModelosTab)
+    await flushPromises()
+
+    await wrapper.vm.abrirEdicao({ id: 9 })
+    expect(wrapper.vm.form.versao).toBe(4)
+
+    api.put.mockRejectedValueOnce({
+      response: { status: 409, data: { codigo: 'MODELO_ALTERADO_CONCORRENTEMENTE' } }
+    })
+    await wrapper.vm.salvarChecklist()
+
+    expect(api.put).toHaveBeenCalledWith('/cadastros/modelos/9', expect.objectContaining({ versao: 4 }))
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('alterado por outra pessoa'))
+    expect(wrapper.vm.erroForm).toContain('Recarregue')
+  })
+
   it('impede que categorias renomeadas para o mesmo nome sobrescrevam perguntas', async () => {
     const wrapper = shallowMount(ModelosTab)
     await flushPromises()

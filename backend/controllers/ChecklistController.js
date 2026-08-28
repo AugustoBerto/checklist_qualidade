@@ -4,6 +4,7 @@ const { withTransaction } = require('../database/transaction');
 const RESPOSTAS_VALIDAS = new Set(['Conforme', 'Não Conforme', 'N/A']);
 const MAX_FOTO_BYTES = 2 * 1024 * 1024;
 const MAX_ASSINATURA_BYTES = 1024 * 1024;
+const MAX_PG_INT = 2147483647;
 
 class ErroValidacao extends Error {
     constructor(mensagem, status = 400) {
@@ -12,7 +13,7 @@ class ErroValidacao extends Error {
     }
 }
 
-const base64ParaBuffer = (valor, limite, campo) => {
+const base64ParaImagem = (valor, limite, campo) => {
     if (typeof valor !== 'string') throw new ErroValidacao(`${campo} deve ser uma imagem Base64.`);
     const match = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(valor);
     if (!match || match[2].length % 4 === 1) throw new ErroValidacao(`${campo} possui formato de imagem inválido.`);
@@ -28,8 +29,9 @@ const base64ParaBuffer = (valor, limite, campo) => {
     };
     if (!formatosValidos[match[1]]) throw new ErroValidacao(`${campo} não corresponde ao formato informado.`);
     if (buffer.length > limite) throw new ErroValidacao(`${campo} excede o limite permitido.`, 413);
-    return buffer;
+    return { buffer, mime: `image/${match[1]}` };
 };
+const base64ParaBuffer = (valor, limite, campo) => base64ParaImagem(valor, limite, campo).buffer;
 
 const validarRespostas = (respostas, perguntas) => {
     if (!Array.isArray(respostas) || respostas.length !== perguntas.length) {
@@ -60,15 +62,21 @@ const validarRespostas = (respostas, perguntas) => {
 
 const idObrigatorioValido = (id) => (typeof id === 'number' || typeof id === 'string')
     && Number.isInteger(Number(id))
-    && Number(id) > 0;
+    && Number(id) > 0
+    && Number(id) <= MAX_PG_INT
+    && (typeof id === 'number' || /^\d+$/.test(id.trim()));
+
+const timestampOpcionalValido = (valor) => valor == null
+    || (typeof valor === 'string' && valor.trim().length > 0 && Number.isFinite(Date.parse(valor)));
 
 exports.buscarPerguntas = async (req, res) => {
-    const modeloId = Number(req.params.modelo);
-    if (!Number.isInteger(modeloId)) return res.status(400).json({ sucesso: false, mensagem: 'Modelo inválido.' });
+    const modeloId = idObrigatorioValido(req.params.modelo) ? Number(req.params.modelo) : null;
+    if (modeloId === null) return res.status(400).json({ sucesso: false, mensagem: 'Modelo inválido.' });
     try {
         const { rows } = await db.query(`
             SELECT p.id AS id_pergunta, c.id AS id_categoria, c.categoria, c.ctq,
-                p.pergunta, p.identificacao, m.nome AS nome_modelo, m.id AS id_modelo_fk
+                p.pergunta, p.identificacao, m.nome AS nome_modelo, m.id AS id_modelo_fk,
+                m.versao AS modelo_versao
             FROM perguntas p
             JOIN modelo m ON p.id_modelo = m.id
             JOIN categorias c ON p.id_categoria = c.id
@@ -81,7 +89,11 @@ exports.buscarPerguntas = async (req, res) => {
             const categoria = row.categoria || 'SEM CATEGORIA';
             (agrupado[categoria] ||= []).push({ id: row.id_pergunta, texto: row.pergunta, variavel: row.identificacao, modelo: row.nome_modelo, id_modelo: row.id_modelo_fk, ctq: row.ctq || false });
         });
-        res.json({ sucesso: true, respostasAgrupadas: agrupado });
+        res.json({
+            sucesso: true,
+            modelo: { id: rows[0].id_modelo_fk, nome: rows[0].nome_modelo, versao: rows[0].modelo_versao },
+            respostasAgrupadas: agrupado
+        });
     } catch (err) {
         console.error('Erro ao buscar perguntas:', err);
         res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao buscar perguntas.' });
@@ -91,7 +103,8 @@ exports.buscarPerguntas = async (req, res) => {
 exports.salvarChecklist = async (req, res) => {
     const { id_modelo, id_setor, id_celula, assinatura, respostas, inicio_checklist } = req.body;
     const idUsuarioFinal = req.usuario?.id;
-    if (!idUsuarioFinal || !idObrigatorioValido(id_modelo) || !idObrigatorioValido(id_setor) || !idObrigatorioValido(id_celula)) {
+    if (!idUsuarioFinal || !idObrigatorioValido(id_modelo) || !idObrigatorioValido(id_setor)
+        || !idObrigatorioValido(id_celula) || !timestampOpcionalValido(inicio_checklist)) {
         return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos ou inválidos.' });
     }
     try {
@@ -117,13 +130,13 @@ exports.salvarChecklist = async (req, res) => {
             `, [id_modelo]);
             if (!perguntasRes.rows.length) throw new ErroValidacao('O modelo não possui perguntas ativas.');
             validarRespostas(respostas, perguntasRes.rows);
-            const assinaturaBuffer = base64ParaBuffer(assinatura, MAX_ASSINATURA_BYTES, 'A assinatura');
+            const assinaturaImagem = base64ParaImagem(assinatura, MAX_ASSINATURA_BYTES, 'A assinatura');
             const snapshot = { modelo: modeloRes.rows[0], perguntas: perguntasRes.rows.map(({ id, pergunta, identificacao, categoria, ctq }) => ({ id, pergunta, identificacao, categoria, ctq })) };
             return client.query(`
                 INSERT INTO formulario_submissoes
-                    (id_usuario, id_modelo, id_setor, id_celula, assinatura, respostas, inicio_checklist, snapshot, data_envio)
-                VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8::jsonb, NOW()) RETURNING id
-            `, [idUsuarioFinal, id_modelo, id_setor, id_celula, assinaturaBuffer, JSON.stringify(respostas), inicio_checklist || null, JSON.stringify(snapshot)]);
+                    (id_usuario, id_modelo, id_setor, id_celula, assinatura, assinatura_mime, respostas, inicio_checklist, snapshot, data_envio)
+                VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9::jsonb, NOW()) RETURNING id
+            `, [idUsuarioFinal, id_modelo, id_setor, id_celula, assinaturaImagem.buffer, assinaturaImagem.mime, JSON.stringify(respostas), inicio_checklist || null, JSON.stringify(snapshot)]);
         });
         res.status(201).json({ sucesso: true, mensagem: 'Checklist salvo com sucesso.', id_relatorio: result.rows[0].id });
     } catch (error) {
@@ -133,4 +146,4 @@ exports.salvarChecklist = async (req, res) => {
     }
 };
 
-exports._internals = { base64ParaBuffer, validarRespostas, RESPOSTAS_VALIDAS, idObrigatorioValido };
+exports._internals = { base64ParaBuffer, base64ParaImagem, validarRespostas, RESPOSTAS_VALIDAS, idObrigatorioValido, timestampOpcionalValido };

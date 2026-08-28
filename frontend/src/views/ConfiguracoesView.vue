@@ -716,7 +716,14 @@ const salvarItem = async () => {
 
   if (abaAtiva.value === 'categorias') {
     payload.ctq = form.ctq;
-    payload.perguntas = form.perguntas.map(p => String(p).trim()).filter(Boolean);
+    const perguntasPendentes = String(form.novaPerguntaInput || '')
+      .split('\n')
+      .map(pergunta => pergunta.trim())
+      .filter(Boolean);
+    payload.perguntas = [
+      ...form.perguntas.map(p => String(p).trim()).filter(Boolean),
+      ...perguntasPendentes
+    ];
   }
   
   if (abaAtiva.value === 'celulas') {

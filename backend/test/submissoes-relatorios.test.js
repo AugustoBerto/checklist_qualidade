@@ -34,6 +34,46 @@ test('limita página solicitada ao teto de 10000', async () => {
   assert.equal(consultaPaginada.params.at(-1), 999900);
 });
 
+test('rejeita filtros de ID, datas e valores não escalares antes do banco', async () => {
+  let consultas = 0;
+  db.query = async () => { consultas += 1; return { rows: [] }; };
+  for (const query of [
+    { modeloId: 'abc' },
+    { setorId: '0' },
+    { celulaId: '-1' },
+    { dataInicio: '2026-02-30' },
+    { dataFim: '2026-1-01' },
+    { dataInicio: '2026-08-29', dataFim: '2026-08-28' },
+    { busca: ['texto'] },
+    { usuario: { nome: 'Pessoa' } },
+  ]) {
+    const res = resposta();
+    await submissoes.listarSubmissoes({ query }, res);
+    assert.equal(res.statusCode, 400, JSON.stringify(query));
+  }
+  assert.equal(consultas, 0);
+});
+
+test('detalhe preserva MIME da assinatura e usa PNG para registros legados', async () => {
+  const base = {
+    id: 1,
+    data_envio: '2026-08-27T00:00:00Z',
+    respostas: [{ id_pergunta: 1, resposta: 'Conforme' }],
+    snapshot: { modelo: { nome: 'Modelo' }, perguntas: [{ id: 1, pergunta: 'Pergunta', categoria: 'Categoria' }] },
+    id_modelo: 1,
+    nome_usuario: 'Pessoa', nome_modelo: 'Modelo', nome_celula: 'Célula',
+  };
+  db.query = async () => ({ rows: [{ ...base, assinatura: Buffer.from('webp'), assinatura_mime: 'image/webp' }] });
+  const preservada = resposta();
+  await submissoes.buscarDetalhesSubmissao({ params: { id: '1' } }, preservada);
+  assert.match(preservada.body.dados.assinatura, /^data:image\/webp;base64,/);
+
+  db.query = async () => ({ rows: [{ ...base, assinatura: Buffer.from('png'), assinatura_mime: null }] });
+  const legada = resposta();
+  await submissoes.buscarDetalhesSubmissao({ params: { id: '1' } }, legada);
+  assert.match(legada.body.dados.assinatura, /^data:image\/png;base64,/);
+});
+
 test('filtro de marca usa nome da FK canônica e mantém texto somente como fallback legado', async () => {
   const consultas = [];
   db.query = async (sql, params) => {

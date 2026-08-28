@@ -1,9 +1,13 @@
-const cloneMetadata = (metadata, fotoVariaveis) => ({
-  respostas: { ...(metadata.respostas || {}) },
-  observacoesNaoConformes: { ...(metadata.observacoesNaoConformes || {}) },
-  inicioChecklistTimestamp: metadata.inicioChecklistTimestamp || null,
-  fotoVariaveis: [...fotoVariaveis]
-});
+const cloneMetadata = (metadata = {}, fotoVariaveis) => {
+  const { fotosNaoConformes: _fotosLegadas, fotoVariaveis: _fotoVariaveis, ...outrosCampos } = metadata;
+  return {
+    ...outrosCampos,
+    respostas: { ...(metadata.respostas || {}) },
+    observacoesNaoConformes: { ...(metadata.observacoesNaoConformes || {}) },
+    inicioChecklistTimestamp: metadata.inicioChecklistTimestamp || null,
+    fotoVariaveis: [...fotoVariaveis]
+  };
+};
 
 /**
  * Persiste o conteúdo leve do rascunho separadamente das fotos. Todas as
@@ -27,6 +31,18 @@ export function createDraftPersistence(storage, rascunhoKey, {
       .then(operacao)
       .catch((error) => onError(error));
     return fila;
+  };
+
+  const removerArmazenamento = async () => {
+    const metadataArmazenado = await storage.getItem(rascunhoKey);
+    const variaveis = new Set(fotoVariaveis);
+    for (const variavel of metadataPendente?.fotoVariaveis || []) variaveis.add(variavel);
+    for (const variavel of metadataArmazenado?.fotoVariaveis || []) variaveis.add(variavel);
+    for (const variavel of Object.keys(metadataArmazenado?.fotosNaoConformes || {})) variaveis.add(variavel);
+
+    await storage.removeItem(rascunhoKey);
+    await Promise.all([...variaveis].map((variavel) => storage.removeItem(chaveFoto(variavel))));
+    fotoVariaveis.clear();
   };
 
   const gravarMetadata = () => {
@@ -99,6 +115,15 @@ export function createDraftPersistence(storage, rascunhoKey, {
       return gravarMetadata();
     },
 
+    discard() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      metadataPendente = null;
+      return enfileirar(removerArmazenamento);
+    },
+
     clear() {
       ativo = false;
       if (timer) {
@@ -106,12 +131,7 @@ export function createDraftPersistence(storage, rascunhoKey, {
         timer = null;
       }
       metadataPendente = null;
-      const variaveis = [...fotoVariaveis];
-      fotoVariaveis.clear();
-      return enfileirar(async () => {
-        await storage.removeItem(rascunhoKey);
-        await Promise.all(variaveis.map((variavel) => storage.removeItem(chaveFoto(variavel))));
-      });
+      return enfileirar(removerArmazenamento);
     }
   };
 }

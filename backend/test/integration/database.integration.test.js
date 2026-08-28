@@ -4,6 +4,7 @@ const pool = require('../../db');
 const { initDatabase, statusDatabase } = require('../../scripts/db');
 const dados = require('../../controllers/DadosController');
 const cadastros = require('../../controllers/CadastrosController');
+const perfis = require('../../controllers/PerfisController');
 
 const database = process.env.DB_DATABASE || '';
 if (!database.endsWith('_test')) throw new Error('Integração recusada fora de banco com sufixo _test.');
@@ -20,7 +21,24 @@ const resposta = () => ({
 test('baseline consolidado deixa o schema operacional', async () => {
   const status = await statusDatabase({ pool, env: process.env });
   assert.equal(status.initialized, true);
-  assert.deepEqual(status.migrations.map(({ applied }) => applied), [true, true, true, true]);
+  assert.deepEqual(status.migrations.map(({ applied }) => applied), [true, true, true, true, true]);
+
+  const modeloVersion = await pool.query(`
+    SELECT data_type, column_default
+      FROM information_schema.columns
+     WHERE table_schema = $1 AND table_name = 'modelo' AND column_name = 'versao'
+  `, [process.env.DB_SCHEMA || 'checklist_app']);
+  assert.equal(modeloVersion.rowCount, 1);
+  assert.equal(modeloVersion.rows[0].data_type, 'integer');
+  assert.equal(modeloVersion.rows[0].column_default, '1');
+
+  const assinaturaMime = await pool.query(`
+    SELECT data_type
+      FROM information_schema.columns
+     WHERE table_schema = $1 AND table_name = 'formulario_submissoes' AND column_name = 'assinatura_mime'
+  `, [process.env.DB_SCHEMA || 'checklist_app']);
+  assert.equal(assinaturaMime.rowCount, 1);
+  assert.equal(assinaturaMime.rows[0].data_type, 'character varying');
 
   const column = await pool.query(`
     SELECT data_type, column_default
@@ -99,4 +117,60 @@ test('criação de modelos sincroniza categoria padrão concorrente com UPSERT',
     nome: nomeModelo,
     pergunta: `Pergunta TASK3 ${indice + 1}`,
   })));
+});
+
+test('duas remoções concorrentes preservam um administrador ativo', async () => {
+  const sufixo = `${Date.now()}_${process.pid}`;
+  const { rows } = await pool.query(`
+    INSERT INTO usuarios (nome, matricula, papel, ativo)
+    VALUES ($1, $2, 'ADMIN', 1), ($3, $4, 'ADMIN', 1)
+    RETURNING id
+  `, [`ADMIN A ${sufixo}`, `admin-a-${sufixo}`, `ADMIN B ${sufixo}`, `admin-b-${sufixo}`]);
+  const body = {
+    papel: 'LIDER', ativo: true,
+    id_unidade_fk: null, id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
+  };
+  const respostas = await Promise.all(rows.map(async ({ id }) => {
+    const res = resposta();
+    await perfis.atualizar({ params: { id }, body }, res);
+    return res;
+  }));
+
+  assert.deepEqual(respostas.map(({ statusCode }) => statusCode).sort(), [200, 409]);
+  const ativos = await pool.query("SELECT count(*)::int AS total FROM usuarios WHERE papel = 'ADMIN' AND ativo = 1");
+  assert.equal(ativos.rows[0].total, 1);
+});
+
+test('duas edições da mesma versão aceitam somente uma atualização do modelo', async () => {
+  const sufixo = `${Date.now()}_${process.pid}`;
+  const marca = (await pool.query('INSERT INTO marcas (nome) VALUES ($1) RETURNING id', [`MARCA VERSAO ${sufixo}`])).rows[0];
+  const setor = (await pool.query('INSERT INTO setores (nome, ativo) VALUES ($1, 1) RETURNING id', [`SETOR VERSAO ${sufixo}`])).rows[0];
+  const modelo = (await pool.query(`
+    INSERT INTO modelo (nome, id_marca_fk, id_setor_fk)
+    VALUES ($1, $2, $3) RETURNING id, versao
+  `, [`MODELO VERSAO ${sufixo}`, marca.id, setor.id])).rows[0];
+  const categoria = (await pool.query(`
+    INSERT INTO categorias (id_modelo, categoria) VALUES ($1, 'CATEGORIA') RETURNING id
+  `, [modelo.id])).rows[0];
+  await pool.query(`
+    INSERT INTO perguntas (id_categoria, id_modelo, pergunta, identificacao, ativo)
+    VALUES ($1, $2, 'ORIGINAL', 'categoria_1', 1)
+  `, [categoria.id, modelo.id]);
+
+  const respostas = await Promise.all(['ALTERAÇÃO A', 'ALTERAÇÃO B'].map(async (pergunta) => {
+    const res = resposta();
+    await cadastros.atualizarModelo({ params: { id: modelo.id }, body: {
+      nomeModelo: `MODELO VERSAO ${sufixo}`,
+      nomeMarca: marca.id,
+      id_setor: setor.id,
+      ativo: true,
+      versao: modelo.versao,
+      categorias: { CATEGORIA: { ctq: false, perguntas: [pergunta] } },
+    } }, res);
+    return res;
+  }));
+
+  assert.deepEqual(respostas.map(({ statusCode }) => statusCode).sort(), [200, 409]);
+  const persistido = await pool.query('SELECT versao FROM modelo WHERE id = $1', [modelo.id]);
+  assert.equal(persistido.rows[0].versao, 2);
 });

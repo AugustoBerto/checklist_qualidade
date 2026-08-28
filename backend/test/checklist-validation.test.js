@@ -5,11 +5,14 @@ const checklist = require('../controllers/ChecklistController');
 const { _internals } = checklist;
 
 const imagem = `data:image/png;base64,${Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).toString('base64')}`;
+const imagemJpeg = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0x00]).toString('base64')}`;
 const perguntas = [{ id: 1 }, { id: 2 }];
 const connectOriginal = db.connect;
+const queryOriginal = db.query;
 
 test.afterEach(() => {
     db.connect = connectOriginal;
+    db.query = queryOriginal;
 });
 
 const resposta = () => ({
@@ -87,6 +90,50 @@ test('rejeita IDs booleanos antes de acessar o banco', async () => {
     assert.equal(conexoes, 0);
 });
 
+test('rejeita timestamp inválido antes de acessar o banco', async () => {
+    let conexoes = 0;
+    db.connect = async () => { conexoes += 1; throw new Error('não deveria conectar'); };
+    const req = submissaoValida();
+    req.body.inicio_checklist = 'data inválida';
+    const res = resposta();
+
+    await checklist.salvarChecklist(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(conexoes, 0);
+    assert.equal(_internals.timestampOpcionalValido('2026-08-28T12:30:00.000Z'), true);
+});
+
+test('rejeita IDs de modelo inválidos no endpoint de perguntas antes do banco', async () => {
+    let consultas = 0;
+    db.query = async () => { consultas += 1; return { rows: [] }; };
+    for (const modelo of ['', '0', '-1', '1abc', '1.5', true]) {
+        const res = resposta();
+        await checklist.buscarPerguntas({ params: { modelo } }, res);
+        assert.equal(res.statusCode, 400, modelo);
+    }
+    assert.equal(consultas, 0);
+});
+
+test('endpoint de perguntas expõe a versão atual do modelo', async () => {
+    db.query = async () => ({ rows: [{
+        id_pergunta: 1,
+        categoria: 'CATEGORIA',
+        ctq: false,
+        pergunta: 'Pergunta',
+        identificacao: 'categoria_1',
+        nome_modelo: 'Modelo',
+        id_modelo_fk: 7,
+        modelo_versao: 3,
+    }] });
+    const res = resposta();
+
+    await checklist.buscarPerguntas({ params: { modelo: '7' } }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body.modelo, { id: 7, nome: 'Modelo', versao: 3 });
+});
+
 test('rejeita setor ou célula inexistente/inativa antes de inserir submissão', async () => {
     for (const tabelaInvalida of ['setores', 'celulas_producao']) {
         const consultas = [];
@@ -162,4 +209,28 @@ test('aceita modelo, setor e célula relacionados e persiste todos os IDs', asyn
     assert.match(relacional.sql, /m\.id_setor_fk = s\.id/);
     assert.match(relacional.sql, /c\.id_setor_fk = s\.id/);
     assert.match(relacional.sql, /c\.id_marca_fk IS NULL OR c\.id_marca_fk = m\.id_marca_fk/);
+});
+
+test('persiste o MIME original da assinatura', async () => {
+    const consultas = [];
+    db.connect = async () => ({
+        async query(sql, params = []) {
+            consultas.push({ sql, params });
+            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca', id_marca_fk: 1 }] };
+            if (/FROM perguntas/.test(sql)) return { rows: [{ id: 1, pergunta: 'Pergunta', identificacao: 'pergunta_1', categoria: 'Categoria', ctq: false }] };
+            if (/INSERT INTO formulario_submissoes/.test(sql)) return { rows: [{ id: 50 }] };
+            return { rows: [] };
+        },
+        release() {},
+    });
+    const req = submissaoValida();
+    req.body.assinatura = imagemJpeg;
+    const res = resposta();
+
+    await checklist.salvarChecklist(req, res);
+
+    const insert = consultas.find(({ sql }) => /INSERT INTO formulario_submissoes/.test(sql));
+    assert.equal(res.statusCode, 201);
+    assert.equal(insert.params[5], 'image/jpeg');
+    assert.ok(Buffer.isBuffer(insert.params[4]));
 });

@@ -23,6 +23,10 @@ Ela cria toda a estrutura de tabelas, relacionamentos, chaves estrangeiras e ín
    - `db:migrate`: Executa as migrations posteriores à estrutura inicial.
    - `db:status`: Exibe o estado e histórico de migrations aplicadas.
 
+   A migration `005_modelo_versao_assinatura_mime.sql` adiciona controle
+   otimista de versão aos modelos e preserva o tipo real das assinaturas. Não
+   altere migrations já aplicadas: o runner valida seus checksums.
+
 4. Inicie a API (`npm run dev` ou `npm start`). No primeiro login autenticado com a matrícula de administrador, o perfil `ADMIN` será criado automaticamente.
 
 ## Testes de Integração com Banco Descartável

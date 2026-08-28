@@ -221,13 +221,13 @@ test('atualização grava a marca canônica e exige ativo booleano', async () =>
   const res = resposta();
   await cadastros.atualizarModelo({
     params: { id: 9 },
-    body: { nomeModelo: 'Modelo', nomeMarca: 7, id_setor: 3, ativo: false, categorias: categoriasValidas },
+    body: { nomeModelo: 'Modelo', nomeMarca: 7, id_setor: 3, ativo: false, versao: 1, categorias: categoriasValidas },
   }, res);
 
   const update = consultas.find(({ sql }) => /UPDATE modelo SET/.test(sql));
   assert.equal(res.statusCode, 200);
   assert.match(update.sql, /id_marca_fk/);
-  assert.deepEqual(update.params, ['Modelo', 7, false, 3, 9]);
+  assert.deepEqual(update.params, ['Modelo', 7, false, 3, 9, 1]);
 });
 
 test('atualização preserva perguntas repetidas usando a identificação posicional', async () => {
@@ -252,7 +252,7 @@ test('atualização preserva perguntas repetidas usando a identificação posici
   await cadastros.atualizarModelo({
     params: { id: 9 },
     body: {
-      nomeModelo: 'Modelo', nomeMarca: 7, id_setor: 3, ativo: true,
+      nomeModelo: 'Modelo', nomeMarca: 7, id_setor: 3, ativo: true, versao: 1,
       categorias: { TESTE: { ctq: false, perguntas: ['Repetida', 'Repetida', 'Única'] } },
     },
   }, res);
@@ -283,7 +283,18 @@ test('filtro de modelos por marca usa id_marca_fk', async () => {
   assert.equal('modelos' in res.body, false);
   assert.match(consulta.sql, /id_marca_fk = \$1/);
   assert.doesNotMatch(consulta.sql, /\bmarca = \$1/);
-  assert.deepEqual(consulta.params, ['7', '3']);
+  assert.deepEqual(consulta.params, [7, 3]);
+});
+
+test('filtros de modelos rejeitam IDs inválidos antes do banco', async () => {
+  let consultas = 0;
+  db.query = async () => { consultas += 1; return { rows: [] }; };
+  for (const query of [{ marca_id: 'abc' }, { setor_id: '0' }, { marca_id: ['7'] }]) {
+    const res = resposta();
+    await dados.listarModelosAtivos({ query }, res);
+    assert.equal(res.statusCode, 400, JSON.stringify(query));
+  }
+  assert.equal(consultas, 0);
 });
 
 test('detalhe do modelo devolve o ID canônico da marca para edição', async () => {
@@ -292,7 +303,7 @@ test('detalhe do modelo devolve o ID canônico da marca para edição', async ()
   db.query = async (sql) => {
     chamada += 1;
     if (chamada === 1) return {
-      rows: [{ id: 9, nome: 'Modelo', marca: 'LEGADO', id_marca_fk: 7, nome_marca: 'MARCA', ativo: true, id_setor_fk: 3 }],
+      rows: [{ id: 9, nome: 'Modelo', marca: 'LEGADO', id_marca_fk: 7, nome_marca: 'MARCA', ativo: true, id_setor_fk: 3, versao: 4 }],
     };
     consultaDetalhes = sql;
     return { rows: [{ categoria: 'COSTURA', ctq: false, pergunta: 'Pergunta' }] };
@@ -304,6 +315,7 @@ test('detalhe do modelo devolve o ID canônico da marca para edição', async ()
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.modelo.nomeMarca, 7);
   assert.equal(res.body.modelo.nome_marca, 'MARCA');
+  assert.equal(res.body.modelo.versao, 4);
   assert.match(consultaDetalhes, /JOIN perguntas p ON c\.id = p\.id_categoria AND p\.ativo = 1/);
   assert.doesNotMatch(consultaDetalhes, /LEFT JOIN perguntas/);
 });
@@ -632,6 +644,89 @@ test('criação e atualização de perfil validam e escrevem no mesmo cliente tr
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('não permite remover o último administrador ativo', async () => {
+  const consultas = [];
+  db.connect = async () => ({
+    async query(sql, params = []) {
+      consultas.push({ sql, params });
+      if (/SELECT pg_advisory_xact_lock/.test(sql)) return { rows: [] };
+      if (/SELECT id, papel, ativo FROM usuarios/.test(sql)) return { rows: [{ id: 4, papel: 'ADMIN', ativo: 1 }] };
+      if (/SELECT COUNT\(\*\)/.test(sql)) return { rows: [{ total: 1 }] };
+      return { rows: [], rowCount: 0 };
+    },
+    release() {},
+  });
+
+  const res = resposta();
+  await perfis.atualizar({ params: { id: 4 }, body: {
+    papel: 'INSPETOR', ativo: false,
+    id_unidade_fk: null, id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
+  } }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.body.codigo, 'ULTIMO_ADMIN');
+  assert.equal(consultas.some(({ sql }) => /^\s*UPDATE usuarios/.test(sql)), false);
+  assert.equal(consultas.some(({ sql }) => sql === 'ROLLBACK'), true);
+});
+
+test('permite rebaixar administrador quando outro administrador permanece ativo', async () => {
+  const consultas = [];
+  db.connect = async () => ({
+    async query(sql, params = []) {
+      consultas.push({ sql, params });
+      if (/SELECT pg_advisory_xact_lock/.test(sql)) return { rows: [] };
+      if (/SELECT id, papel, ativo FROM usuarios/.test(sql)) return { rows: [{ id: 4, papel: 'ADMIN', ativo: 1 }] };
+      if (/SELECT COUNT\(\*\)/.test(sql)) return { rows: [{ total: 2 }] };
+      if (/UPDATE usuarios/.test(sql)) return { rows: [{ id: 4, papel: 'INSPETOR', ativo: 0 }], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    },
+    release() {},
+  });
+
+  const res = resposta();
+  await perfis.atualizar({ params: { id: 4 }, body: {
+    papel: 'INSPETOR', ativo: false,
+    id_unidade_fk: null, id_setor_fk: null, id_celula_fk: null, id_turno_fk: null,
+  } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.perfil.papel, 'INSPETOR');
+});
+
+test('modelo exige versão e retorna conflito quando a versão está obsoleta', async () => {
+  let conexoes = 0;
+  db.connect = async () => {
+    conexoes += 1;
+    throw new Error('não deveria conectar sem versão');
+  };
+  const semVersao = resposta();
+  await cadastros.atualizarModelo({ params: { id: 9 }, body: {
+    nomeModelo: 'Modelo', nomeMarca: 7, id_setor: 3, ativo: true, categorias: categoriasValidas,
+  } }, semVersao);
+  assert.equal(semVersao.statusCode, 400);
+  assert.equal(conexoes, 0);
+
+  const consultas = [];
+  db.connect = async () => ({
+    async query(sql, params = []) {
+      consultas.push({ sql, params });
+      if (/SELECT id FROM marcas/.test(sql)) return { rows: [{ id: 7 }] };
+      if (/SELECT id FROM setores/.test(sql)) return { rows: [{ id: 3 }] };
+      if (/UPDATE modelo SET/.test(sql)) return { rows: [], rowCount: 0 };
+      if (/SELECT id FROM modelo/.test(sql)) return { rows: [{ id: 9 }] };
+      return { rows: [], rowCount: 0 };
+    },
+    release() {},
+  });
+  const conflito = resposta();
+  await cadastros.atualizarModelo({ params: { id: 9 }, body: {
+    nomeModelo: 'Modelo', nomeMarca: 7, id_setor: 3, ativo: true, versao: 1, categorias: categoriasValidas,
+  } }, conflito);
+  assert.equal(conflito.statusCode, 409);
+  assert.equal(conflito.body.codigo, 'MODELO_ALTERADO_CONCORRENTEMENTE');
+  assert.match(consultas.find(({ sql }) => /UPDATE modelo SET/.test(sql)).sql, /AND versao = \$6/);
 });
 
 test('atualização concorrente de categoria padrão retorna 409 para conflito único', async () => {

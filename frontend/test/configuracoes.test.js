@@ -91,6 +91,20 @@ describe('edição de cadastros administrativos', () => {
     })
   })
 
+  it('inclui perguntas ainda digitadas ao salvar categoria', async () => {
+    const wrapper = await montar('categorias')
+    await wrapper.vm.abrirModal({ id: 8, nome: 'Acabamento', ctq: false, perguntas: ['Pergunta existente'] })
+    wrapper.vm.form.novaPerguntaInput = 'Pergunta nova\nOutra pergunta'
+
+    await wrapper.vm.salvarItem()
+
+    expect(api.put).toHaveBeenCalledWith('/cadastros/categorias-padrao/8', {
+      nome: 'Acabamento',
+      ctq: false,
+      perguntas: ['Pergunta existente', 'Pergunta nova', 'Outra pergunta']
+    })
+  })
+
   it('recarrega categorias após um modelo sincronizar o catálogo', async () => {
     const wrapper = await montar('modelos')
     wrapper.vm.dados.categorias = [{ id: 1, nome: 'ANTIGA' }]

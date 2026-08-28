@@ -258,6 +258,14 @@
         </div>
 
         <div v-if="erroForm" class="error-message"><i class="mdi mdi-alert-circle"></i> {{ erroForm }}</div>
+        <button
+          v-if="conflitoVersao && form.id"
+          type="button"
+          class="btn-secundario"
+          @click="recarregarModeloAtual"
+        >
+          <i class="mdi mdi-refresh"></i> Recarregar modelo e revisar
+        </button>
         
         <button type="submit" class="btn-principal" :disabled="isLoadingForm">
           <span v-if="isLoadingForm"><i class="mdi mdi-loading mdi-spin"></i> A processar...</span>
@@ -369,6 +377,7 @@ const modelosFiltrados = computed(() => {
 
 const form = reactive({
   id: null,
+  versao: null,
   nomeModelo: '',
   nomeMarca: null,
   idSetor: null,
@@ -378,6 +387,7 @@ const categoriasUI = ref([]);
 const novaCategoria = ref('');
 const erroForm = ref('');
 const isLoadingForm = ref(false);
+const conflitoVersao = ref(false);
 
 const categoriasPadrao = ref([]);
 const categoriaPadraoSelecionada = ref(null);
@@ -453,12 +463,13 @@ const obterNomeMarca = (nomeMarca) => {
 };
 
 const abrirCriacao = () => {
-  Object.assign(form, { id: null, nomeModelo: '', nomeMarca: null, idSetor: null, ativo: true });
+  Object.assign(form, { id: null, versao: null, nomeModelo: '', nomeMarca: null, idSetor: null, ativo: true });
   marcaReferencia.value = null;
   modeloReferencia.value = null;
   categoriasUI.value = [];
   novaCategoria.value = '';
   erroForm.value = ''; erroGlobal.value = ''; sucessoGlobal.value = '';
+  conflitoVersao.value = false;
   modoAtual.value = 'formulario';
 };
 
@@ -470,6 +481,7 @@ const voltarParaLista = () => {
 const abrirEdicao = async (modelo) => {
   isLoadingTabela.value = true;
   erroGlobal.value = ''; sucessoGlobal.value = '';
+  conflitoVersao.value = false;
   
   try {
     const res = await api.get(`/cadastros/modelos/${modelo.id}`);
@@ -478,6 +490,7 @@ const abrirEdicao = async (modelo) => {
       const dadosModelo = res.data.modelo;
       
       form.id = dadosModelo.id;
+      form.versao = dadosModelo.versao ?? null;
       form.nomeModelo = dadosModelo.nomeModelo || dadosModelo.nome;
       form.idSetor = dadosModelo.id_setor || dadosModelo.id_setor_fk || null;
       
@@ -623,6 +636,11 @@ const removerPergunta = (catIndex, pIndex) => categoriasUI.value[catIndex].pergu
 // 5. GUARDAR NA BASE DE DADOS (CREATE / UPDATE)
 // ==========================================
 const salvarChecklist = async () => {
+  if (conflitoVersao.value) {
+    erroForm.value = 'Recarregue o modelo e revise suas alterações antes de tentar salvar novamente.';
+    toast.warning(erroForm.value);
+    return;
+  }
   erroForm.value = '';
 
   if (!form.idSetor) { erroForm.value = 'O Setor Responsável é obrigatório.'; return; }
@@ -669,6 +687,7 @@ const salvarChecklist = async () => {
     ativo: form.ativo,
     categorias: payloadCategorias
   };
+  if (form.id) payload.versao = form.versao;
 
   isLoadingForm.value = true;
   try {
@@ -684,10 +703,20 @@ const salvarChecklist = async () => {
     setTimeout(() => { sucessoGlobal.value = ''; }, 3000);
   } catch (err) {
     console.error('Erro ao guardar modelo:', err);
-    erroForm.value = err.response?.data?.mensagem || 'Erro ao guardar o modelo.';
+    if (err.response?.status === 409 && err.response?.data?.codigo === 'MODELO_ALTERADO_CONCORRENTEMENTE') {
+      conflitoVersao.value = true;
+      erroForm.value = 'Este modelo foi alterado por outra pessoa. Recarregue o modelo, revise suas alterações e tente novamente.';
+      toast.warning(erroForm.value);
+    } else {
+      erroForm.value = err.response?.data?.mensagem || 'Erro ao guardar o modelo.';
+    }
   } finally {
     isLoadingForm.value = false;
   }
+};
+
+const recarregarModeloAtual = () => {
+  if (form.id) void abrirEdicao({ id: form.id });
 };
 
 defineExpose({

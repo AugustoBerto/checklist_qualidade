@@ -31,6 +31,9 @@ Criação de perfil exige `matricula`, `papel` e os quatro campos de vínculo
 válido ou `null`. Papéis válidos: `ADMIN`, `LIDER` e `INSPETOR`. Atualização
 exige `papel`, `ativo` e os mesmos campos de vínculo.
 
+A API impede desativar ou rebaixar o último administrador ativo. Essa tentativa
+retorna `409` com o código `ULTIMO_ADMIN`.
+
 ## Execução e relatórios
 
 | Método e rota | Finalidade |
@@ -43,6 +46,9 @@ exige `papel`, `ativo` e os mesmos campos de vínculo.
 | `GET /relatorios/:id` | Metadados e dataset do gráfico de conformidade. |
 
 Filtros de `GET /dados/modelos`: `marca_id` e `setor_id`.
+
+O retorno de perguntas inclui `modelo: { id, nome, versao }`. A versão identifica
+a estrutura carregada e permite descartar rascunhos incompatíveis.
 
 Filtros de `GET /submissoes`: `page` (padrão 1), `pageSize` (padrão 25,
 máximo 100), `dataInicio`, `dataFim`, `marca`, `modeloId`, `setorId`, `celulaId`,
@@ -86,7 +92,12 @@ O retorno de sucesso é `201` com `id_relatorio`. Consulte as regras e limites e
 | Turnos | `GET`, `POST`, `PUT`, `DELETE /cadastros/turnos[/:id]` | Leitura autenticada; escrita `ADMIN` |
 | Categorias padrão | `GET`, `POST`, `PUT`, `DELETE /cadastros/categorias-padrao[/:id]` | Leitura autenticada; escrita `ADMIN` |
 
+O detalhe de um modelo inclui `versao`. O `PUT /cadastros/modelos/:id` deve
+reenviar esse valor; uma atualização bem-sucedida incrementa e devolve a nova
+versão. Se outro administrador tiver salvo antes, a API retorna `409` com o
+código `MODELO_ALTERADO_CONCORRENTEMENTE`, e o cliente deve recarregar o modelo
+antes de tentar novamente.
+
 Nomes de cadastros são obrigatórios, limitados a 255 caracteres e normalizados
 para maiúsculas. Logotipos de marca aceitam JPEG, PNG ou WebP em Base64, até
 512 KB.
-

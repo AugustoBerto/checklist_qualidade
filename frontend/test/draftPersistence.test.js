@@ -72,4 +72,35 @@ describe('createDraftPersistence', () => {
     persistencia.schedule(metadata);
     expect(storage.dados.has('rascunho')).toBe(false);
   });
+
+  it('descarta metadados e fotos sem bloquear novas escritas', async () => {
+    const storage = criarStorage();
+    const persistencia = createDraftPersistence(storage, 'rascunho');
+    const metadata = {
+      modeloId: 7,
+      modeloVersao: 3,
+      respostas: { a: 'Não Conforme' },
+      observacoesNaoConformes: {},
+      inicioChecklistTimestamp: 'inicio'
+    };
+
+    await persistencia.setPhoto('a', 'foto-antiga', metadata);
+    await persistencia.flush(metadata);
+    await persistencia.discard();
+
+    expect(storage.dados.has('rascunho')).toBe(false);
+    expect(storage.dados.has('rascunho:foto:a')).toBe(false);
+
+    persistencia.schedule({ ...metadata, respostas: { a: 'Conforme' } });
+    await persistencia.flush();
+
+    expect(storage.dados.get('rascunho')).toEqual({
+      modeloId: 7,
+      modeloVersao: 3,
+      respostas: { a: 'Conforme' },
+      observacoesNaoConformes: {},
+      inicioChecklistTimestamp: 'inicio',
+      fotoVariaveis: []
+    });
+  });
 });

@@ -6,7 +6,21 @@
       icon="mdi mdi-clipboard-check-outline"
     />
 
-    <form @submit.prevent="enviarFormulario" class="form-checklist">
+    <FeedbackState
+      v-if="estadoCarregamento === 'loading'"
+      type="loading"
+      message="Carregando perguntas do checklist..."
+    />
+    <FeedbackState
+      v-else-if="estadoCarregamento === 'error'"
+      type="error"
+      title="Não foi possível carregar o checklist"
+      :message="erroCarregamento"
+      :show-retry="true"
+      @retry="carregarPerguntas"
+    />
+
+    <form v-else @submit.prevent="enviarFormulario" class="form-checklist">
       <div class="card progresso">
         <div class="progresso-info">
           <strong>{{ progresso.respondidas }} de {{ progresso.total }} itens respondidos</strong>
@@ -137,6 +151,7 @@ import api from '../services/api';
 import SignaturePad from 'vue3-signature';
 import localforage from 'localforage';
 import PageHeader from '../components/PageHeader.vue';
+import FeedbackState from '../components/FeedbackState.vue';
 import { obterPerfilLocal } from '../services/session';
 import { createDraftPersistence } from '../services/draftPersistence';
 import { toast } from '../services/feedback';
@@ -159,6 +174,9 @@ const categorias = ref({});
 const respostas = ref({});
 const nomeModelo = ref('');
 const idModelo = ref(null); 
+const versaoModelo = ref(null);
+const estadoCarregamento = ref('loading');
+const erroCarregamento = ref('');
 const assinatura = ref(null);
 const signatureRef = ref(null);
 const enviando = ref(false); 
@@ -174,9 +192,13 @@ const inputsFoto = new Map();
 const MAX_FOTO_BYTES = 2 * 1024 * 1024;
 const persistenciaRascunho = createDraftPersistence(localforage, rascunhoKey);
 let rascunhoCarregado = false;
+let componenteDesmontado = false;
+let carregamentoController = null;
 const enviadoComSucesso = ref(false);
 
 const obterMetadataRascunho = () => ({
+  modeloId: idModelo.value,
+  modeloVersao: versaoModelo.value,
   respostas: respostas.value,
   observacoesNaoConformes: observacoesNaoConformes.value,
   inicioChecklistTimestamp: inicioChecklistTimestamp.value
@@ -197,40 +219,87 @@ watch(respostas, () => {
   }
 }, { deep: true });
 
-onMounted(async () => {
-  window.onFotoCapturada = onFotoCapturada;
+const metadataModeloCompativel = (metadata) => {
+  if (metadata?.modeloId == null || metadata?.modeloVersao == null
+    || idModelo.value == null || versaoModelo.value == null) return false;
+  return String(metadata.modeloId) === String(idModelo.value)
+    && String(metadata.modeloVersao) === String(versaoModelo.value);
+};
+
+const carregarRascunho = async () => {
   try {
     const rascunho = await persistenciaRascunho.load();
-    if (rascunho) {
-      respostas.value = rascunho.metadata.respostas || {};
-      fotosNaoConformes.value = rascunho.fotos;
-      observacoesNaoConformes.value = rascunho.metadata.observacoesNaoConformes || {};
-      inicioChecklistTimestamp.value = rascunho.metadata.inicioChecklistTimestamp;
-    } else {
+    if (!rascunho) {
       inicioChecklistTimestamp.value = new Date().toISOString();
+      return;
     }
-  } catch (e) {
+
+    if (!metadataModeloCompativel(rascunho.metadata)) {
+      await persistenciaRascunho.discard();
+      inicioChecklistTimestamp.value = new Date().toISOString();
+      toast.warning('O rascunho anterior foi descartado porque pertence a outro modelo ou versão.');
+      return;
+    }
+
+    respostas.value = rascunho.metadata.respostas || {};
+    fotosNaoConformes.value = rascunho.fotos;
+    observacoesNaoConformes.value = rascunho.metadata.observacoesNaoConformes || {};
+    inicioChecklistTimestamp.value = rascunho.metadata.inicioChecklistTimestamp || new Date().toISOString();
+  } catch (error) {
+    console.error('Erro ao carregar rascunho:', error);
     inicioChecklistTimestamp.value = new Date().toISOString();
   }
-  rascunhoCarregado = true;
+};
+
+const carregarPerguntas = async () => {
+  carregamentoController?.abort();
+  const controller = new AbortController();
+  carregamentoController = controller;
+  estadoCarregamento.value = 'loading';
+  erroCarregamento.value = '';
+  rascunhoCarregado = false;
+  categorias.value = {};
+
+  try {
+    const res = await api.get(`/checklists/perguntas/${modelo}`, { signal: controller.signal });
+    if (componenteDesmontado || controller.signal.aborted) return;
+    const agrupadas = res.data?.respostasAgrupadas;
+    if (!agrupadas || typeof agrupadas !== 'object' || Object.keys(agrupadas).length === 0) {
+      throw new Error('O modelo não possui perguntas disponíveis.');
+    }
+
+    const primeiraCategoria = Object.values(agrupadas)[0];
+    const modeloResposta = res.data?.modelo || {};
+    const primeiraPergunta = primeiraCategoria?.[0] || {};
+    idModelo.value = modeloResposta.id ?? primeiraPergunta.id_modelo ?? primeiraPergunta.id_modelo_fk ?? Number(modelo);
+    nomeModelo.value = modeloResposta.nome || primeiraPergunta.modelo || primeiraPergunta.nome_modelo || '';
+    versaoModelo.value = modeloResposta.versao ?? primeiraPergunta.modelo_versao ?? primeiraPergunta.versao ?? null;
+    categorias.value = agrupadas;
+
+    await carregarRascunho();
+    if (componenteDesmontado || controller.signal.aborted) return;
+    rascunhoCarregado = true;
+    estadoCarregamento.value = 'ready';
+  } catch (err) {
+    if (componenteDesmontado || controller.signal.aborted || err?.code === 'ERR_CANCELED') return;
+    console.error('Erro ao carregar perguntas:', err);
+    estadoCarregamento.value = 'error';
+    erroCarregamento.value = err.response?.data?.mensagem || err.message || 'Não foi possível carregar as perguntas do checklist.';
+  } finally {
+    if (carregamentoController === controller) carregamentoController = null;
+  }
+};
+
+onMounted(() => {
+  window.onFotoCapturada = onFotoCapturada;
   document.addEventListener('visibilitychange', salvarRascunhoAoOcultar);
   window.addEventListener('pagehide', salvarRascunhoAoOcultar);
-  
-  try {
-    const res = await api.get(`/checklists/perguntas/${modelo}`);
-    categorias.value = res.data.respostasAgrupadas;
-    
-    const primeiraCategoria = Object.values(res.data.respostasAgrupadas)[0];
-    if (primeiraCategoria?.length > 0) {
-      nomeModelo.value = primeiraCategoria[0].modelo || primeiraCategoria[0].nome_modelo;
-      idModelo.value = primeiraCategoria[0].id_modelo || primeiraCategoria[0].id_modelo_fk || null;
-    }
-  } catch (err) {
-    console.error('Erro ao carregar perguntas:', err);
-  }
+  void carregarPerguntas();
 });
 
 onUnmounted(() => {
+  componenteDesmontado = true;
+  carregamentoController?.abort();
   delete window.onFotoCapturada;
   document.removeEventListener('visibilitychange', salvarRascunhoAoOcultar);
   window.removeEventListener('pagehide', salvarRascunhoAoOcultar);
