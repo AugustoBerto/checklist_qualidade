@@ -136,6 +136,47 @@ describe('respostas assíncronas vigentes', () => {
     expect(wrapper.vm.opcoesModelos).toEqual([])
   })
 
+  it('filtra células pelo setor e pela marca, mantendo células sem marca globais', async () => {
+    api.get.mockImplementation((url) => {
+      if (url === '/cadastros/marcas') return Promise.resolve(respostaLista([
+        { id: 1, nome: 'FILA' },
+        { id: 2, nome: 'NIKE' },
+      ]))
+      if (url === '/cadastros/celulas') return Promise.resolve(respostaLista([
+        { id: 10, nome: 'Global', id_setor_fk: 5, id_marca_fk: null },
+        { id: 11, nome: 'FILA', id_setor_fk: 5, id_marca_fk: 1 },
+        { id: 12, nome: 'NIKE', id_setor_fk: 5, id_marca_fk: 2 },
+        { id: 13, nome: 'Outro setor', id_setor_fk: 6, id_marca_fk: null },
+      ]))
+      if (url === '/cadastros/setores') return Promise.resolve(respostaLista([
+        { id: 5, nome: 'Produção' },
+        { id: 6, nome: 'Expedição' },
+      ]))
+      if (url === '/dados/modelos') return Promise.resolve(respostaLista())
+      throw new Error(`requisição inesperada: ${url}`)
+    })
+    const wrapper = shallowMount(CheckSelecao)
+    await flushPromises()
+
+    await wrapper.vm.selecionarMarca({ id: 1, nome: 'FILA' })
+    wrapper.vm.form.setor_selecionado = 5
+    await flushPromises()
+
+    expect(wrapper.vm.opcoesCelulas).toEqual([
+      { label: 'Global', value: 10 },
+      { label: 'FILA', value: 11 },
+    ])
+
+    wrapper.vm.form.celula_selecionada = 11
+    await wrapper.vm.selecionarMarca({ id: 2, nome: 'NIKE' })
+
+    expect(wrapper.vm.form.celula_selecionada).toBe('')
+    expect(wrapper.vm.opcoesCelulas).toEqual([
+      { label: 'Global', value: 10 },
+      { label: 'NIKE', value: 12 },
+    ])
+  })
+
   it('mantém o histórico da busca mais recente', async () => {
     const buscaA = deferred()
     const buscaB = deferred()

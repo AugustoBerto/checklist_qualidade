@@ -171,8 +171,16 @@ watch(() => form.value.setor_selecionado, async (novoSetorId) => {
 })
 
 function filtrarCelulasPorSetor(idSetor) {
-  if (!idSetor) return;
-  const filtradas = listaCelulasGlobal.value.filter(c => String(c.id_setor_fk) === String(idSetor));
+  if (!idSetor) {
+    opcoesCelulas.value = [];
+    return;
+  }
+
+  const idMarca = marcaSelecionada.value?.id;
+  const filtradas = listaCelulasGlobal.value.filter(c =>
+    String(c.id_setor_fk) === String(idSetor) &&
+    (c.id_marca_fk == null || String(c.id_marca_fk) === String(idMarca))
+  );
   opcoesCelulas.value = filtradas.map(c => ({ label: c.nome, value: c.id }));
 }
 
@@ -203,7 +211,8 @@ async function carregarModelos(marca, setorId) {
 
 async function selecionarMarca(marca) {
   marcaSelecionada.value = marca;
-  
+  form.value.celula_selecionada = '';
+  filtrarCelulasPorSetor(form.value.setor_selecionado);
   await carregarModelos(marca, form.value.setor_selecionado);
 }
 
