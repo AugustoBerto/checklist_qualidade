@@ -23,6 +23,16 @@ const resposta = () => ({
   json(body) { this.body = body; return this; },
 });
 
+test('perfil autenticado não é armazenado em cache', async () => {
+  const response = resposta();
+  const usuario = { id: 1, matricula: '123', papel: 'ADMIN' };
+
+  await perfis.me({ usuario }, response);
+
+  assert.equal(response.headers['Cache-Control'], 'no-store');
+  assert.deepEqual(response.body, { sucesso: true, perfil: usuario });
+});
+
 const categoriasValidas = {
   COSTURA: { ctq: false, perguntas: ['A costura está íntegra?'] },
 };

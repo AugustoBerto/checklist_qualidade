@@ -68,6 +68,7 @@ const validarReferencias = async (executor, dados) => {
 const normalizarIdFk = (id) => (id === null ? null : Number(id));
 
 exports.me = async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store' });
     res.json({ sucesso: true, perfil: req.usuario });
 };
 
