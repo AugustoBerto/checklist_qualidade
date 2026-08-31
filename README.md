@@ -36,21 +36,15 @@ npm run dev
 
 A interface abre em `http://localhost:5173/checklist/` com a configuração de
 exemplo. Antes de iniciar a API, configure um `JWT_SECRET` válido e igual ao do
-`dass_auth`. O roteiro completo, incluindo banco e primeiro administrador, está
-em [Instalação e configuração](docs/INSTALACAO_E_CONFIGURACAO.md).
+`dass_auth`. O roteiro completo está em [Operação](docs/OPERACAO.md).
 
 ## Documentação
 
 - [Visão geral e regras de negócio](docs/VISAO_GERAL.md)
 - [Arquitetura](docs/ARQUITETURA.md)
-- [Instalação e configuração](docs/INSTALACAO_E_CONFIGURACAO.md)
 - [Referência da API](docs/API.md)
-- [Desenvolvimento, testes e operação](docs/DESENVOLVIMENTO_E_OPERACAO.md)
-- [Integração entre Gateway, dass_auth e aplicações](docs/INTEGRACAO_GATEWAY_DASS_AUTH.md)
-- [Padrão de deploy de aplicações](docs/PADRAO_DEPLOY_APLICACOES.md)
-- [Skill para padronizar integrações DASS](skills/padronizar-integracao-dass/SKILL.md)
+- [Operação, deploy e manutenção](docs/OPERACAO.md)
 - [Banco de dados e migrations](migrations/README.md)
-- [Documentos permanentes e retenção de evidências](docs/DOCUMENTOS_E_EVIDENCIAS.md)
 
 ## Comandos principais
 
@@ -67,3 +61,4 @@ em [Instalação e configuração](docs/INSTALACAO_E_CONFIGURACAO.md).
 | `frontend` | `npm run dev` | Servidor Vite de desenvolvimento |
 | `frontend` | `npm test` | Testes Vitest |
 | `frontend` | `npm run build` | Build de produção |
+| `frontend` | `npm run deploy` | Build e publicação atômica no Apache |

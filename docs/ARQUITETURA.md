@@ -19,8 +19,7 @@ Navegador
 
 O Gateway apenas encaminha as requisições. O `dass_auth` autentica a identidade
 corporativa e mantém a sessão; a API do Checklist decide a autorização com base
-no perfil local. Consulte [Integração com Gateway e dass_auth](INTEGRACAO_GATEWAY_DASS_AUTH.md)
-para o fluxo detalhado.
+no perfil local.
 
 ## Frontend
 
@@ -67,8 +66,8 @@ usuarios ─< formulario_submissoes >─ modelo
 snapshot JSONB versionado do documento. Para novas submissões, esse snapshot
 preserva também auditor, marca, setor, célula, perguntas e a contagem histórica
 de evidências. As fotos ficam em `formulario_evidencias`, com expiração própria,
-e não dentro das respostas permanentes. Consulte [Documentos de checklist e
-evidências](DOCUMENTOS_E_EVIDENCIAS.md).
+e não dentro das respostas permanentes. Consulte [Visão geral e regras de
+negócio](VISAO_GERAL.md).
 
 O schema da aplicação é fixo em `checklist_app`; ele não é uma variável do
 ambiente de execução.
@@ -90,3 +89,8 @@ As migrations em `migrations/` são ordenadas por versão, registradas em
 Quando ainda não existe nenhum perfil configurado, a matrícula definida em
 `CHECKLIST_INITIAL_ADMIN_MATRICULA` pode assumir automaticamente o primeiro
 perfil `ADMIN`. Esse bootstrap não libera outras matrículas.
+
+O frontend usa `/api/auth/*` pelo Gateway para login, restauração e logout. O
+backend recebe o cookie `token` pelo mesmo caminho, valida o JWT e não lê senha
+ou refresh token. `DASS_AUTH_BASE_URL` é usado apenas pelo cadastro
+administrativo para confirmar uma matrícula e obter nome/função corporativos.

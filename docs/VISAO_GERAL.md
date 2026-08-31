@@ -69,7 +69,18 @@ usuário, marca, modelo, setor e célula. Há duas apresentações:
 
 O documento é permanente. Evidências novas expiram em seis meses e deixam de ser
 servidas pela API, mas a quantidade originalmente registrada continua visível no
-documento. Consulte [Documentos de checklist e evidências](DOCUMENTOS_E_EVIDENCIAS.md).
+documento.
 
 A pontuação detalhada considera respostas conformes e `N/A` como positivas em
 relação ao total armazenado.
+
+## Documento e evidências
+
+Ao concluir uma inspeção, a aplicação preserva um snapshot permanente do
+documento: contexto, perguntas, respostas, auditor, assinatura e quantidade
+original de evidências. Alterações posteriores nos cadastros não o modificam.
+
+As fotos são anexos separados e temporários. Após seis meses, a API deixa de
+servi-las (`410 EVIDENCIA_EXPIRADA`), mas preserva metadados e a contagem
+histórica. A limpeza física é executada no backend por `npm run
+evidencias:cleanup`; a rotina não apaga o documento nem o snapshot.
