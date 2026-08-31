@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
+    "publish:apache": "node scripts/publish-apache.mjs",
+    "deploy": "npm run build && npm run publish:apache",
     "start": "npm run build && vite preview",
     "preview": "vite preview",
     "test": "vitest run"

@@ -38,12 +38,14 @@ build não corrige arquivos já publicados.
 cd frontend
 npm ci
 npm test
-npm run build
+npm run deploy
 ```
 
-Confira `dist/index.html` e publique todo o conteúdo de `dist`, inclusive
-`assets/`. Para uma SPA em History Mode, configure o Apache dentro do
-`VirtualHost` correspondente:
+`npm run deploy` gera `dist/`, verifica o `index.html` e publica a nova versão
+de forma atômica em `/var/www/dasssest.com/html/checklist`. O diretório anterior
+permanece publicado até que o novo artefato esteja completo. Para teste ou outro
+destino autorizado, defina `FRONTEND_PUBLISH_DIR` explicitamente. Para uma SPA
+em History Mode, configure o Apache dentro do `VirtualHost` correspondente:
 
 ```apache
 Alias /checklist /var/www/dasssest.com/html/checklist

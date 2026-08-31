@@ -11,5 +11,4 @@ configurarInterceptorDeAutenticacao(router)
 await restaurarSessao()
 
 app.use(router)
-await router.isReady()
 app.mount('#app')

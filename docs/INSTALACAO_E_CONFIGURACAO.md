@@ -62,8 +62,8 @@ Variáveis disponíveis:
 
 | Variável | Padrão/finalidade |
 | --- | --- |
-| `VITE_APP_BASE_URL` | Base pública do SPA; exemplo `/checklist/`. |
-| `VITE_GATEWAY_URL` | Origem do Gateway usada pelos clientes HTTP e pelo proxy Vite; exemplo `http://localhost:2399`. |
+| `VITE_APP_BASE_URL` | Base pública do SPA; exemplo `/checklist/`. Obrigatória no build de produção. |
+| `VITE_GATEWAY_URL` | Origem do Gateway usada pelos clientes HTTP e pelo proxy Vite; exemplo `http://localhost:2399`. Obrigatória no build de produção. |
 | `VITE_API_TIMEOUT_MS` | Timeout dos clientes HTTP; padrão 15000 ms. |
 
 O Vite escuta em `0.0.0.0:5173` e usa a base configurada. O proxy de

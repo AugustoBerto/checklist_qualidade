@@ -35,3 +35,15 @@ hospedada em subcaminho com `VITE_APP_BASE_URL=/checklist/`.
 npm run build
 npm test
 ```
+
+## Publicação na VPS
+
+Após configurar as variáveis `VITE_*` de produção, execute:
+
+```bash
+npm run deploy
+```
+
+O comando gera `dist/` e publica o conteúdo de forma atômica em
+`/var/www/dasssest.com/html/checklist`. Use `FRONTEND_PUBLISH_DIR` somente para
+um destino alternativo autorizado, como um diretório temporário de validação.
