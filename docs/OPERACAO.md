@@ -92,8 +92,15 @@ Antes do deploy do frontend, configure no ambiente da VPS:
 
 ```env
 VITE_APP_BASE_URL=/checklist/
-VITE_GATEWAY_URL=http://<HOST_DA_VPS>:2399
+VITE_GATEWAY_URL=http://<HOST_PUBLICO>
 ```
+
+O valor de `VITE_GATEWAY_URL` deve ser a origem pública do site, sem a porta
+interna do Gateway. Para a VPS local deste projeto, o valor é
+`http://10.100.1.43`.
+Se o usuário abrir o site por um domínio, use esse mesmo domínio no valor da
+variável; host, esquema (`http`/`https`) e porta pública precisam coincidir para
+que o navegador trate a API como mesma origem.
 
 Execute:
 
@@ -115,6 +122,11 @@ SPA. No `VirtualHost` aplicável:
 ```apache
 Alias /checklist /var/www/dasssest.com/html/checklist
 
+# O Gateway permanece interno; /api/ é publicado na mesma origem do frontend.
+ProxyPreserveHost On
+ProxyPass        /api/ http://127.0.0.1:2399/api/
+ProxyPassReverse /api/ http://127.0.0.1:2399/api/
+
 <Directory "/var/www/dasssest.com/html/checklist">
     Options FollowSymLinks
     AllowOverride None
@@ -126,6 +138,12 @@ Alias /checklist /var/www/dasssest.com/html/checklist
     </Files>
 </Directory>
 ```
+
+O VirtualHost precisa ter os módulos `mod_proxy` e `mod_proxy_http` carregados.
+Se o site usar HTTPS, mantenha o proxy no VirtualHost HTTPS e configure o
+frontend com `VITE_GATEWAY_URL=https://<HOST_PUBLICO>` para evitar conteúdo
+misto. Não remova a exposição atual da porta `2399` antes de validar o fluxo
+pela rota pública `/api/` e confirmar que não existem consumidores externos.
 
 Após alterar essa configuração, valide e recarregue o Apache:
 

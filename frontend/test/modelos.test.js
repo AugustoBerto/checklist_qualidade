@@ -145,4 +145,35 @@ describe('edição de modelos', () => {
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Categoria "Solado" importada'))
     expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('já foi adicionada'))
   })
+
+  it('permite alternar a visibilidade de perguntas de uma categoria individualmente', async () => {
+    const wrapper = shallowMount(ModelosTab)
+    await flushPromises()
+
+    wrapper.vm.categoriasUI = [
+      { nome: 'Montagem', ctq: false, expandida: true, perguntas: [{ texto: 'Pergunta 1' }], novaPergunta: '' }
+    ]
+
+    expect(wrapper.vm.categoriasUI[0].expandida).toBe(true)
+    wrapper.vm.categoriasUI[0].expandida = false
+    expect(wrapper.vm.categoriasUI[0].expandida).toBe(false)
+  })
+
+  it('permite recolher e expandir todas as categorias em lote', async () => {
+    const wrapper = shallowMount(ModelosTab)
+    await flushPromises()
+
+    wrapper.vm.categoriasUI = [
+      { nome: 'Cat 1', ctq: false, expandida: true, perguntas: [{ texto: 'P1' }, { texto: 'P2' }], novaPergunta: '' },
+      { nome: 'Cat 2', ctq: true, expandida: true, perguntas: [{ texto: 'P3' }], novaPergunta: '' }
+    ]
+
+    expect(wrapper.vm.totalPerguntasModelo).toBe(3)
+
+    wrapper.vm.alternarTodasCategorias(false)
+    expect(wrapper.vm.categoriasUI.every(c => c.expandida === false)).toBe(true)
+
+    wrapper.vm.alternarTodasCategorias(true)
+    expect(wrapper.vm.categoriasUI.every(c => c.expandida === true)).toBe(true)
+  })
 })

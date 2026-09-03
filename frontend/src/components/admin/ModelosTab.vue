@@ -209,13 +209,56 @@
 
         <div class="categorias-container">
           <p v-if="categoriasUI.length === 0" class="item-vazio">Nenhuma categoria adicionada.</p>
-          
-          <div v-for="(cat, catIndex) in categoriasUI" :key="catIndex" class="categoria-card">
-            
+
+          <div v-if="categoriasUI.length > 0" class="categorias-toolbar">
+            <span class="categorias-contador-total">
+              <i class="mdi mdi-format-list-numbered"></i>
+              <strong>{{ categoriasUI.length }}</strong> {{ categoriasUI.length === 1 ? 'categoria' : 'categorias' }} ·
+              <strong>{{ totalPerguntasModelo }}</strong> {{ totalPerguntasModelo === 1 ? 'pergunta' : 'perguntas' }}
+            </span>
+            <div class="categorias-acoes-lote" v-if="categoriasUI.length > 1">
+              <button
+                type="button"
+                class="btn-acao-lote"
+                @click="alternarTodasCategorias(true)"
+                title="Expandir todas as categorias"
+              >
+                <i class="mdi mdi-unfold-more-horizontal"></i>
+                <span>Expandir Todas</span>
+              </button>
+              <button
+                type="button"
+                class="btn-acao-lote"
+                @click="alternarTodasCategorias(false)"
+                title="Recolher todas as categorias"
+              >
+                <i class="mdi mdi-unfold-less-horizontal"></i>
+                <span>Recolher Todas</span>
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-for="(cat, catIndex) in categoriasUI"
+            :key="catIndex"
+            class="categoria-card"
+            :class="{ 'is-collapsed': cat.expandida === false }"
+          >
             <div class="categoria-header">
               <div class="categoria-header-left">
+                <button
+                  type="button"
+                  class="btn-toggle-collapse"
+                  :title="cat.expandida === false ? 'Expandir perguntas' : 'Recolher perguntas'"
+                  @click="cat.expandida = cat.expandida === false ? true : false"
+                >
+                  <i class="mdi" :class="cat.expandida === false ? 'mdi-chevron-right' : 'mdi-chevron-down'"></i>
+                </button>
                 <i class="mdi mdi-tag-outline categoria-icone"></i>
                 <input type="text" v-model="cat.nome" class="input-editavel titulo-cat" placeholder="Nome da Categoria">
+                <span class="badge-perguntas-count" :title="`${(cat.perguntas || []).length} pergunta(s) cadastrada(s)`">
+                  {{ (cat.perguntas || []).length }} {{ (cat.perguntas || []).length === 1 ? 'pergunta' : 'perguntas' }}
+                </span>
               </div>
 
               <div class="categoria-header-actions">
@@ -234,28 +277,40 @@
                   <i class="mdi mdi-delete-outline"></i>
                   <span>Remover</span>
                 </button>
+
+                <button
+                  type="button"
+                  class="btn-toggle-texto"
+                  :title="cat.expandida === false ? 'Expandir perguntas' : 'Recolher perguntas'"
+                  @click="cat.expandida = cat.expandida === false ? true : false"
+                >
+                  <i class="mdi" :class="cat.expandida === false ? 'mdi-chevron-down' : 'mdi-chevron-up'"></i>
+                  <span>{{ cat.expandida === false ? 'Expandir' : 'Recolher' }}</span>
+                </button>
               </div>
             </div>
             
-            <ul class="perguntas-lista">
-              <li v-for="(pergunta, pIndex) in cat.perguntas" :key="pIndex" class="pergunta-item">
-                <i class="mdi mdi-circle-small bullet"></i>
-                <input type="text" v-model="pergunta.texto" class="input-editavel texto-pergunta" placeholder="Texto da pergunta">
-                <button type="button" class="btn-excluir-item" title="Remover Pergunta" @click="removerPergunta(catIndex, pIndex)">
-                  <i class="mdi mdi-close"></i>
-                </button>
-              </li>
-            </ul>
+            <div v-show="cat.expandida !== false" class="categoria-corpo">
+              <ul class="perguntas-lista">
+                <li v-for="(pergunta, pIndex) in cat.perguntas" :key="pIndex" class="pergunta-item">
+                  <i class="mdi mdi-circle-small bullet"></i>
+                  <input type="text" v-model="pergunta.texto" class="input-editavel texto-pergunta" placeholder="Texto da pergunta">
+                  <button type="button" class="btn-excluir-item" title="Remover Pergunta" @click="removerPergunta(catIndex, pIndex)">
+                    <i class="mdi mdi-close"></i>
+                  </button>
+                </li>
+              </ul>
 
-            <div class="add-pergunta-box">
-              <textarea 
-                v-model="cat.novaPergunta" 
-                class="input-base" 
-                rows="2"
-                placeholder="Digite a nova pergunta... (DICA: Pode colar várias perguntas de uma vez, copiadas do Excel)"
-                @keypress.enter.exact.prevent="adicionarPergunta(catIndex)"
-              ></textarea>
-              <button type="button" class="btn-add-pergunta" @click="adicionarPergunta(catIndex)">Adicionar Pergunta(s)</button>
+              <div class="add-pergunta-box">
+                <textarea 
+                  v-model="cat.novaPergunta" 
+                  class="input-base" 
+                  rows="2"
+                  placeholder="Digite a nova pergunta... (DICA: Pode colar várias perguntas de uma vez, copiadas do Excel)"
+                  @keypress.enter.exact.prevent="adicionarPergunta(catIndex)"
+                ></textarea>
+                <button type="button" class="btn-add-pergunta" @click="adicionarPergunta(catIndex)">Adicionar Pergunta(s)</button>
+              </div>
             </div>
           </div>
         </div>
@@ -423,6 +478,16 @@ const opcoesCategoriasPadrao = computed(() =>
   }))
 );
 
+const totalPerguntasModelo = computed(() =>
+  categoriasUI.value.reduce((acc, cat) => acc + (cat.perguntas || []).length, 0)
+);
+
+const alternarTodasCategorias = (expandir) => {
+  categoriasUI.value.forEach(cat => {
+    cat.expandida = expandir;
+  });
+};
+
 const marcaReferencia = ref(null);
 const modeloReferencia = ref(null);
 const opcoesModelosReferencia = ref([]);
@@ -526,6 +591,7 @@ const abrirEdicao = async (modelo) => {
       categoriasUI.value = Object.keys(catsBanco).map(nomeCat => ({
         nome: nomeCat,
         ctq: catsBanco[nomeCat].ctq || false,
+        expandida: true,
         novaPergunta: '',
         perguntas: catsBanco[nomeCat].perguntas.map(texto => ({ texto }))
       }));
@@ -565,6 +631,7 @@ watch(modeloReferencia, async (novoValor) => {
       categoriasUI.value = Object.keys(catsBanco).map(nomeCat => ({
         nome: nomeCat, 
         ctq: catsBanco[nomeCat].ctq || false,
+        expandida: true,
         novaPergunta: '',
         perguntas: catsBanco[nomeCat].perguntas.map(texto => ({ texto }))
       }));
@@ -608,6 +675,7 @@ const importarCategoriaCatalogo = () => {
     categoriasUI.value.push({
       nome: catEncontrada.nome,
       ctq: Boolean(catEncontrada.ctq),
+      expandida: true,
       novaPergunta: '',
       perguntas: Array.isArray(catEncontrada.perguntas) ? catEncontrada.perguntas.map(texto => ({ texto })) : []
     });
@@ -651,6 +719,7 @@ const adicionarCategoria = () => {
     categoriasUI.value.push({
       nome: catCatalogo.nome,
       ctq: Boolean(catCatalogo.ctq),
+      expandida: true,
       novaPergunta: '',
       perguntas: Array.isArray(catCatalogo.perguntas) ? catCatalogo.perguntas.map(texto => ({ texto })) : []
     });
@@ -661,6 +730,7 @@ const adicionarCategoria = () => {
   categoriasUI.value.push({
     nome: nomeLimpo,
     ctq: false,
+    expandida: true,
     novaPergunta: '',
     perguntas: []
   });
@@ -672,6 +742,7 @@ const removerCategoria = (index) => categoriasUI.value.splice(index, 1);
 const adicionarPergunta = (catIndex) => {
   const cat = categoriasUI.value[catIndex];
   if (!cat.novaPergunta.trim()) return;
+  cat.expandida = true;
   const linhas = cat.novaPergunta.split('\n');
   linhas.forEach(linha => {
     const textoLimpo = linha.trim();
@@ -1037,11 +1108,133 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 .btn-secundario { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.25rem; background-color: var(--primary, #b1072c); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap; min-height: 42px; transition: all 0.2s;}
 .btn-secundario:hover { background-color: var(--primary-hover, #8f0523); }
 
-.categoria-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 1.5rem; padding: 1.5rem; background: #ffffff; box-shadow: var(--shadow-sm);}
+.categorias-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f1f5f9;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1.25rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.categorias-contador-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  color: #475569;
+}
+
+.categorias-contador-total strong {
+  color: var(--text-primary, #0f172a);
+}
+
+.categorias-acoes-lote {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-acao-lote {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-acao-lote:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+
+.categoria-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+  transition: padding 0.2s ease, box-shadow 0.2s ease;
+}
+
+.categoria-card.is-collapsed {
+  padding-bottom: 1rem;
+}
+
+.categoria-card.is-collapsed .categoria-header {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
 .categoria-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 0.85rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .categoria-header-left { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 240px; }
 .categoria-icone { font-size: 1.25rem; color: #94a3b8; }
 .categoria-header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+
+.btn-toggle-collapse {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  transition: all 0.2s;
+}
+
+.btn-toggle-collapse:hover {
+  color: var(--primary, #b1072c);
+  background: #fff1f2;
+}
+
+.badge-perguntas-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 0.2rem 0.55rem;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.btn-toggle-texto {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: 0.2s;
+  min-height: 38px;
+}
+
+.btn-toggle-texto:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
 
 .btn-excluir-categoria { display: inline-flex; align-items: center; gap: 4px; background-color: #fef2f2; color: #dc2626; border: 1px solid #fecdd3; padding: 0.45rem 0.85rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s; min-height: 38px;}
 .btn-excluir-categoria:hover { background-color: #dc2626; color: #ffffff; }

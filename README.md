@@ -44,6 +44,7 @@ exemplo. Antes de iniciar a API, configure um `JWT_SECRET` válido e igual ao do
 - [Arquitetura](docs/ARQUITETURA.md)
 - [Referência da API](docs/API.md)
 - [Operação, deploy e manutenção](docs/OPERACAO.md)
+- [Padrão de publicação web e proxy reverso](docs/PADRAO_PUBLICACAO.md)
 - [Banco de dados e migrations](migrations/README.md)
 
 ## Comandos principais
