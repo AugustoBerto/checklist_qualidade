@@ -4,7 +4,7 @@
       <div class="header-icon">
         <i class="mdi mdi-shield-check"></i>
       </div>
-      <h1>Portal da Qualidade</h1>
+      <h1>Checklist da Liderança</h1>
       <p>Sistema de Auditoria Interna da Liderança. Selecione um módulo para iniciar sua rotina.</p>
     </div>
 
