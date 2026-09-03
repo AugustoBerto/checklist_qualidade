@@ -162,26 +162,29 @@
         <!-- Painel de Adição / Importação de Categorias -->
         <div class="painel-adicionar-categorias">
           <div class="box-importar-catalogo">
-            <label><i class="mdi mdi-book-open-page-variant-outline"></i> Importar Categoria Pré-configurada</label>
+            <label><i class="mdi mdi-book-open-page-variant-outline"></i> Importar Categorias Pré-configuradas</label>
             <div class="import-controls">
               <div class="select-wrapper-import">
                 <VueSelect
-                  v-model="categoriaPadraoSelecionada"
+                  v-model="categoriasPadraoSelecionadas"
                   :options="opcoesCategoriasPadrao"
-                  placeholder="Selecione uma categoria do catálogo..."
+                  placeholder="Selecione uma ou mais categorias do catálogo..."
+                  :is-multi="true"
+                  :close-on-select="false"
                   :is-clearable="true"
                 />
               </div>
               <button
                 type="button"
                 class="btn-secundario btn-importar"
-                :disabled="!categoriaPadraoSelecionada"
+                :disabled="totalCategoriasSelecionadas === 0"
                 @click="importarCategoriaCatalogo"
               >
-                <i class="mdi mdi-download"></i> Importar
+                <i class="mdi mdi-download"></i>
+                <span>{{ textoBotaoImportar }}</span>
               </button>
             </div>
-            <span class="dica-catalogo">Categorias do catálogo já incluem perguntas e parametrização pré-definidas.</span>
+            <span class="dica-catalogo">Categorias do catálogo já incluem perguntas e parametrização pré-definidas. Você pode selecionar várias para importar de uma vez.</span>
           </div>
 
           <div class="divisor-ou">
@@ -391,7 +394,28 @@ const isLoadingForm = ref(false);
 const conflitoVersao = ref(false);
 
 const categoriasPadrao = ref([]);
-const categoriaPadraoSelecionada = ref(null);
+const categoriasPadraoSelecionadas = ref([]);
+const categoriaPadraoSelecionada = computed({
+  get: () => (categoriasPadraoSelecionadas.value.length === 1 ? categoriasPadraoSelecionadas.value[0] : (categoriasPadraoSelecionadas.value[0] ?? null)),
+  set: (val) => {
+    if (val === null || val === undefined) {
+      categoriasPadraoSelecionadas.value = [];
+    } else if (Array.isArray(val)) {
+      categoriasPadraoSelecionadas.value = val;
+    } else {
+      categoriasPadraoSelecionadas.value = [val];
+    }
+  }
+});
+const totalCategoriasSelecionadas = computed(() =>
+  Array.isArray(categoriasPadraoSelecionadas.value)
+    ? categoriasPadraoSelecionadas.value.length
+    : (categoriasPadraoSelecionadas.value ? 1 : 0)
+);
+const textoBotaoImportar = computed(() => {
+  const total = totalCategoriasSelecionadas.value;
+  return total > 1 ? `Importar (${total})` : 'Importar';
+});
 const opcoesCategoriasPadrao = computed(() =>
   categoriasPadrao.value.map(c => ({
     label: `${c.nome} (${c.ctq ? 'CRÍTICO' : 'NORMAL'} · ${(c.perguntas || []).length} perguntas)`,
@@ -458,6 +482,7 @@ const abrirCriacao = () => {
   Object.assign(form, { id: null, versao: null, nomeModelo: '', nomeMarca: null, idSetor: null, ativo: true });
   marcaReferencia.value = null;
   modeloReferencia.value = null;
+  categoriasPadraoSelecionadas.value = [];
   categoriasUI.value = [];
   novaCategoria.value = '';
   erroForm.value = ''; erroGlobal.value = ''; sucessoGlobal.value = '';
@@ -474,6 +499,7 @@ const abrirEdicao = async (modelo) => {
   isLoadingTabela.value = true;
   erroGlobal.value = ''; sucessoGlobal.value = '';
   conflitoVersao.value = false;
+  categoriasPadraoSelecionadas.value = [];
   
   try {
     const res = await api.get(`/cadastros/modelos/${modelo.id}`);
@@ -557,26 +583,57 @@ watch(modeloReferencia, async (novoValor) => {
 // 4. CONSTRUTOR DE UI (Categorias/Perguntas)
 // ==========================================
 const importarCategoriaCatalogo = () => {
-  if (!categoriaPadraoSelecionada.value) return;
-  const catEncontrada = categoriasPadrao.value.find(c => c.id === categoriaPadraoSelecionada.value);
-  if (!catEncontrada) return;
+  const ids = Array.isArray(categoriasPadraoSelecionadas.value)
+    ? [...categoriasPadraoSelecionadas.value]
+    : (categoriasPadraoSelecionadas.value ? [categoriasPadraoSelecionadas.value] : []);
 
-  const jaExiste = categoriasUI.value.some(c => c.nome.toLowerCase().trim() === catEncontrada.nome.toLowerCase().trim());
-  if (jaExiste) {
-    toast.warning(`A categoria "${catEncontrada.nome}" já foi adicionada a este checklist.`);
-    return;
+  if (ids.length === 0) return;
+
+  const adicionadas = [];
+  const jaExistentes = [];
+
+  for (const id of ids) {
+    const catEncontrada = categoriasPadrao.value.find(c => c.id === id);
+    if (!catEncontrada) continue;
+
+    const jaExiste = categoriasUI.value.some(
+      c => c.nome.toLowerCase().trim() === catEncontrada.nome.toLowerCase().trim()
+    );
+
+    if (jaExiste) {
+      jaExistentes.push(catEncontrada.nome);
+      continue;
+    }
+
+    categoriasUI.value.push({
+      nome: catEncontrada.nome,
+      ctq: Boolean(catEncontrada.ctq),
+      novaPergunta: '',
+      perguntas: Array.isArray(catEncontrada.perguntas) ? catEncontrada.perguntas.map(texto => ({ texto })) : []
+    });
+    adicionadas.push(catEncontrada);
   }
 
-  categoriasUI.value.push({
-    nome: catEncontrada.nome,
-    ctq: Boolean(catEncontrada.ctq),
-    novaPergunta: '',
-    perguntas: Array.isArray(catEncontrada.perguntas) ? catEncontrada.perguntas.map(texto => ({ texto })) : []
-  });
+  if (adicionadas.length > 0) {
+    const totalPerguntas = adicionadas.reduce((acc, c) => acc + (c.perguntas || []).length, 0);
+    if (adicionadas.length === 1) {
+      toast.success(`Categoria "${adicionadas[0].nome}" importada com sucesso (${totalPerguntas} perguntas).`);
+    } else {
+      toast.success(`${adicionadas.length} categorias importadas com sucesso (${totalPerguntas} perguntas).`);
+    }
+  }
 
-  toast.success(`Categoria "${catEncontrada.nome}" importada com sucesso (${(catEncontrada.perguntas || []).length} perguntas).`);
-  categoriaPadraoSelecionada.value = null;
+  if (jaExistentes.length > 0) {
+    if (jaExistentes.length === 1) {
+      toast.warning(`A categoria "${jaExistentes[0]}" já foi adicionada a este checklist.`);
+    } else {
+      toast.warning(`As categorias "${jaExistentes.join('", "')}" já estavam no checklist e foram ignoradas.`);
+    }
+  }
+
+  categoriasPadraoSelecionadas.value = [];
 };
+const importarCategoriasCatalogo = importarCategoriaCatalogo;
 
 const adicionarCategoria = () => {
   const nomeLimpo = novaCategoria.value?.trim();
@@ -921,7 +978,7 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 .import-controls {
   display: flex;
   gap: 0.75rem;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .select-wrapper-import {

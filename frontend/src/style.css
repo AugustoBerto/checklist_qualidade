@@ -201,9 +201,21 @@ select:disabled,
   --vs-option-selected-background-color: #ffe4e6;
   --vs-option-selected-text-color: #8f0523;
   --vs-option-disabled-text-color: #94a3b8;
-  --vs-option-disabled-background-color: #f8fafc;
   --vs-indicator-icon-size: 18px;
   --vs-indicator-icon-color: #64748b;
+  --vs-multi-value-margin: 2px 4px 2px 0;
+  --vs-multi-value-border: 1px solid #fecdd3;
+  --vs-multi-value-border-radius: 6px;
+  --vs-multi-value-background-color: #fff1f2;
+  --vs-multi-value-label-padding: 3px 6px 3px 8px;
+  --vs-multi-value-label-font-size: 0.82rem;
+  --vs-multi-value-label-font-weight: 600;
+  --vs-multi-value-label-text-color: #9f1239;
+  --vs-multi-value-delete-padding: 0 4px;
+  --vs-multi-value-delete-hover-background-color: #fda4af;
+  --vs-multi-value-xmark-size: 14px;
+  --vs-multi-value-xmark-color: #9f1239;
+  --vs-multi-value-xmark-hover-color: #881337;
 }
 
 /* Anti-flicker e harmonização do controle VueSelect */

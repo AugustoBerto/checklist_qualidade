@@ -96,4 +96,53 @@ describe('edição de modelos', () => {
     expect(() => wrapper.vm.importarCategoriaCatalogo()).not.toThrow()
     expect(wrapper.vm.categoriasUI[0].perguntas).toHaveLength(2)
   })
+
+  it('importa múltiplas categorias do catálogo de uma só vez', async () => {
+    api.get.mockImplementation((url) => Promise.resolve({ data: { dados: url.endsWith('categorias-padrao')
+      ? [
+          { id: 10, nome: 'Solado', ctq: true, perguntas: ['S1', 'S2'] },
+          { id: 20, nome: 'Costura', ctq: false, perguntas: ['C1'] },
+        ]
+      : [] } }))
+    const wrapper = shallowMount(ModelosTab)
+    await flushPromises()
+
+    wrapper.vm.categoriasPadraoSelecionadas = [10, 20]
+    expect(wrapper.vm.totalCategoriasSelecionadas).toBe(2)
+    expect(wrapper.vm.textoBotaoImportar).toBe('Importar (2)')
+
+    wrapper.vm.importarCategoriaCatalogo()
+
+    expect(wrapper.vm.categoriasUI).toHaveLength(2)
+    expect(wrapper.vm.categoriasUI[0].nome).toBe('Solado')
+    expect(wrapper.vm.categoriasUI[0].ctq).toBe(true)
+    expect(wrapper.vm.categoriasUI[0].perguntas).toHaveLength(2)
+    expect(wrapper.vm.categoriasUI[1].nome).toBe('Costura')
+    expect(wrapper.vm.categoriasUI[1].ctq).toBe(false)
+    expect(wrapper.vm.categoriasUI[1].perguntas).toHaveLength(1)
+    expect(wrapper.vm.categoriasPadraoSelecionadas).toEqual([])
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('2 categorias importadas'))
+  })
+
+  it('ao importar em lote, importa as novas e avisa sobre categorias que já existiam', async () => {
+    api.get.mockImplementation((url) => Promise.resolve({ data: { dados: url.endsWith('categorias-padrao')
+      ? [
+          { id: 10, nome: 'Solado', ctq: true, perguntas: ['S1'] },
+          { id: 20, nome: 'Costura', ctq: false, perguntas: ['C1'] },
+        ]
+      : [] } }))
+    const wrapper = shallowMount(ModelosTab)
+    await flushPromises()
+
+    wrapper.vm.categoriasUI = [{ nome: 'Costura', ctq: false, perguntas: [{ texto: 'Existente' }], novaPergunta: '' }]
+    wrapper.vm.categoriasPadraoSelecionadas = [10, 20]
+
+    wrapper.vm.importarCategoriaCatalogo()
+
+    expect(wrapper.vm.categoriasUI).toHaveLength(2)
+    expect(wrapper.vm.categoriasUI[0].nome).toBe('Costura')
+    expect(wrapper.vm.categoriasUI[1].nome).toBe('Solado')
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Categoria "Solado" importada'))
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('já foi adicionada'))
+  })
 })
