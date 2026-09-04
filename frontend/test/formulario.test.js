@@ -146,4 +146,39 @@ describe('carregamento do formulário', () => {
       ],
     }))
   })
+
+  it('renderiza badge vetorial CTQ e permite recolher e expandir todas as categorias', async () => {
+    const respostaMulti = {
+      data: {
+        sucesso: true,
+        modelo: { id: 7, nome: 'Modelo com 2 categorias', versao: 2 },
+        respostasAgrupadas: {
+          Cat1: [{ id: 10, texto: 'P1', variavel: 'p1', ctq: true }],
+          Cat2: [{ id: 20, texto: 'P2', variavel: 'p2', ctq: false }],
+        },
+      },
+    }
+    api.get.mockResolvedValueOnce(respostaMulti)
+    const wrapper = shallowMount(FormularioView)
+    await flushPromises()
+
+    expect(wrapper.find('.badge-ctq-pill').exists()).toBe(true)
+    expect(wrapper.find('.badge-ctq-pill').text()).toContain('CRÍTICO (CTQ)')
+
+    expect(wrapper.vm.estatisticasCategorias.Cat1.total).toBe(1)
+    expect(wrapper.vm.estatisticasCategorias.Cat1.respondidas).toBe(0)
+    expect(wrapper.vm.estatisticasCategorias.Cat1.completo).toBe(false)
+
+    wrapper.vm.respostas.p1 = 'Conforme'
+    expect(wrapper.vm.estatisticasCategorias.Cat1.respondidas).toBe(1)
+    expect(wrapper.vm.estatisticasCategorias.Cat1.completo).toBe(true)
+
+    wrapper.vm.alternarTodasCategorias(false)
+    expect(wrapper.vm.categoriasAbertas.Cat1).toBe(false)
+    expect(wrapper.vm.categoriasAbertas.Cat2).toBe(false)
+
+    wrapper.vm.alternarTodasCategorias(true)
+    expect(wrapper.vm.categoriasAbertas.Cat1).toBe(true)
+    expect(wrapper.vm.categoriasAbertas.Cat2).toBe(true)
+  })
 })

@@ -32,14 +32,45 @@
         </span>
       </div>
 
-      <details v-for="(perguntas, categoria) in categorias" :key="categoria" class="sessaoOpcao"
-        :class="getCategoryStatusClass(categoria)" open>
+      <div v-if="Object.keys(categorias).length > 1" class="formulario-toolbar-categorias">
+        <span class="toolbar-contador">
+          <i class="mdi mdi-format-list-checks"></i>
+          <strong>{{ Object.keys(categorias).length }}</strong> categorias no checklist
+        </span>
+        <div class="toolbar-acoes-lote">
+          <button type="button" class="btn-toolbar-lote" @click="alternarTodasCategorias(true)">
+            <i class="mdi mdi-unfold-more-horizontal"></i> Expandir Todas
+          </button>
+          <button type="button" class="btn-toolbar-lote" @click="alternarTodasCategorias(false)">
+            <i class="mdi mdi-unfold-less-horizontal"></i> Recolher Todas
+          </button>
+        </div>
+      </div>
+
+      <details
+        v-for="(perguntas, categoria) in categorias"
+        :key="categoria"
+        class="sessaoOpcao"
+        :class="getCategoryStatusClass(categoria)"
+        :open="categoriasAbertas[categoria] !== false"
+        @toggle="onToggleCategoria(categoria, $event)"
+      >
         <summary class="cabecalhoSessao">
           <div class="titulo-categoria-wrapper">
             <h2>{{ categoria }}</h2>
-            <img v-if="perguntas[0]?.ctq" src="../assets/ctq.png" alt="Processo Crítico" class="icone-ctq-categoria" />
+            <span v-if="perguntas[0]?.ctq" class="badge-ctq-pill" title="Processo Crítico para a Qualidade (CTQ)">
+              <i class="mdi mdi-alert-decagram"></i>
+              <span>CRÍTICO (CTQ)</span>
+            </span>
           </div>
           <div class="categoria-header-right">
+            <span
+              class="badge-categoria-progresso"
+              :class="{ 'completo': estatisticasCategorias[categoria]?.completo }"
+              :title="`${estatisticasCategorias[categoria]?.respondidas || 0} de ${estatisticasCategorias[categoria]?.total || 0} perguntas respondidas`"
+            >
+              {{ estatisticasCategorias[categoria]?.respondidas || 0 }}/{{ estatisticasCategorias[categoria]?.total || 0 }}
+            </span>
             <span class="icone-acordeao"><i class="mdi mdi-plus"></i></span>
           </div>
         </summary>
@@ -408,6 +439,32 @@ const categoryStatus = computed(() => {
   return status;
 });
 
+const estatisticasCategorias = computed(() => {
+  const map = {};
+  for (const categoria in categorias.value) {
+    const perguntas = categorias.value[categoria];
+    const respondidas = perguntas.filter(p => respostas.value[p.variavel]).length;
+    map[categoria] = {
+      total: perguntas.length,
+      respondidas,
+      completo: perguntas.length > 0 && respondidas === perguntas.length,
+    };
+  }
+  return map;
+});
+
+const categoriasAbertas = ref({});
+
+const alternarTodasCategorias = (abrir) => {
+  for (const cat in categorias.value) {
+    categoriasAbertas.value[cat] = abrir;
+  }
+};
+
+const onToggleCategoria = (categoria, event) => {
+  categoriasAbertas.value[categoria] = event?.target?.open ?? true;
+};
+
 const progresso = computed(() => {
   const pendentes = [];
   let total = 0;
@@ -682,6 +739,60 @@ async function enviarFormulario() {
 }
 
 /* ==========================================
+   TOOLBAR DE CATEGORIAS
+   ========================================== */
+.formulario-toolbar-categorias {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1.15rem;
+  background: #f8fafc;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-contador {
+  font-size: 0.88rem;
+  color: var(--text-secondary, #64748b);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-contador strong {
+  color: var(--text-primary, #0f172a);
+}
+
+.toolbar-acoes-lote {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-toolbar-lote {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.4rem 0.8rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-toolbar-lote:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: var(--text-primary, #0f172a);
+}
+
+/* ==========================================
    ACORDEÃO (SESSÕES)
    ========================================== */
 .sessaoOpcao {
@@ -715,12 +826,26 @@ async function enviarFormulario() {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
-.icone-ctq-categoria {
-  width: 28px;
-  height: auto;
-  object-fit: contain;
+.badge-ctq-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #fff1f2;
+  color: var(--primary, #b1072c);
+  border: 1px solid #fecdd3;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.badge-ctq-pill i {
+  font-size: 0.95rem;
 }
 
 .cabecalhoSessao h2 {
@@ -734,6 +859,23 @@ async function enviarFormulario() {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.badge-categoria-progresso {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.badge-categoria-progresso.completo {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
 }
 
 .icone-acordeao {
