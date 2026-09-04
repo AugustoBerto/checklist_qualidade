@@ -181,4 +181,31 @@ describe('carregamento do formulário', () => {
     expect(wrapper.vm.categoriasAbertas.Cat1).toBe(true)
     expect(wrapper.vm.categoriasAbertas.Cat2).toBe(true)
   })
+
+  it('mantém texto de pendentes oculto inicialmente e só exibe ao tentar finalizar com itens pendentes', async () => {
+    const resposta = {
+      data: {
+        sucesso: true,
+        modelo: { id: 7, nome: 'Modelo com pendência', versao: 2 },
+        respostasAgrupadas: {
+          Montagem: [{ id: 10, texto: 'P1', variavel: 'p1' }],
+        },
+      },
+    }
+    api.get.mockResolvedValueOnce(resposta)
+    const wrapper = shallowMount(FormularioView)
+    await flushPromises()
+
+    expect(wrapper.vm.tentouFinalizar).toBe(false)
+    expect(wrapper.find('.progresso-pendentes').exists()).toBe(false)
+
+    await wrapper.find('form').trigger('submit')
+    expect(wrapper.vm.tentouFinalizar).toBe(true)
+    expect(wrapper.find('.progresso-pendentes').exists()).toBe(true)
+    expect(wrapper.find('.progresso-pendentes').text()).toContain('Montagem')
+
+    wrapper.vm.respostas.p1 = 'Conforme'
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.progresso-pendentes').exists()).toBe(false)
+  })
 })

@@ -27,7 +27,7 @@
           <span class="progresso-percent">{{ Math.round((progresso.respondidas / (progresso.total || 1)) * 100) }}%</span>
         </div>
         <progress :value="progresso.respondidas" :max="progresso.total || 1"></progress>
-        <span v-if="progresso.pendentes.length" class="progresso-pendentes">
+        <span v-if="tentouFinalizar && progresso.pendentes.length" class="progresso-pendentes" role="alert">
           <i class="mdi mdi-alert-circle-outline"></i> Pendentes: {{ progresso.pendentes.join(', ') }}
         </span>
       </div>
@@ -240,6 +240,7 @@ const erroCarregamento = ref('');
 const assinatura = ref(null);
 const signatureRef = ref(null);
 const enviando = ref(false); 
+const tentouFinalizar = ref(false);
 const inicioChecklistTimestamp = ref(null);
 const fotosNaoConformes = ref({}); 
 const errosFotos = ref({});
@@ -387,6 +388,7 @@ const carregarPerguntas = async () => {
     nomeModelo.value = modeloResposta.nome || primeiraPergunta.modelo || primeiraPergunta.nome_modelo || '';
     versaoModelo.value = modeloResposta.versao ?? primeiraPergunta.modelo_versao ?? primeiraPergunta.versao ?? null;
     categorias.value = agrupadas;
+    tentouFinalizar.value = false;
 
     await carregarRascunho();
     if (componenteDesmontado || controller.signal.aborted) return;
@@ -587,6 +589,7 @@ const onFotoCapturada = async (variavel, fotoBase64) => {
 
 async function enviarFormulario() {
   if (enviando.value) return;
+  tentouFinalizar.value = true;
   atualizarAssinatura();
   for (const cat of categoriasNaoConformes.value) {
     atualizarAssinaturaCategoria(cat);
@@ -595,6 +598,7 @@ async function enviarFormulario() {
   for (const cat in categorias.value) {
     for (const p of categorias.value[cat]) {
       if (!respostas.value[p.variavel]) {
+        categoriasAbertas.value[cat] = true;
         toast.warning(`Por favor, responda a pergunta: "${p.texto}"`);
         return;
       }
@@ -666,6 +670,7 @@ async function enviarFormulario() {
     fotosNaoConformes.value = {};
     observacoesNaoConformes.value = {};
     assinaturasCategorias.value = {};
+    tentouFinalizar.value = false;
     
     const idRota = res.data.id_formulario || res.data.id_relatorio;
     router.push(`/relatorio/${idRota}`); 
@@ -730,12 +735,23 @@ async function enviarFormulario() {
 }
 
 .progresso-pendentes {
+  margin-top: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
   font-size: 0.85rem;
-  color: #d97706;
+  color: #b45309;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  animation: fadeInAlert 0.25s ease-in-out;
+}
+
+@keyframes fadeInAlert {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ==========================================
