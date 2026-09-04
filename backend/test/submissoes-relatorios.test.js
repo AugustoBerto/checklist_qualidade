@@ -298,3 +298,41 @@ test('rejeita ID numérico de evidência fora do limite antes do banco', async (
   assert.equal(res.statusCode, 400);
   assert.equal(consultas, 0);
 });
+
+test('buscarDetalhesSubmissao remove observações em itens conformes legados', async () => {
+  const submissao = {
+    id: 8,
+    data_envio: '2026-08-27T00:00:00Z',
+    inicio_checklist: '2026-08-27T00:00:00Z',
+    assinatura: null,
+    respostas: [
+      { id_pergunta: 1, resposta: 'Conforme', observacao: 'Observação legada indevida' },
+      { id_pergunta: 2, resposta: 'Não Conforme', observacao: 'Falha real' },
+    ],
+    snapshot: {
+      schema: 2,
+      modelo: { id: 2, nome: 'Modelo', versao: 1 },
+      setor: { id: 3, nome: 'Setor' },
+      celula: { id: 4, nome: 'Célula' },
+      auditor: { id: 5, nome: 'Auditor' },
+      unidade: { id: 6, nome: 'Unidade' },
+      perguntas: [
+        { id: 1, pergunta: 'Pergunta 1', categoria: 'Categoria' },
+        { id: 2, pergunta: 'Pergunta 2', categoria: 'Categoria' },
+      ],
+      evidencias: { total: 0 },
+    },
+    id_modelo: 2,
+  };
+  db.query = async (sql) => {
+    if (/FROM formulario_evidencias/.test(sql)) return { rows: [] };
+    if (/FROM formulario_submissoes s/.test(sql)) return { rows: [submissao] };
+    throw new Error(`consulta inesperada: ${sql}`);
+  };
+  const res = resposta();
+  await submissoes.buscarDetalhesSubmissao({ params: { id: '8' } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.dados.categorias.Categoria[0].observacao, null);
+  assert.equal(res.body.dados.categorias.Categoria[1].observacao, 'Falha real');
+});

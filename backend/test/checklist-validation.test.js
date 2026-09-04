@@ -379,3 +379,14 @@ test('salvarChecklist rejeita se categoria não conforme não tiver assinatura e
     assert.ok(snapshotGravado.assinaturas_categorias.Solado);
     assert.equal(snapshotGravado.assinaturas_categorias.Solado.mime, 'image/png');
 });
+
+test('prepararRespostas remove observacao de itens conformes ou N/A', () => {
+    const { respostasPersistidas } = _internals.prepararRespostas([
+        { id_pergunta: 1, resposta: 'Conforme', observacao: 'Observação indevida' },
+        { id_pergunta: 2, resposta: 'Não Conforme', observacao: 'Defeito real' },
+        { id_pergunta: 3, resposta: 'N/A', observacao: 'Outra observação indevida' },
+    ]);
+    assert.equal(respostasPersistidas[0].observacao, null);
+    assert.equal(respostasPersistidas[1].observacao, 'Defeito real');
+    assert.equal(respostasPersistidas[2].observacao, null);
+});

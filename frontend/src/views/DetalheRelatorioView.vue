@@ -60,7 +60,9 @@ function normalizarDocumento(resposta) {
       id: item.id ?? item.idPergunta ?? item.id_pergunta,
       pergunta: item.pergunta ?? item.texto ?? item.question,
       resposta: item.resposta ?? item.answer,
-      observacao: item.observacao ?? item.observacaoNaoConforme ?? item.observation,
+      observacao: (item.resposta === 'Não Conforme' || item.answer === 'Não Conforme')
+        ? (item.observacao ?? item.observacaoNaoConforme ?? item.observation ?? null)
+        : null,
       evidencia: item.evidencia || null,
     })),
   ]))

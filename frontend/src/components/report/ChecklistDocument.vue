@@ -56,7 +56,7 @@
               <p class="question-text">{{ item.pergunta || 'Item não identificado' }}</p>
             </div>
             <span class="answer-value" :class="answerClass(item.resposta)">{{ item.resposta || 'Não preenchido' }}</span>
-            <p v-if="item.observacao" class="answer-observation"><strong>Observação:</strong> {{ item.observacao }}</p>
+            <p v-if="item.resposta === 'Não Conforme' && item.observacao" class="answer-observation"><strong>Observação:</strong> {{ item.observacao }}</p>
             <p v-if="!modoImpressao && item.resposta === 'Não Conforme' && numeroEvidencia(item)" class="answer-evidence"><strong>Evidência:</strong> {{ numeroEvidencia(item) }}</p>
           </div>
         </div>

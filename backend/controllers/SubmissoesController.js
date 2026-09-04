@@ -245,7 +245,7 @@ exports.buscarDetalhesSubmissao = async (req, res) => {
                 idPergunta: Number(resposta.id_pergunta),
                 pergunta: pergunta?.pergunta || 'Item removido/descontinuado',
                 resposta: resposta.resposta,
-                observacao: resposta.observacao,
+                observacao: resposta.resposta === 'Não Conforme' ? (resposta.observacao || null) : null,
                 evidencia: evidencia ? { id: evidencia.id, disponivel: evidencia.disponivel } : null,
             });
         });

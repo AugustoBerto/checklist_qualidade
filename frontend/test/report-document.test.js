@@ -97,6 +97,24 @@ describe('ChecklistDocument', () => {
     expect(sigArea.text()).toContain('Segurança')
     expect(sigArea.find('img').attributes('src')).toBe('data:image/png;base64,sigSeguranca')
   })
+
+  it('não renderiza observação quando a resposta for Conforme', () => {
+    const docComObsConforme = {
+      ...documento,
+      categorias: {
+        Segurança: [
+          { id: 10, pergunta: 'A área está organizada?', resposta: 'Conforme', observacao: 'Observação fantasma' },
+          { id: 11, pergunta: 'Existe uma falha?', resposta: 'Não Conforme', observacao: 'Falha real' },
+        ],
+      },
+    }
+    const wrapper = mount(ChecklistDocument, {
+      props: { documento: docComObsConforme, evidencias: { total: 0, disponiveis: 0, itens: [] } },
+    })
+
+    expect(wrapper.text()).not.toContain('Observação fantasma')
+    expect(wrapper.text()).toContain('Falha real')
+  })
 })
 
 describe('EvidenceGallery', () => {
@@ -157,5 +175,32 @@ describe('DetalheRelatorioView', () => {
     expect(wrapper.vm.evidencias.itens[0].conteudoUrl).toBe('blob:evidencia-1')
     wrapper.unmount()
     expect(revogarUrl).toHaveBeenCalledWith('blob:evidencia-1')
+  })
+
+  it('normaliza documento removendo observações de itens conformes legados', async () => {
+    api.get.mockImplementation((url) => {
+      if (url === '/submissoes/42') return Promise.resolve({ data: {
+        sucesso: true,
+        dados: {
+          id: 42,
+          categorias: {
+            Segurança: [
+              { idPergunta: 10, pergunta: 'Item C', resposta: 'Conforme', observacao: 'Obs fantasma' },
+              { idPergunta: 11, pergunta: 'Item NC', resposta: 'Não Conforme', observacao: 'Defeito real' },
+            ],
+          },
+          evidencias: { total: 0, disponiveis: 0, itens: [] },
+        },
+      } })
+      throw new Error(`requisição inesperada: ${url}`)
+    })
+
+    const wrapper = shallowMount(DetalheRelatorioView)
+    await flushPromises()
+
+    const itemC = wrapper.vm.documento.categorias.Segurança[0]
+    const itemNC = wrapper.vm.documento.categorias.Segurança[1]
+    expect(itemC.observacao).toBe(null)
+    expect(itemNC.observacao).toBe('Defeito real')
   })
 })

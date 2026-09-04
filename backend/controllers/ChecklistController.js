@@ -102,10 +102,11 @@ const timestampOpcionalValido = (valor) => valor == null
 const prepararRespostas = (respostas) => {
     const evidencias = [];
     const respostasPersistidas = respostas.map((item) => {
+        const ehNaoConforme = item.resposta === 'Não Conforme';
         const resposta = {
             id_pergunta: Number(item.id_pergunta),
             resposta: item.resposta,
-            observacao: item.observacao ?? null,
+            observacao: ehNaoConforme ? (item.observacao ?? null) : null,
         };
         if (item.foto != null && item.foto !== '') {
             const imagem = base64ParaImagem(item.foto, MAX_FOTO_BYTES, 'A foto');

@@ -325,6 +325,12 @@ watch(respostas, () => {
       void persistenciaRascunho.removePhoto(variavel, obterMetadataRascunho());
     }
   }
+  for (const variavel of Object.keys(observacoesNaoConformes.value)) {
+    if (respostas.value[variavel] !== 'Não Conforme') {
+      const { [variavel]: _, ...obsRestantes } = observacoesNaoConformes.value;
+      observacoesNaoConformes.value = obsRestantes;
+    }
+  }
   for (const cat of Object.keys(assinaturasCategorias.value)) {
     if (!categoriaTemNaoConformidade(cat)) {
       limparAssinaturaCategoria(cat);
@@ -636,11 +642,13 @@ async function enviarFormulario() {
   for (const categoria in categorias.value) {
     for (const pergunta of categorias.value[categoria]) {
       const v = pergunta.variavel;
+      const statusResposta = respostas.value[v];
+      const ehNaoConforme = statusResposta === 'Não Conforme';
       respostasFormatadas.push({
         id_pergunta: pergunta.id,
-        resposta: respostas.value[v], 
-        foto: fotosNaoConformes.value[v] || null,
-        observacao: observacoesNaoConformes.value[v] || null 
+        resposta: statusResposta, 
+        foto: ehNaoConforme ? (fotosNaoConformes.value[v] || null) : null,
+        observacao: ehNaoConforme ? (observacoesNaoConformes.value[v] || null) : null 
       });
     }
   }

@@ -147,6 +147,37 @@ describe('carregamento do formulário', () => {
     }))
   })
 
+  it('limpa observação e foto ao alterar resposta de Não Conforme para Conforme', async () => {
+    const wrapper = shallowMount(FormularioView)
+    await flushPromises()
+
+    wrapper.vm.respostas.p1 = 'Não Conforme'
+    wrapper.vm.observacoesNaoConformes.p1 = 'Texto digitado'
+    await wrapper.vm.$nextTick()
+
+    // Alterna de volta para Conforme
+    wrapper.vm.respostas.p1 = 'Conforme'
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.observacoesNaoConformes.p1).toBeUndefined()
+
+    wrapper.vm.assinatura = 'data:image/png;base64,sigGeral'
+    api.post.mockResolvedValueOnce({ data: { sucesso: true, id_formulario: 124 } })
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(api.post).toHaveBeenCalledWith('/checklists/salvar', expect.objectContaining({
+      respostas: [
+        expect.objectContaining({
+          id_pergunta: 10,
+          resposta: 'Conforme',
+          observacao: null,
+          foto: null,
+        }),
+      ],
+    }))
+  })
+
   it('renderiza badge vetorial CTQ e permite recolher e expandir todas as categorias', async () => {
     const respostaMulti = {
       data: {
