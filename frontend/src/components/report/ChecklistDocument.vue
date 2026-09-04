@@ -60,6 +60,13 @@
             <p v-if="!modoImpressao && item.resposta === 'Não Conforme' && numeroEvidencia(item)" class="answer-evidence"><strong>Evidência:</strong> {{ numeroEvidencia(item) }}</p>
           </div>
         </div>
+        <div v-if="obterAssinaturaCategoria(categoria)" class="category-signature-wrapper">
+          <div class="signature-area category-signature-area">
+            <img :src="obterAssinaturaCategoria(categoria)" :alt="`Assinatura do responsável: ${categoria}`" class="signature-image">
+            <div class="signature-line"></div>
+            <span>Assinatura do responsável: <strong>{{ categoria }}</strong></span>
+          </div>
+        </div>
       </div>
       <p v-if="!temCategorias" class="empty-document">Nenhuma resposta registrada.</p>
     </section>
@@ -126,9 +133,29 @@ const numeroEvidencia = (item) => {
   const indice = (props.evidencias?.itens || []).findIndex((evidencia) => String(evidencia.id) === String(id))
   return indice >= 0 ? indice + 1 : null
 }
+
+const obterAssinaturaCategoria = (categoria) => {
+  const assinaturas = props.documento?.assinaturasCategorias || props.documento?.assinaturas_categorias || {}
+  const item = assinaturas[categoria]
+  if (!item) return null
+  if (typeof item === 'string') return item
+  if (typeof item === 'object' && item.imagem) return item.imagem
+  return null
+}
 </script>
 
 <style scoped>
+.category-signature-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.85rem 0.5rem 0.5rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.category-signature-area {
+  width: min(240px, 100%);
+}
+
 .checklist-document {
   color: #172033;
   background: #fff;

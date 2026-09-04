@@ -82,6 +82,7 @@ function normalizarDocumento(resposta) {
     status: dados.status,
     pontuacao: dados.pontuacao ?? dados.percentualConformidade ?? dados.percentual_conformidade,
     assinatura: dados.assinatura || null,
+    assinaturasCategorias: dados.assinaturasCategorias || dados.assinaturas_categorias || {},
     categorias: categoriasNormalizadas,
   }
 }

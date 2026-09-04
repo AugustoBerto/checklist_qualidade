@@ -80,6 +80,23 @@ describe('ChecklistDocument', () => {
       wrapper.element.querySelector('.answers-section'),
     ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
+
+  it('renderiza assinaturas por categoria quando presentes no documento', () => {
+    const docComAssinaturas = {
+      ...documento,
+      assinaturasCategorias: {
+        Segurança: 'data:image/png;base64,sigSeguranca',
+      },
+    }
+    const wrapper = mount(ChecklistDocument, {
+      props: { documento: docComAssinaturas },
+    })
+
+    const sigArea = wrapper.find('.category-signature-area')
+    expect(sigArea.exists()).toBe(true)
+    expect(sigArea.text()).toContain('Segurança')
+    expect(sigArea.find('img').attributes('src')).toBe('data:image/png;base64,sigSeguranca')
+  })
 })
 
 describe('EvidenceGallery', () => {

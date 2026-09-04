@@ -227,6 +227,7 @@ exports.buscarDetalhesSubmissao = async (req, res) => {
             dataInicio: snapshot.inicio || submissao.inicio_checklist || null,
             dataEnvio: submissao.data_envio,
             assinatura: submissao.assinatura ? `data:${submissao.assinatura_mime || 'image/png'};base64,${submissao.assinatura.toString('base64')}` : null,
+            assinaturasCategorias: snapshot.assinaturas_categorias || {},
             categorias: Object.create(null),
             evidencias: {
                 total: Number.isInteger(snapshot.evidencias?.total) ? snapshot.evidencias.total : evidencias.length,

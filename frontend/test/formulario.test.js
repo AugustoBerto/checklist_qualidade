@@ -106,4 +106,44 @@ describe('carregamento do formulário', () => {
     expect(window.onFotoCapturada).toBeUndefined()
     expect(draft.load).not.toHaveBeenCalled()
   })
+
+  it('detecta categoria não conforme, aceita foto opcional e exige assinatura da categoria ao submeter', async () => {
+    const wrapper = shallowMount(FormularioView)
+    await flushPromises()
+
+    expect(wrapper.vm.categoriaTemNaoConformidade('Categoria')).toBe(false)
+    expect(wrapper.vm.categoriasNaoConformes).toEqual([])
+
+    wrapper.vm.respostas.p1 = 'Não Conforme'
+    wrapper.vm.observacoesNaoConformes.p1 = 'Defeito encontrado'
+    expect(wrapper.vm.categoriaTemNaoConformidade('Categoria')).toBe(true)
+    expect(wrapper.vm.categoriasNaoConformes).toEqual(['Categoria'])
+
+    await wrapper.find('form').trigger('submit')
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('A assinatura para a categoria "Categoria" é obrigatória'))
+    expect(api.post).not.toHaveBeenCalled()
+
+    wrapper.vm.assinaturasCategorias['Categoria'] = 'data:image/png;base64,sigCat'
+    await wrapper.find('form').trigger('submit')
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('A assinatura geral do auditor é obrigatória'))
+    expect(api.post).not.toHaveBeenCalled()
+
+    wrapper.vm.assinatura = 'data:image/png;base64,sigGeral'
+    api.post.mockResolvedValueOnce({ data: { sucesso: true, id_formulario: 123 } })
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(api.post).toHaveBeenCalledWith('/checklists/salvar', expect.objectContaining({
+      assinatura: 'data:image/png;base64,sigGeral',
+      assinaturas_categorias: { Categoria: 'data:image/png;base64,sigCat' },
+      respostas: [
+        expect.objectContaining({
+          id_pergunta: 10,
+          resposta: 'Não Conforme',
+          observacao: 'Defeito encontrado',
+          foto: null,
+        }),
+      ],
+    }))
+  })
 })

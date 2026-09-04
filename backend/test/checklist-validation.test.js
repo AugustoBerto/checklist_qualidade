@@ -34,17 +34,23 @@ const submissaoValida = () => ({
     },
 });
 
-test('aceita respostas completas e evidência Base64 válida', () => {
+test('aceita respostas completas, com ou sem foto no item não conforme', () => {
     assert.doesNotThrow(() => _internals.validarRespostas([
         { id_pergunta: 1, resposta: 'Conforme' },
         { id_pergunta: 2, resposta: 'Não Conforme', foto: imagem, observacao: 'Falha encontrada' },
     ], perguntas));
+
+    assert.doesNotThrow(() => _internals.validarRespostas([
+        { id_pergunta: 1, resposta: 'Conforme' },
+        { id_pergunta: 2, resposta: 'Não Conforme', foto: null, observacao: 'Falha sem foto' },
+    ], perguntas));
 });
 
-test('rejeita pergunta duplicada, enum inválido e não conformidade sem evidência', () => {
+test('rejeita pergunta duplicada, enum inválido e não conformidade sem observação', () => {
     assert.throws(() => _internals.validarRespostas([{ id_pergunta: 1, resposta: 'Conforme' }, { id_pergunta: 1, resposta: 'N/A' }], perguntas));
     assert.throws(() => _internals.validarRespostas([{ id_pergunta: 1, resposta: 'Outra' }, { id_pergunta: 2, resposta: 'N/A' }], perguntas));
-    assert.throws(() => _internals.validarRespostas([{ id_pergunta: 1, resposta: 'Conforme' }, { id_pergunta: 2, resposta: 'Não Conforme', observacao: 'Sem foto' }], perguntas));
+    assert.throws(() => _internals.validarRespostas([{ id_pergunta: 1, resposta: 'Conforme' }, { id_pergunta: 2, resposta: 'Não Conforme', observacao: '' }], perguntas));
+    assert.throws(() => _internals.validarRespostas([{ id_pergunta: 1, resposta: 'Conforme' }, { id_pergunta: 2, resposta: 'Não Conforme', observacao: '   ' }], perguntas));
 });
 
 test('rejeita imagem de formato ou conteúdo inválido', () => {
@@ -276,4 +282,100 @@ test('persiste snapshot v2 completo e separa fotos da resposta', async () => {
     assert.equal(evidencia.params[1], 1);
     assert.equal(evidencia.params[2], 'image/jpeg');
     assert.ok(Buffer.isBuffer(evidencia.params[4]));
+});
+
+test('validarAssinaturasCategorias exige assinatura para toda categoria com item não conforme', () => {
+    const perguntasComCategoria = [
+        { id: 1, categoria: 'Montagem' },
+        { id: 2, categoria: 'Costura' },
+        { id: 3, categoria: 'Acabamento' },
+    ];
+    const respostasNC = [
+        { id_pergunta: 1, resposta: 'Não Conforme', observacao: 'Defeito 1' },
+        { id_pergunta: 2, resposta: 'Conforme' },
+        { id_pergunta: 3, resposta: 'Não Conforme', observacao: 'Defeito 2' },
+    ];
+
+    assert.throws(
+        () => _internals.validarAssinaturasCategorias(respostasNC, perguntasComCategoria, {}),
+        { message: /A assinatura para a categoria "(Montagem|Acabamento)" é obrigatória/ }
+    );
+
+    assert.throws(
+        () => _internals.validarAssinaturasCategorias(respostasNC, perguntasComCategoria, { Montagem: imagem }),
+        { message: /A assinatura para a categoria "Acabamento" é obrigatória/ }
+    );
+
+    const processadas = _internals.validarAssinaturasCategorias(respostasNC, perguntasComCategoria, {
+        Montagem: imagem,
+        Acabamento: imagemJpeg,
+    });
+    assert.equal(processadas.Montagem.mime, 'image/png');
+    assert.equal(processadas.Acabamento.mime, 'image/jpeg');
+
+    const respostasConformes = [
+        { id_pergunta: 1, resposta: 'Conforme' },
+        { id_pergunta: 2, resposta: 'Conforme' },
+        { id_pergunta: 3, resposta: 'N/A' },
+    ];
+    const semNC = _internals.validarAssinaturasCategorias(respostasConformes, perguntasComCategoria, {});
+    assert.deepEqual(semNC, {});
+});
+
+test('salvarChecklist rejeita se categoria não conforme não tiver assinatura e aceita quando enviada', async () => {
+    db.connect = async () => ({
+        async query(sql) {
+            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'FILA', id_marca_fk: 1 }] };
+            if (/FROM usuarios u/.test(sql)) return { rows: [{ id: 99, nome: 'Auditor' }] };
+            if (/FROM perguntas/.test(sql)) return { rows: [
+                { id: 1, pergunta: 'P1', identificacao: 'p1', categoria: 'Solado', ctq: false },
+                { id: 2, pergunta: 'P2', identificacao: 'p2', categoria: 'Costura', ctq: false },
+            ] };
+            if (/INSERT INTO formulario_submissoes/.test(sql)) return { rows: [{ id: 77 }] };
+            return { rows: [] };
+        },
+        release() {},
+    });
+
+    const reqFaltaAssinatura = submissaoValida();
+    reqFaltaAssinatura.body.respostas = [
+        { id_pergunta: 1, resposta: 'Não Conforme', observacao: 'Solado descolando' },
+        { id_pergunta: 2, resposta: 'Conforme' },
+    ];
+    const res1 = resposta();
+    await checklist.salvarChecklist(reqFaltaAssinatura, res1);
+    assert.equal(res1.statusCode, 400);
+    assert.match(res1.body.mensagem, /A assinatura para a categoria "Solado" é obrigatória/);
+
+    const reqComAssinatura = submissaoValida();
+    reqComAssinatura.body.respostas = [
+        { id_pergunta: 1, resposta: 'Não Conforme', observacao: 'Solado descolando' },
+        { id_pergunta: 2, resposta: 'Conforme' },
+    ];
+    reqComAssinatura.body.assinaturas_categorias = {
+        Solado: imagem,
+    };
+    let paramsInsert = null;
+    db.connect = async () => ({
+        async query(sql, params = []) {
+            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'FILA', id_marca_fk: 1 }] };
+            if (/FROM usuarios u/.test(sql)) return { rows: [{ id: 99, nome: 'Auditor' }] };
+            if (/FROM perguntas/.test(sql)) return { rows: [
+                { id: 1, pergunta: 'P1', identificacao: 'p1', categoria: 'Solado', ctq: false },
+                { id: 2, pergunta: 'P2', identificacao: 'p2', categoria: 'Costura', ctq: false },
+            ] };
+            if (/INSERT INTO formulario_submissoes/.test(sql)) {
+                paramsInsert = params;
+                return { rows: [{ id: 77 }] };
+            }
+            return { rows: [] };
+        },
+        release() {},
+    });
+    const res2 = resposta();
+    await checklist.salvarChecklist(reqComAssinatura, res2);
+    assert.equal(res2.statusCode, 201);
+    const snapshotGravado = JSON.parse(paramsInsert[8]);
+    assert.ok(snapshotGravado.assinaturas_categorias.Solado);
+    assert.equal(snapshotGravado.assinaturas_categorias.Solado.mime, 'image/png');
 });

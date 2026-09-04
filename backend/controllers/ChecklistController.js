@@ -50,14 +50,44 @@ const validarRespostas = (respostas, perguntas) => {
             throw new ErroValidacao('A resposta informada é inválida.');
         }
         if (item.resposta === 'Não Conforme') {
-            base64ParaBuffer(item.foto, MAX_FOTO_BYTES, 'A foto da não conformidade');
+            if (item.foto != null && item.foto !== '') {
+                base64ParaBuffer(item.foto, MAX_FOTO_BYTES, 'A foto da não conformidade');
+            }
             if (typeof item.observacao !== 'string' || !item.observacao.trim()) {
                 throw new ErroValidacao('A observação é obrigatória para itens não conformes.');
             }
-        } else if (item.foto != null) {
+        } else if (item.foto != null && item.foto !== '') {
             base64ParaBuffer(item.foto, MAX_FOTO_BYTES, 'A foto');
         }
     }
+};
+
+const validarAssinaturasCategorias = (respostas, perguntas, assinaturasRecebidas = {}) => {
+    const perguntasPorId = new Map(perguntas.map((p) => [p.id, p]));
+    const categoriasComNC = new Set();
+
+    for (const item of respostas) {
+        if (item.resposta === 'Não Conforme') {
+            const p = perguntasPorId.get(Number(item.id_pergunta));
+            const cat = p?.categoria || 'Geral';
+            categoriasComNC.add(cat);
+        }
+    }
+
+    const assinaturasProcessadas = {};
+    for (const cat of categoriasComNC) {
+        const assinaturaData = assinaturasRecebidas?.[cat];
+        if (!assinaturaData || typeof assinaturaData !== 'string') {
+            throw new ErroValidacao(`A assinatura para a categoria "${cat}" é obrigatória devido aos itens não conformes.`);
+        }
+        const img = base64ParaImagem(assinaturaData, MAX_ASSINATURA_BYTES, `A assinatura da categoria "${cat}"`);
+        assinaturasProcessadas[cat] = {
+            mime: img.mime,
+            imagem: `data:${img.mime};base64,${img.buffer.toString('base64')}`,
+        };
+    }
+
+    return assinaturasProcessadas;
 };
 
 const idObrigatorioValido = (id) => (typeof id === 'number' || typeof id === 'string')
@@ -77,7 +107,7 @@ const prepararRespostas = (respostas) => {
             resposta: item.resposta,
             observacao: item.observacao ?? null,
         };
-        if (item.foto != null) {
+        if (item.foto != null && item.foto !== '') {
             const imagem = base64ParaImagem(item.foto, MAX_FOTO_BYTES, 'A foto');
             evidencias.push({
                 idPergunta: resposta.id_pergunta,
@@ -91,7 +121,7 @@ const prepararRespostas = (respostas) => {
     return { respostasPersistidas, evidencias };
 };
 
-const snapshotV2 = ({ modelo, setorId, celulaId, auditor, perguntas, inicio, totalEvidencias }) => ({
+const snapshotV2 = ({ modelo, setorId, celulaId, auditor, perguntas, inicio, totalEvidencias, assinaturasCategorias }) => ({
     schema: 2,
     modelo: {
         id: modelo.id,
@@ -128,6 +158,7 @@ const snapshotV2 = ({ modelo, setorId, celulaId, auditor, perguntas, inicio, tot
     perguntas: perguntas.map(({ id, pergunta, identificacao, categoria, ctq }) => ({
         id, pergunta, identificacao, categoria, ctq,
     })),
+    assinaturas_categorias: assinaturasCategorias || {},
 });
 
 exports.buscarPerguntas = async (req, res) => {
@@ -201,6 +232,7 @@ exports.salvarChecklist = async (req, res) => {
             `, [id_modelo]);
             if (!perguntasRes.rows.length) throw new ErroValidacao('O modelo não possui perguntas ativas.');
             validarRespostas(respostas, perguntasRes.rows);
+            const assinaturasCategorias = validarAssinaturasCategorias(respostas, perguntasRes.rows, req.body.assinaturas_categorias);
             const assinaturaImagem = base64ParaImagem(assinatura, MAX_ASSINATURA_BYTES, 'A assinatura');
             const { respostasPersistidas, evidencias } = prepararRespostas(respostas);
             const snapshot = snapshotV2({
@@ -211,6 +243,7 @@ exports.salvarChecklist = async (req, res) => {
                 perguntas: perguntasRes.rows,
                 inicio: inicio_checklist,
                 totalEvidencias: evidencias.length,
+                assinaturasCategorias,
             });
             const submissao = await client.query(`
                 INSERT INTO formulario_submissoes
@@ -234,4 +267,4 @@ exports.salvarChecklist = async (req, res) => {
     }
 };
 
-exports._internals = { base64ParaBuffer, base64ParaImagem, validarRespostas, prepararRespostas, snapshotV2, RESPOSTAS_VALIDAS, idObrigatorioValido, timestampOpcionalValido };
+exports._internals = { base64ParaBuffer, base64ParaImagem, validarRespostas, validarAssinaturasCategorias, prepararRespostas, snapshotV2, RESPOSTAS_VALIDAS, idObrigatorioValido, timestampOpcionalValido };

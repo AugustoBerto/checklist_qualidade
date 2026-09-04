@@ -102,7 +102,7 @@
                   <span class="foto-status-ok"><i class="mdi mdi-check-circle"></i> Foto Adicionada</span>
                 </div>
                 <div v-else class="foto-status-pendente" :class="{ 'obrigatorio': requirePhotoOnNonConforme }">
-                  {{ requirePhotoOnNonConforme ? '⚠️ Foto obrigatória' : 'Foto opcional' }}
+                  {{ requirePhotoOnNonConforme ? '⚠️ Foto obrigatória' : '📷 Foto opcional (anexar se necessário)' }}
                 </div>
               </div>
               <p v-if="errosFotos[pergunta.variavel]" class="foto-erro" role="alert">{{ errosFotos[pergunta.variavel] }}</p>
@@ -118,18 +118,47 @@
               </div>
             </div>
           </div>
+
+          <div v-if="categoriaTemNaoConformidade(categoria)" class="card-assinatura-categoria">
+            <div class="assinatura-cat-header">
+              <h4 class="assinatura-cat-title">
+                <i class="mdi mdi-draw-pen"></i>
+                Assinatura do Responsável da Categoria: <strong>{{ categoria }}</strong>
+              </h4>
+              <span class="badge-nc-obrigatoria">
+                <i class="mdi mdi-alert-circle-outline"></i> Obrigatória por Não Conformidade
+              </span>
+            </div>
+            <p class="assinatura-cat-dica">
+              Esta categoria possui apontamentos não conformes. Colete a assinatura do responsável da área.
+            </p>
+            <div class="signature-wrapper">
+              <SignaturePad
+                :ref="(element) => registrarRefAssinaturaCategoria(categoria, element)"
+                width="100%"
+                height="180px"
+                :options="{ penColor: 'black', backgroundColor: '#f8fafc' }"
+                @endStroke="() => atualizarAssinaturaCategoria(categoria)"
+              />
+            </div>
+            <div class="signature-actions">
+              <button type="button" class="btn-limpar" @click="limparAssinaturaCategoria(categoria)">
+                <i class="mdi mdi-eraser"></i> Limpar Assinatura ({{ categoria }})
+              </button>
+            </div>
+          </div>
         </div>
       </details>
 
       <div class="card card-assinatura">
-        <h3 class="section-title"><i class="mdi mdi-pen"></i> Assinatura do Responsável</h3>
+        <h3 class="section-title"><i class="mdi mdi-pen"></i> Assinatura Geral do Auditor</h3>
         <div class="signature-wrapper">
           <SignaturePad ref="signatureRef" width="100%" height="220px"
             :options="{ penColor: 'black', backgroundColor: '#f8fafc' }" @endStroke="atualizarAssinatura" />
         </div>
         <div class="signature-actions">
           <button @click="clear" type="button" class="btn-limpar">
-            <i class="mdi mdi-eraser"></i> Limpar Assinatura
+            <i class="mdi mdi-eraser"></i> Limpar Assinatura Geral
           </button>
         </div>
       </div>
@@ -184,8 +213,55 @@ const inicioChecklistTimestamp = ref(null);
 const fotosNaoConformes = ref({}); 
 const errosFotos = ref({});
 const observacoesNaoConformes = ref({}); 
-const requirePhotoOnNonConforme = ref(true); 
+const requirePhotoOnNonConforme = ref(false); 
 const requireObservacaoOnNonConforme = ref(true); 
+const assinaturasCategorias = ref({});
+const refsAssinaturasCategorias = new Map();
+
+const registrarRefAssinaturaCategoria = (nomeCategoria, element) => {
+  if (element) {
+    refsAssinaturasCategorias.set(nomeCategoria, element);
+  } else {
+    refsAssinaturasCategorias.delete(nomeCategoria);
+  }
+};
+
+const categoriaTemNaoConformidade = (nomeCategoria) => {
+  const perguntasDaCategoria = categorias.value[nomeCategoria] || [];
+  return perguntasDaCategoria.some(p => respostas.value[p.variavel] === 'Não Conforme');
+};
+
+const categoriasNaoConformes = computed(() => {
+  const lista = [];
+  for (const nomeCat of Object.keys(categorias.value)) {
+    if (categoriaTemNaoConformidade(nomeCat)) {
+      lista.push(nomeCat);
+    }
+  }
+  return lista;
+});
+
+const atualizarAssinaturaCategoria = (nomeCategoria) => {
+  const pad = refsAssinaturasCategorias.get(nomeCategoria);
+  if (pad && typeof pad.save === 'function') {
+    if (typeof pad.isEmpty === 'function' && pad.isEmpty()) {
+      delete assinaturasCategorias.value[nomeCategoria];
+      return;
+    }
+    const data = pad.save();
+    if (data) {
+      assinaturasCategorias.value[nomeCategoria] = data;
+    }
+  }
+};
+
+const limparAssinaturaCategoria = (nomeCategoria) => {
+  const pad = refsAssinaturasCategorias.get(nomeCategoria);
+  if (pad && typeof pad.clear === 'function') {
+    pad.clear();
+  }
+  delete assinaturasCategorias.value[nomeCategoria];
+};
 
 const rascunhoKey = `checklist_rascunho_${usuarioObj.id || 'desconhecido'}_${modelo}_${setorSelecionado.value || usuarioObj.id_setor_fk || 'sem-setor'}_${celulaSelecionada.value || usuarioObj.id_celula_fk || 'sem-celula'}`;
 const inputsFoto = new Map();
@@ -215,6 +291,11 @@ watch(respostas, () => {
       const { [variavel]: _, ...fotosRestantes } = fotosNaoConformes.value;
       fotosNaoConformes.value = fotosRestantes;
       void persistenciaRascunho.removePhoto(variavel, obterMetadataRascunho());
+    }
+  }
+  for (const cat of Object.keys(assinaturasCategorias.value)) {
+    if (!categoriaTemNaoConformidade(cat)) {
+      limparAssinaturaCategoria(cat);
     }
   }
 }, { deep: true });
@@ -344,13 +425,20 @@ const progresso = computed(() => {
 const getCategoryStatusClass = (cat) => categoryStatus.value[cat] || 'pendente';
 
 const clear = () => {
-  signatureRef.value.clear();
+  if (signatureRef.value && typeof signatureRef.value.clear === 'function') {
+    signatureRef.value.clear();
+  }
   assinatura.value = null;
 };
 
 const atualizarAssinatura = () => {
-  if (signatureRef.value && !signatureRef.value.isEmpty()) {
-    assinatura.value = signatureRef.value.save();
+  if (signatureRef.value) {
+    if (typeof signatureRef.value.isEmpty === 'function' && signatureRef.value.isEmpty()) {
+      return;
+    }
+    if (typeof signatureRef.value.save === 'function') {
+      assinatura.value = signatureRef.value.save();
+    }
   }
 };
 
@@ -443,6 +531,9 @@ const onFotoCapturada = async (variavel, fotoBase64) => {
 async function enviarFormulario() {
   if (enviando.value) return;
   atualizarAssinatura();
+  for (const cat of categoriasNaoConformes.value) {
+    atualizarAssinaturaCategoria(cat);
+  }
   
   for (const cat in categorias.value) {
     for (const p of categorias.value[cat]) {
@@ -452,12 +543,7 @@ async function enviarFormulario() {
       }
     }
   }
-  
-  if (!assinatura.value) {
-    toast.warning('A assinatura do auditor é obrigatória no rodapé.');
-    return;
-  }
-  
+
   for (const varName in respostas.value) {
     if (respostas.value[varName] === 'Não Conforme') {
       if (requirePhotoOnNonConforme.value && !fotosNaoConformes.value[varName]) {
@@ -469,6 +555,18 @@ async function enviarFormulario() {
         return;
       }
     }
+  }
+
+  for (const cat of categoriasNaoConformes.value) {
+    if (!assinaturasCategorias.value[cat]) {
+      toast.warning(`A assinatura para a categoria "${cat}" é obrigatória devido às não conformidades.`);
+      return;
+    }
+  }
+  
+  if (!assinatura.value) {
+    toast.warning('A assinatura geral do auditor é obrigatória no rodapé.');
+    return;
   }
   
   enviando.value = true;
@@ -493,6 +591,7 @@ async function enviarFormulario() {
     id_setor: idSetorFinal,
     id_celula: Number(celulaSelecionada.value) || usuarioObj.id_celula_fk,
     assinatura: assinatura.value,
+    assinaturas_categorias: assinaturasCategorias.value,
     respostas: respostasFormatadas,
     inicio_checklist: inicioChecklistTimestamp.value
   };
@@ -509,6 +608,7 @@ async function enviarFormulario() {
     respostas.value = {};
     fotosNaoConformes.value = {};
     observacoesNaoConformes.value = {};
+    assinaturasCategorias.value = {};
     
     const idRota = res.data.id_formulario || res.data.id_relatorio;
     router.push(`/relatorio/${idRota}`); 
@@ -884,6 +984,52 @@ async function enviarFormulario() {
   color: var(--text-primary, #0f172a);
 }
 
+.card-assinatura-categoria {
+  margin-top: 1.5rem;
+  background: #fff8f8;
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1.5px dashed #fca5a5;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.05);
+}
+
+.assinatura-cat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.assinatura-cat-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #991b1b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-nc-obrigatoria {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.assinatura-cat-dica {
+  font-size: 0.85rem;
+  color: #7f1d1d;
+  margin: 0 0 0.85rem 0;
+}
+
 /* ==========================================
    AÇÕES FINAIS
    ========================================== */
@@ -945,7 +1091,7 @@ async function enviarFormulario() {
   .page-container { padding: 1rem 0.5rem; }
   .cabecalhoSessao, .conteudoSessao { padding-left: 1rem; padding-right: 1rem; }
   .cabecalhoSessao h2 { font-size: 1.05rem; }
-  .captura-foto-container, .card-assinatura { padding: 1rem; }
+  .captura-foto-container, .card-assinatura, .card-assinatura-categoria { padding: 1rem; }
   .touch-option-group { width: 100%; }
   .touch-option-btn { flex: 1; min-width: auto; }
   .btn-enviar { max-width: none; }
