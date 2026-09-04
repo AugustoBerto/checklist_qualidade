@@ -46,6 +46,7 @@ const DadosRoutes = require('./routes/DadosRoutes');
 const RelatoriosRoutes = require('./routes/RelatoriosRoutes');
 const SubmissoesRoutes = require('./routes/SubmissoesRoutes');
 const PerfisRoutes = require('./routes/PerfisRoutes');
+const DashboardRoutes = require('./routes/DashboardRoutes');
 
 app.use('/api/cadastros', CadastrosRoutes);
 app.use('/api/checklists', ChecklistRoutes);
@@ -53,6 +54,7 @@ app.use('/api/dados', DadosRoutes);
 app.use('/api/relatorios', RelatoriosRoutes);
 app.use('/api/submissoes', SubmissoesRoutes);
 app.use('/api/perfis', PerfisRoutes);
+app.use('/api/dashboard', DashboardRoutes);
 
 if (process.env.NODE_ENV === 'test') {
   app.get('/api/test/error', (_req, _res, next) => next(new Error('erro de teste')));

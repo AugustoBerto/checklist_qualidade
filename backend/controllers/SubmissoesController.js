@@ -149,8 +149,26 @@ exports.listarSubmissoes = async (req, res) => {
         if (busca) {
             const termo = `%${busca}%`;
             adicionarFiltro(
-                "(COALESCE(s.snapshot -> 'auditor' ->> 'nome', u.nome) ILIKE ? OR COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome) ILIKE ? OR COALESCE(s.snapshot -> 'celula' ->> 'nome', cp.nome) ILIKE ? OR COALESCE(s.snapshot -> 'setor' ->> 'nome', st_sub.nome, st_cp.nome, st_user.nome) ILIKE ?)",
-                termo, termo, termo, termo
+                `(COALESCE(s.snapshot -> 'auditor' ->> 'nome', u.nome) ILIKE ?
+                  OR COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome) ILIKE ?
+                  OR COALESCE(s.snapshot -> 'celula' ->> 'nome', cp.nome) ILIKE ?
+                  OR COALESCE(s.snapshot -> 'setor' ->> 'nome', st_sub.nome, st_cp.nome, st_user.nome) ILIKE ?
+                  OR EXISTS (
+                      SELECT 1 FROM jsonb_array_elements(
+                          CASE jsonb_typeof(s.snapshot -> 'perguntas') WHEN 'array' THEN s.snapshot -> 'perguntas' ELSE '[]'::jsonb END
+                      ) p_elem WHERE p_elem ->> 'pergunta' ILIKE ?
+                  )
+                  OR EXISTS (
+                      SELECT 1 FROM jsonb_array_elements(
+                          CASE jsonb_typeof(s.respostas) WHEN 'array' THEN s.respostas ELSE '[]'::jsonb END
+                      ) r_elem WHERE r_elem ->> 'observacao' ILIKE ?
+                  )
+                  OR (
+                      s.snapshot -> 'perguntas' IS NULL AND EXISTS (
+                          SELECT 1 FROM perguntas p_leg WHERE p_leg.id_modelo = s.id_modelo AND p_leg.pergunta ILIKE ?
+                      )
+                  ))`,
+                termo, termo, termo, termo, termo, termo, termo
             );
         } else if (usuario) {
             adicionarFiltro("COALESCE(s.snapshot -> 'auditor' ->> 'nome', u.nome) ILIKE ?", `%${usuario}%`);

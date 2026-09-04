@@ -16,7 +16,7 @@
                 type="text"
                 v-model="filtros.busca"
                 @input="onInputBusca"
-                placeholder="Buscar por modelo, responsável, setor ou célula..."
+                placeholder="Buscar por modelo, item de checklist, responsável, setor ou célula..."
                 class="input-search"
               >
               <button
@@ -166,13 +166,14 @@
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import api from '../services/api';
 import PageHeader from '../components/PageHeader.vue';
 import DataTable from '../components/DataTable.vue';
 import { extrairArrayDeDados, formatarDataHora, formatarNomeCurto } from '../services/formatters';
 
 const router = useRouter();
+const route = useRoute();
 const checklists = ref([]);
 const setoresOptions = ref([]);
 const modelosOptions = ref([]);
@@ -320,6 +321,14 @@ watch(
 );
 
 onMounted(() => {
+  const q = route?.query || {};
+  if (q.busca) filtros.value.busca = String(q.busca);
+  if (q.setorId) filtros.value.setorId = String(q.setorId);
+  if (q.modeloId) filtros.value.modeloId = String(q.modeloId);
+  if (q.celulaId) filtros.value.celulaId = String(q.celulaId);
+  if (q.dataInicio) filtros.value.dataInicio = String(q.dataInicio);
+  if (q.dataFim) filtros.value.dataFim = String(q.dataFim);
+
   carregarOpcoesFiltros();
   buscarChecklists(1);
 });

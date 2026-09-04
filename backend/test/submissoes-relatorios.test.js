@@ -336,3 +336,22 @@ test('buscarDetalhesSubmissao remove observações em itens conformes legados', 
   assert.equal(res.body.dados.categorias.Categoria[0].observacao, null);
   assert.equal(res.body.dados.categorias.Categoria[1].observacao, 'Falha real');
 });
+
+test('listarSubmissoes inclui itens de checklist e observações na busca textual', async () => {
+  const consultas = [];
+  db.query = async (sql, params) => {
+    consultas.push({ sql, params });
+    return /count\(\*\)/.test(sql) ? { rows: [{ count: '0' }] } : { rows: [] };
+  };
+  const res = resposta();
+  await submissoes.listarSubmissoes({ query: { busca: 'Tamanho do ponto' } }, res);
+
+  assert.equal(res.statusCode, 200);
+  const consulta = consultas.find(({ sql }) => /WHERE/.test(sql));
+  assert.ok(consulta, 'deve executar consulta com WHERE');
+  assert.match(consulta.sql, /snapshot -> 'perguntas'/);
+  assert.match(consulta.sql, /s\.respostas/);
+  assert.match(consulta.sql, /perguntas p_leg/);
+  assert.equal(consulta.params[0], '%Tamanho do ponto%');
+});
+

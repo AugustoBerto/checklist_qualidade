@@ -18,6 +18,14 @@
       />
 
       <ModuleCard
+        to="/dashboard"
+        title="Dashboard de Indicadores"
+        description="Acompanhe índices de conformidade, itens CTQ e principais desvios por linha em tempo real."
+        icon="mdi mdi-chart-box-outline"
+        color="dass"
+      />
+
+      <ModuleCard
         to="/consultar"
         title="Consultar Histórico"
         description="Visualizar relatórios anteriores e pesquisar checklists realizados."

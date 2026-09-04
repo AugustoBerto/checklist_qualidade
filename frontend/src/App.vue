@@ -42,6 +42,10 @@
                 <i class="mdi mdi-home-outline"></i>
                 <span>Início</span>
               </router-link>
+              <router-link to="/dashboard" active-class="active" class="nav-link">
+                <i class="mdi mdi-chart-box-outline"></i>
+                <span>Dashboard</span>
+              </router-link>
               <router-link to="/selecao" active-class="active" class="nav-link">
                 <i class="mdi mdi-clipboard-check-outline"></i>
                 <span>Auditorias</span>
@@ -111,6 +115,11 @@
         </router-link>
 
         <template v-if="usuarioLogado">
+          <router-link to="/dashboard" active-class="active" class="sidebar-nav-link" @click="fecharSidebar">
+            <i class="mdi mdi-chart-box-outline"></i>
+            <span>Dashboard</span>
+          </router-link>
+
           <router-link to="/selecao" active-class="active" class="sidebar-nav-link" @click="fecharSidebar">
             <i class="mdi mdi-clipboard-check-outline"></i>
             <span>Auditorias / Novo Checklist</span>
