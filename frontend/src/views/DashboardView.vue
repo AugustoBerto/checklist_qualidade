@@ -271,6 +271,205 @@
           </div>
         </section>
 
+        <!-- SEÇÃO DE GRÁFICOS DE ROSCA (VISÃO PANORÂMICA ESTRATÉGICA) -->
+        <section class="donuts-grid" aria-label="Visão Panorâmica de Qualidade">
+          <!-- Rosca 1: Faixas de Desempenho por Meta -->
+          <div class="card donut-card donut-card-metas">
+            <div class="donut-card-header">
+              <div class="donut-header-icon">
+                <i class="mdi mdi-bullseye-arrow"></i>
+              </div>
+              <div class="donut-header-text">
+                <h3 class="donut-title">Faixas de conformidade</h3>
+                <p class="donut-subtitle">Auditorias por meta atingida</p>
+              </div>
+            </div>
+
+            <div class="donut-body">
+              <div class="donut-svg-wrapper">
+                <svg viewBox="0 0 160 160" class="donut-svg" aria-label="Gráfico de faixas de conformidade">
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="54"
+                    fill="none"
+                    stroke="#f1f5f9"
+                    stroke-width="18"
+                  />
+                  <circle
+                    v-for="(seg, idx) in donutMetas.segmentos"
+                    :key="idx"
+                    cx="80"
+                    cy="80"
+                    r="54"
+                    fill="none"
+                    :stroke="seg.color"
+                    stroke-width="18"
+                    :stroke-dasharray="seg.strokeDasharray"
+                    :stroke-dashoffset="seg.strokeDashoffset"
+                    transform="rotate(-90 80 80)"
+                    class="donut-segment"
+                  />
+                  <text x="80" y="74" text-anchor="middle" class="donut-center-value">
+                    {{ dados.resumo.conformidadeMedia }}%
+                  </text>
+                  <text x="80" y="92" text-anchor="middle" class="donut-center-label">
+                    Média
+                  </text>
+                </svg>
+              </div>
+
+              <!-- Legenda Detalhada -->
+              <div class="donut-legend">
+                <div
+                  v-for="(seg, idx) in donutMetas.segmentos"
+                  :key="idx"
+                  class="donut-legend-item"
+                >
+                  <span class="donut-legend-dot" :style="{ backgroundColor: seg.color }"></span>
+                  <div class="donut-legend-info">
+                    <span class="donut-legend-label">{{ seg.label }}</span>
+                    <strong class="donut-legend-value">{{ seg.count }} ({{ seg.percentual }}%)</strong>
+                  </div>
+                </div>
+                <div v-if="donutMetas.total === 0" class="donut-legend-empty">
+                  <span>Sem auditorias registradas</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rosca 2: Qualidade Crítica CTQ -->
+          <div class="card donut-card donut-card-ctq">
+            <div class="donut-card-header">
+              <div class="donut-header-icon icon-ctq">
+                <i class="mdi mdi-shield-alert-outline"></i>
+              </div>
+              <div class="donut-header-text">
+                <h3 class="donut-title">Qualidade crítica (CTQ)</h3>
+                <p class="donut-subtitle">Itens críticos para a qualidade</p>
+              </div>
+            </div>
+
+            <div class="donut-body">
+              <div class="donut-svg-wrapper">
+                <svg viewBox="0 0 160 160" class="donut-svg" aria-label="Gráfico de qualidade crítica">
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="54"
+                    fill="none"
+                    stroke="#f1f5f9"
+                    stroke-width="18"
+                  />
+                  <circle
+                    v-for="(seg, idx) in donutCtq.segmentos"
+                    :key="idx"
+                    cx="80"
+                    cy="80"
+                    r="54"
+                    fill="none"
+                    :stroke="seg.color"
+                    stroke-width="18"
+                    :stroke-dasharray="seg.strokeDasharray"
+                    :stroke-dashoffset="seg.strokeDashoffset"
+                    transform="rotate(-90 80 80)"
+                    class="donut-segment"
+                  />
+                  <text x="80" y="74" text-anchor="middle" class="donut-center-value">
+                    {{ dados.resumo.conformidadeCtq }}%
+                  </text>
+                  <text x="80" y="92" text-anchor="middle" class="donut-center-label">
+                    CTQ
+                  </text>
+                </svg>
+              </div>
+
+              <div class="donut-legend">
+                <div
+                  v-for="(seg, idx) in donutCtq.segmentos"
+                  :key="idx"
+                  class="donut-legend-item"
+                >
+                  <span class="donut-legend-dot" :style="{ backgroundColor: seg.color }"></span>
+                  <div class="donut-legend-info">
+                    <span class="donut-legend-label">{{ seg.label }}</span>
+                    <strong class="donut-legend-value">{{ seg.count }} ({{ seg.percentual }}%)</strong>
+                  </div>
+                </div>
+                <div v-if="donutCtq.total === 0" class="donut-legend-empty">
+                  <span>Sem itens CTQ avaliados</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rosca 3: Composição de Falhas por Categoria -->
+          <div class="card donut-card donut-card-falhas">
+            <div class="donut-card-header">
+              <div class="donut-header-icon icon-falhas">
+                <i class="mdi mdi-chart-donut"></i>
+              </div>
+              <div class="donut-header-text">
+                <h3 class="donut-title">Distribuição de falhas</h3>
+                <p class="donut-subtitle">Não conformidades por etapa</p>
+              </div>
+            </div>
+
+            <div class="donut-body">
+              <div class="donut-svg-wrapper">
+                <svg viewBox="0 0 160 160" class="donut-svg" aria-label="Gráfico de distribuição de não conformidades">
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="54"
+                    fill="none"
+                    stroke="#f1f5f9"
+                    stroke-width="18"
+                  />
+                  <circle
+                    v-for="(seg, idx) in donutCategorias.segmentos"
+                    :key="idx"
+                    cx="80"
+                    cy="80"
+                    r="54"
+                    fill="none"
+                    :stroke="seg.color"
+                    stroke-width="18"
+                    :stroke-dasharray="seg.strokeDasharray"
+                    :stroke-dashoffset="seg.strokeDashoffset"
+                    transform="rotate(-90 80 80)"
+                    class="donut-segment"
+                  />
+                  <text x="80" y="74" text-anchor="middle" class="donut-center-value">
+                    {{ dados.resumo.totalNaoConformidades }}
+                  </text>
+                  <text x="80" y="92" text-anchor="middle" class="donut-center-label">
+                    {{ dados.resumo.totalNaoConformidades === 1 ? 'Falha' : 'Falhas' }}
+                  </text>
+                </svg>
+              </div>
+
+              <div class="donut-legend">
+                <div
+                  v-for="(seg, idx) in donutCategorias.segmentos"
+                  :key="idx"
+                  class="donut-legend-item"
+                >
+                  <span class="donut-legend-dot" :style="{ backgroundColor: seg.color }"></span>
+                  <div class="donut-legend-info">
+                    <span class="donut-legend-label" :title="seg.label">{{ seg.label }}</span>
+                    <strong class="donut-legend-value">{{ seg.count }} ({{ seg.percentual }}%)</strong>
+                  </div>
+                </div>
+                <div v-if="donutCategorias.total === 0" class="donut-legend-empty">
+                  <span>Zero não conformidades!</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- SEÇÃO DE GRÁFICOS PRINCIPAIS (PARETO + LINHA DO TEMPO) -->
         <section class="charts-grid" aria-label="Gráficos de Análise">
           <!-- Gráfico 1: Pareto de Não Conformidades por Categoria -->
@@ -637,6 +836,22 @@ const dados = ref({
     totalNaoConformidades: 0,
     tempoMedioMinutos: 0,
   },
+  faixasConformidade: {
+    metaAtingida: 0,
+    alerta: 0,
+    critico: 0,
+  },
+  detalheCtq: {
+    totalConforme: 0,
+    totalNaoConforme: 0,
+    totalItens: 0,
+    conformidadeCtq: 100,
+  },
+  severidadeNC: {
+    totalNC: 0,
+    ctq: 0,
+    geral: 0,
+  },
   paretoCategorias: [],
   serieTemporal: [],
   rankingCelulas: [],
@@ -720,6 +935,105 @@ const svgDados = computed(() => {
   const areaPoints = `${firstPoint.x},${bottomY} ${polylinePoints} ${lastPoint.x},${bottomY}`;
 
   return { pontos, polylinePoints, areaPoints };
+});
+
+// Computação Geométrica dos Gráficos de Rosca (Donuts SVG)
+const CIRCUNFERENCIA_DONUT = 2 * Math.PI * 54; // ~339.292
+
+const donutMetas = computed(() => {
+  const faixas = dados.value?.faixasConformidade || { metaAtingida: 0, alerta: 0, critico: 0 };
+  const total = (faixas.metaAtingida || 0) + (faixas.alerta || 0) + (faixas.critico || 0);
+  if (total === 0) return { total: 0, segmentos: [] };
+
+  const itens = [
+    { label: 'Meta atingida (≥95%)', count: faixas.metaAtingida || 0, color: '#10b981' },
+    { label: 'Em alerta (85-94%)', count: faixas.alerta || 0, color: '#f59e0b' },
+    { label: 'Crítico (<85%)', count: faixas.critico || 0, color: '#ef4444' },
+  ].filter((i) => i.count > 0);
+
+  let acumulado = 0;
+  const segmentos = itens.map((item) => {
+    const pct = (item.count / total) * 100;
+    const dashLen = (pct / 100) * CIRCUNFERENCIA_DONUT;
+    const offset = -acumulado;
+    acumulado += dashLen;
+    return {
+      ...item,
+      percentual: Math.round(pct),
+      strokeDasharray: `${dashLen.toFixed(1)} ${CIRCUNFERENCIA_DONUT.toFixed(1)}`,
+      strokeDashoffset: offset.toFixed(1),
+    };
+  });
+
+  return { total, segmentos };
+});
+
+const donutCtq = computed(() => {
+  const ctq = dados.value?.detalheCtq || { totalConforme: 0, totalNaoConforme: 0, totalItens: 0 };
+  const total = ctq.totalItens || 0;
+  if (total === 0) return { total: 0, segmentos: [] };
+
+  const itens = [
+    { label: 'Conformes', count: ctq.totalConforme || 0, color: '#0284c7' },
+    { label: 'Desvios críticos', count: ctq.totalNaoConforme || 0, color: '#b1072c' },
+  ].filter((i) => i.count > 0);
+
+  let acumulado = 0;
+  const segmentos = itens.map((item) => {
+    const pct = (item.count / total) * 100;
+    const dashLen = (pct / 100) * CIRCUNFERENCIA_DONUT;
+    const offset = -acumulado;
+    acumulado += dashLen;
+    return {
+      ...item,
+      percentual: Math.round(pct),
+      strokeDasharray: `${dashLen.toFixed(1)} ${CIRCUNFERENCIA_DONUT.toFixed(1)}`,
+      strokeDashoffset: offset.toFixed(1),
+    };
+  });
+
+  return { total, segmentos };
+});
+
+const PALETA_CATEGORIAS_DONUT = ['#b1072c', '#d97706', '#2563eb', '#7c3aed', '#0d9488', '#64748b'];
+
+const donutCategorias = computed(() => {
+  const lista = dados.value?.paretoCategorias || [];
+  const total = dados.value?.resumo?.totalNaoConformidades || 0;
+  if (total === 0 || lista.length === 0) return { total: 0, segmentos: [] };
+
+  const top = lista.slice(0, 4);
+  const outras = lista.slice(4);
+  const itens = top.map((c, i) => ({
+    label: c.categoria,
+    count: c.quantidade,
+    color: PALETA_CATEGORIAS_DONUT[i % PALETA_CATEGORIAS_DONUT.length],
+  }));
+
+  if (outras.length > 0) {
+    const somaOutras = outras.reduce((acc, curr) => acc + curr.quantidade, 0);
+    itens.push({
+      label: 'Outras',
+      count: somaOutras,
+      color: '#94a3b8',
+    });
+  }
+
+  let acumulado = 0;
+  const segmentos = itens.map((item) => {
+    const pct = (item.count / total) * 100;
+    const dashLen = (pct / 100) * CIRCUNFERENCIA_DONUT;
+    const offset = -acumulado;
+    acumulado += dashLen;
+    return {
+      ...item,
+      percentual: Math.round(pct),
+      strokeDasharray: `${dashLen.toFixed(1)} ${CIRCUNFERENCIA_DONUT.toFixed(1)}`,
+      strokeDashoffset: offset.toFixed(1),
+    };
+  });
+
+  return { total, segmentos };
 });
 
 const selecionarPeriodo = (tipo) => {
@@ -878,7 +1192,7 @@ onUnmounted(() => {
 }
 
 .dashboard-page {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 4rem;
 }
@@ -1268,6 +1582,189 @@ onUnmounted(() => {
 
 .kpi-card-tempo {
   border-top-color: #7c3aed;
+}
+
+/* ==========================================
+   PAINEL DE GRÁFICOS DE ROSCA (DONUT GRID)
+   ========================================== */
+.donuts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.donut-card {
+  padding: 1.25rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.donut-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px -3px rgba(15, 23, 42, 0.08);
+}
+
+.donut-card-metas {
+  border-top: 4px solid #10b981;
+}
+
+.donut-card-ctq {
+  border-top: 4px solid #0284c7;
+}
+
+.donut-card-falhas {
+  border-top: 4px solid #b1072c;
+}
+
+.donut-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.donut-header-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background: #ecfdf5;
+  color: #059669;
+  flex-shrink: 0;
+}
+
+.donut-header-icon.icon-ctq {
+  background: #f0f9ff;
+  color: #0284c7;
+}
+
+.donut-header-icon.icon-falhas {
+  background: #fff1f2;
+  color: #b1072c;
+}
+
+.donut-header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.donut-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.donut-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.donut-body {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex: 1;
+}
+
+.donut-svg-wrapper {
+  width: 140px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.donut-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.donut-segment {
+  transition: stroke-dasharray 0.4s ease, stroke-dashoffset 0.4s ease;
+}
+
+.donut-center-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  fill: #0f172a;
+}
+
+.donut-center-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  fill: #64748b;
+  letter-spacing: 0.03em;
+}
+
+.donut-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.donut-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.donut-legend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.donut-legend-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.donut-legend-value {
+  font-size: 0.82rem;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.donut-legend-empty {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
+@media (max-width: 480px) {
+  .donut-body {
+    flex-direction: column;
+    text-align: center;
+  }
+  .donut-legend-info {
+    align-items: center;
+  }
 }
 
 /* ==========================================

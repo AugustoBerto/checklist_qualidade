@@ -72,6 +72,22 @@ const processarMetricas = (rows = []) => {
                 totalNaoConformidades: 0,
                 tempoMedioMinutos: 0,
             },
+            faixasConformidade: {
+                metaAtingida: 0,
+                alerta: 0,
+                critico: 0,
+            },
+            detalheCtq: {
+                totalConforme: 0,
+                totalNaoConforme: 0,
+                totalItens: 0,
+                conformidadeCtq: 100,
+            },
+            severidadeNC: {
+                totalNC: 0,
+                ctq: 0,
+                geral: 0,
+            },
             paretoCategorias: [],
             serieTemporal: [],
             rankingCelulas: [],
@@ -83,6 +99,9 @@ const processarMetricas = (rows = []) => {
     let totalNC = 0;
     let totalCtqConforme = 0;
     let totalCtqNaoConforme = 0;
+    let totalMetaAtingida = 0;
+    let totalAlerta = 0;
+    let totalCritico = 0;
     const duracoesValidas = [];
     const contagemCategoriasNC = Object.create(null);
     const contagemDefeitos = Object.create(null);
@@ -93,6 +112,14 @@ const processarMetricas = (rows = []) => {
         const perguntasSnapshot = submissao.snapshot?.perguntas || [];
         const pontuacao = calcularConformidade(submissao.respostas, perguntasSnapshot);
         somaPontuacoes += pontuacao;
+
+        if (pontuacao >= 95) {
+            totalMetaAtingida += 1;
+        } else if (pontuacao >= 85) {
+            totalAlerta += 1;
+        } else {
+            totalCritico += 1;
+        }
 
         // Data do dia (YYYY-MM-DD)
         const diaStr = submissao.data_envio instanceof Date
@@ -212,6 +239,25 @@ const processarMetricas = (rows = []) => {
         .sort((a, b) => b.quantidadeNC - a.quantidadeNC)
         .slice(0, 5);
 
+    const faixasConformidade = {
+        metaAtingida: totalMetaAtingida,
+        alerta: totalAlerta,
+        critico: totalCritico,
+    };
+
+    const detalheCtq = {
+        totalConforme: totalCtqConforme,
+        totalNaoConforme: totalCtqNaoConforme,
+        totalItens: totalItensCtq,
+        conformidadeCtq,
+    };
+
+    const severidadeNC = {
+        totalNC,
+        ctq: totalCtqNaoConforme,
+        geral: Math.max(0, totalNC - totalCtqNaoConforme),
+    };
+
     return {
         resumo: {
             totalAuditorias,
@@ -220,6 +266,9 @@ const processarMetricas = (rows = []) => {
             totalNaoConformidades: totalNC,
             tempoMedioMinutos,
         },
+        faixasConformidade,
+        detalheCtq,
+        severidadeNC,
         paretoCategorias,
         serieTemporal,
         rankingCelulas,

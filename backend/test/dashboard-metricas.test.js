@@ -65,6 +65,22 @@ test('processarMetricas retorna estrutura zerada com 0 auditorias sem divisão p
             totalNaoConformidades: 0,
             tempoMedioMinutos: 0,
         },
+        faixasConformidade: {
+            metaAtingida: 0,
+            alerta: 0,
+            critico: 0,
+        },
+        detalheCtq: {
+            totalConforme: 0,
+            totalNaoConforme: 0,
+            totalItens: 0,
+            conformidadeCtq: 100,
+        },
+        severidadeNC: {
+            totalNC: 0,
+            ctq: 0,
+            geral: 0,
+        },
         paretoCategorias: [],
         serieTemporal: [],
         rankingCelulas: [],
@@ -126,11 +142,25 @@ test('processarMetricas calcula indicadores, pareto, ranking e top defeitos corr
     // Tempo médio = (15 + 25) / 2 = 20 min
     assert.equal(metricas.resumo.tempoMedioMinutos, 20);
 
+    // Faixas de conformidade: 1 meta atingida (100%), 1 crítico (0%)
+    assert.equal(metricas.faixasConformidade.metaAtingida, 1);
+    assert.equal(metricas.faixasConformidade.alerta, 0);
+    assert.equal(metricas.faixasConformidade.critico, 1);
+
     // CTQ:
     // Ponto correto (ctq): 2 Conformes
     // Colagem firme (ctq): 1 Não Conforme, 1 Conforme
     // Total CTQ: 3 C, 1 NC => 3 / 4 = 75%
     assert.equal(metricas.resumo.conformidadeCtq, 75);
+    assert.equal(metricas.detalheCtq.totalConforme, 3);
+    assert.equal(metricas.detalheCtq.totalNaoConforme, 1);
+    assert.equal(metricas.detalheCtq.totalItens, 4);
+    assert.equal(metricas.detalheCtq.conformidadeCtq, 75);
+
+    // Severidade NC
+    assert.equal(metricas.severidadeNC.totalNC, 2);
+    assert.equal(metricas.severidadeNC.ctq, 1);
+    assert.equal(metricas.severidadeNC.geral, 1);
 
     // Pareto: 1 NC em Costura, 1 NC em Montagem
     assert.equal(metricas.paretoCategorias.length, 2);

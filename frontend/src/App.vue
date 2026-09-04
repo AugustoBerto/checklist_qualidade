@@ -319,7 +319,7 @@ body {
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
-  max-width: 1400px; 
+  max-width: 1600px; 
   margin: 0 auto; 
   padding: 0 1.25rem; 
   min-height: 64px;

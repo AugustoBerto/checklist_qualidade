@@ -31,6 +31,9 @@ const metricasMock = {
         totalNaoConformidades: 4,
         tempoMedioMinutos: 14.5,
       },
+      faixasConformidade: { metaAtingida: 12, alerta: 2, critico: 1 },
+      detalheCtq: { totalConforme: 49, totalNaoConforme: 1, totalItens: 50, conformidadeCtq: 98 },
+      severidadeNC: { totalNC: 4, ctq: 1, geral: 3 },
       paretoCategorias: [
         { categoria: 'Costura', quantidade: 3, percentual: 75, percentualAcumulado: 75 },
         { categoria: 'Montagem', quantidade: 1, percentual: 25, percentualAcumulado: 100 },
@@ -83,6 +86,23 @@ describe('DashboardView', () => {
     expect(wrapper.text()).toContain('98%')
     expect(wrapper.text()).toContain('4')
     expect(wrapper.text()).toContain('14.5')
+  })
+
+  it('renderiza os 3 gráficos de rosca com faixas, CTQ e distribuição por categoria', async () => {
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+
+    expect(wrapper.find('.donuts-grid').exists()).toBe(true)
+    const donutCards = wrapper.findAll('.donut-card')
+    expect(donutCards.length).toBe(3)
+
+    expect(wrapper.text()).toContain('Faixas de conformidade')
+    expect(wrapper.text()).toContain('Qualidade crítica (CTQ)')
+    expect(wrapper.text()).toContain('Distribuição de falhas')
+
+    expect(wrapper.vm.donutMetas.total).toBe(15)
+    expect(wrapper.vm.donutCtq.total).toBe(50)
+    expect(wrapper.vm.donutCategorias.total).toBe(4)
   })
 
   it('renderiza o gráfico de Pareto com barras e percentuais acumulados', async () => {
