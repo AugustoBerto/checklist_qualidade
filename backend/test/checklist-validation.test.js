@@ -26,6 +26,7 @@ const submissaoValida = () => ({
     usuario: { id: 99 },
     body: {
         id_modelo: 10,
+        modelo_versao: 1,
         id_setor: 20,
         id_celula: 30,
         assinatura: imagem,
@@ -172,7 +173,7 @@ test('rejeita modelo e célula de setores diferentes', async () => {
             if (/JOIN celulas_producao c/.test(sql)) return { rows: [] };
             if (/FROM modelo/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca' }] };
             if (/FROM setores/.test(sql)) return { rows: [{ id: 20 }] };
-            if (/FROM celulas_producao/.test(sql)) return { rows: [{ id: 30, id_setor_fk: 30, id_marca_fk: 1 }] };
+            if (/FROM celulas_producao/.test(sql)) return { rows: [{ id: 30, id_setor_fk: 30, id_marca_fk: 1, versao: 1 }] };
             if (/FROM perguntas/.test(sql)) return { rows: [{ id: 1, pergunta: 'Pergunta', identificacao: 'pergunta_1', categoria: 'Categoria', ctq: false }] };
             if (/INSERT INTO formulario_submissoes/.test(sql)) return { rows: [{ id: 50 }] };
             return { rows: [] };
@@ -193,9 +194,9 @@ test('aceita modelo, setor e célula relacionados e persiste todos os IDs', asyn
         async query(sql, params = []) {
             consultas.push({ sql, params });
             if (/JOIN celulas_producao c/.test(sql)) {
-                return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca', id_marca_fk: 1 }] };
+                return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca', id_marca_fk: 1, versao: 1 }] };
             }
-            if (/FROM modelo/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca', id_marca_fk: 1 }] };
+            if (/FROM modelo/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca', id_marca_fk: 1, versao: 1 }] };
             if (/FROM setores/.test(sql) || /FROM celulas_producao/.test(sql)) return { rows: [{ id: 1 }] };
             if (/FROM perguntas/.test(sql)) return { rows: [{ id: 1, pergunta: 'Pergunta', identificacao: 'pergunta_1', categoria: 'Categoria', ctq: false }] };
             if (/INSERT INTO formulario_submissoes/.test(sql)) return { rows: [{ id: 50 }] };
@@ -222,7 +223,7 @@ test('persiste o MIME original da assinatura', async () => {
     db.connect = async () => ({
         async query(sql, params = []) {
             consultas.push({ sql, params });
-            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca', id_marca_fk: 1 }] };
+            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'Marca', id_marca_fk: 1, versao: 1 }] };
             if (/FROM perguntas/.test(sql)) return { rows: [{ id: 1, pergunta: 'Pergunta', identificacao: 'pergunta_1', categoria: 'Categoria', ctq: false }] };
             if (/INSERT INTO formulario_submissoes/.test(sql)) return { rows: [{ id: 50 }] };
             return { rows: [] };
@@ -260,6 +261,7 @@ test('persiste snapshot v2 completo e separa fotos da resposta', async () => {
         release() {},
     });
     const req = submissaoValida();
+    req.body.modelo_versao = 4;
     req.body.respostas[0].foto = imagemJpeg;
     const res = resposta();
 
@@ -325,7 +327,7 @@ test('validarAssinaturasCategorias exige assinatura para toda categoria com item
 test('salvarChecklist rejeita se categoria não conforme não tiver assinatura e aceita quando enviada', async () => {
     db.connect = async () => ({
         async query(sql) {
-            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'FILA', id_marca_fk: 1 }] };
+            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'FILA', id_marca_fk: 1, versao: 1 }] };
             if (/FROM usuarios u/.test(sql)) return { rows: [{ id: 99, nome: 'Auditor' }] };
             if (/FROM perguntas/.test(sql)) return { rows: [
                 { id: 1, pergunta: 'P1', identificacao: 'p1', categoria: 'Solado', ctq: false },
@@ -358,7 +360,7 @@ test('salvarChecklist rejeita se categoria não conforme não tiver assinatura e
     let paramsInsert = null;
     db.connect = async () => ({
         async query(sql, params = []) {
-            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'FILA', id_marca_fk: 1 }] };
+            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, nome: 'Modelo', marca: 'FILA', id_marca_fk: 1, versao: 1 }] };
             if (/FROM usuarios u/.test(sql)) return { rows: [{ id: 99, nome: 'Auditor' }] };
             if (/FROM perguntas/.test(sql)) return { rows: [
                 { id: 1, pergunta: 'P1', identificacao: 'p1', categoria: 'Solado', ctq: false },
@@ -389,4 +391,34 @@ test('prepararRespostas remove observacao de itens conformes ou N/A', () => {
     assert.equal(respostasPersistidas[0].observacao, null);
     assert.equal(respostasPersistidas[1].observacao, 'Defeito real');
     assert.equal(respostasPersistidas[2].observacao, null);
+});
+
+test('rejeita versão ausente ou inválida antes de abrir transação', async () => {
+    db.connect = async () => { throw new Error('Não deveria acessar o banco'); };
+    for (const versao of [undefined, null, 0, 'abc', 1.5]) {
+        const req = submissaoValida();
+        req.body.modelo_versao = versao;
+        const res = resposta();
+        await checklist.salvarChecklist(req, res);
+        assert.equal(res.statusCode, 400);
+    }
+});
+
+test('rejeita modelo alterado mesmo com os mesmos IDs de perguntas', async () => {
+    const consultas = [];
+    db.connect = async () => ({
+        async query(sql) {
+            consultas.push(sql);
+            if (/JOIN celulas_producao c/.test(sql)) return { rows: [{ id: 10, versao: 2 }] };
+            if (/FROM perguntas/.test(sql)) return { rows: [{ id: 1, pergunta: 'Texto alterado', categoria: 'Categoria' }] };
+            return { rows: [] };
+        },
+        release() {},
+    });
+    const res = resposta();
+    await checklist.salvarChecklist(submissaoValida(), res);
+    assert.equal(res.statusCode, 409);
+    assert.match(res.body.mensagem, /modelo foi alterado/);
+    assert.ok(consultas.includes('ROLLBACK'));
+    assert.equal(consultas.some((sql) => /INSERT INTO/.test(sql)), false);
 });

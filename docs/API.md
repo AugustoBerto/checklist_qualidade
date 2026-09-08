@@ -40,7 +40,7 @@ retorna `409` com o código `ULTIMO_ADMIN`.
 | --- | --- |
 | `GET /dados/modelos` | Lista modelos ativos, filtráveis por marca e setor. |
 | `GET /checklists/perguntas/:modelo` | Perguntas ativas agrupadas por categoria. |
-| `POST /checklists/salvar` | Valida e cria uma submissão. |
+| `POST /checklists/salvar` | Valida e cria uma submissão. Exige `modelo_versao` (a versão recebida ao carregar perguntas); retorna 409 se o modelo mudou durante o preenchimento. |
 | `GET /submissoes` | Lista submissões paginadas e filtradas. |
 | `GET /submissoes/:id` | Documento permanente, metadados de evidências, assinatura e pontuação. |
 | `GET /submissoes/:id/evidencias` | Quantidade histórica e metadados dos anexos. |

@@ -134,6 +134,7 @@ describe('carregamento do formulário', () => {
     await flushPromises()
 
     expect(api.post).toHaveBeenCalledWith('/checklists/salvar', expect.objectContaining({
+      modelo_versao: 2,
       assinatura: 'data:image/png;base64,sigGeral',
       assinaturas_categorias: { Categoria: 'data:image/png;base64,sigCat' },
       respostas: [
@@ -239,4 +240,20 @@ describe('carregamento do formulário', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.progresso-pendentes').exists()).toBe(false)
   })
+  it('mantém respostas e rascunho quando o servidor rejeita a versão antiga', async () => {
+    const wrapper = shallowMount(FormularioView)
+    await flushPromises()
+    wrapper.vm.respostas = { p1: 'Conforme' }
+    wrapper.vm.assinatura = 'data:image/png;base64,sigGeral'
+    const mensagem = 'O modelo foi alterado. Recarregue e revise as respostas.'
+    api.post.mockRejectedValueOnce({ response: { status: 409, data: { mensagem } } })
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(toast.error).toHaveBeenCalledWith(mensagem)
+    expect(draft.clear).not.toHaveBeenCalled()
+    expect(wrapper.vm.respostas.p1).toBe('Conforme')
+    expect(wrapper.vm.enviando).toBe(false)
+    wrapper.unmount()
+  })
+
 })

@@ -194,10 +194,10 @@ exports.buscarPerguntas = async (req, res) => {
 };
 
 exports.salvarChecklist = async (req, res) => {
-    const { id_modelo, id_setor, id_celula, assinatura, respostas, inicio_checklist } = req.body;
+    const { id_modelo, id_setor, id_celula, modelo_versao, assinatura, respostas, inicio_checklist } = req.body;
     const idUsuarioFinal = req.usuario?.id;
     if (!idUsuarioFinal || !idObrigatorioValido(id_modelo) || !idObrigatorioValido(id_setor)
-        || !idObrigatorioValido(id_celula) || !timestampOpcionalValido(inicio_checklist)) {
+        || !idObrigatorioValido(id_celula) || !idObrigatorioValido(modelo_versao) || !timestampOpcionalValido(inicio_checklist)) {
         return res.status(400).json({ sucesso: false, mensagem: 'Dados incompletos ou inválidos.' });
     }
     try {
@@ -218,6 +218,9 @@ exports.salvarChecklist = async (req, res) => {
                 FOR SHARE OF m, s, c
             `, [id_modelo, id_setor, id_celula]);
             if (!modeloRes.rows.length) throw new ErroValidacao('Modelo, setor ou célula inválidos ou incompatíveis.');
+            if (Number(modelo_versao) !== Number(modeloRes.rows[0].versao)) {
+                throw new ErroValidacao('O modelo foi alterado durante o preenchimento. Recarregue a página e revise as respostas na nova versão antes de enviar.', 409);
+            }
             const auditorRes = await client.query(
                 `SELECT u.id, u.nome, u.matricula, u.funcao, u.papel,
                     un.id AS unidade_id, un.nome AS unidade_nome

@@ -657,6 +657,7 @@ async function enviarFormulario() {
 
   const payload = {
     id_modelo: idModelo.value || Number(modelo),
+    modelo_versao: versaoModelo.value,
     id_setor: idSetorFinal,
     id_celula: Number(celulaSelecionada.value) || usuarioObj.id_celula_fk,
     assinatura: assinatura.value,
