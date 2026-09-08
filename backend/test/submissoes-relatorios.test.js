@@ -355,3 +355,53 @@ test('listarSubmissoes inclui itens de checklist e observações na busca textua
   assert.equal(consulta.params[0], '%Tamanho do ponto%');
 });
 
+
+test('listagem, dashboard e detalhe concordam para submissões sem snapshot', async () => {
+  const dashboard = require('../controllers/DashboardController');
+  const registro = {
+    id: 7, id_modelo: 3, snapshot: null,
+    data_envio: '2026-08-27T10:00:00Z',
+    respostas: [{ id_pergunta: 1, resposta: 'Conforme' }, { id_pergunta: 2, resposta: 'Não Conforme' }],
+  };
+  const perguntas = [
+    { id: 1, id_modelo: 3, categoria: 'A', pergunta: 'P1' },
+    { id: 2, id_modelo: 3, categoria: 'B', pergunta: 'P2' },
+  ];
+  db.query = async (sql) => {
+    if (/count\(\*\)/.test(sql)) return { rows: [{ count: '1' }] };
+    if (/FROM perguntas p/.test(sql)) return { rows: perguntas };
+    return { rows: [registro] };
+  };
+  const lista = resposta();
+  const metricas = resposta();
+  const detalhe = resposta();
+  await submissoes.listarSubmissoes({ query: {} }, lista);
+  await dashboard.obterMetricas({ query: {} }, metricas);
+  await submissoes.buscarDetalhesSubmissao({ params: { id: '7' } }, detalhe);
+  assert.equal(lista.body.dados[0].pontuacao, 50);
+  assert.equal(metricas.body.dados.resumo.conformidadeMedia, 50);
+  assert.equal(detalhe.body.dados.pontuacao, 50);
+});
+
+test('recupera modelos legados em lote sem substituir snapshots existentes', async () => {
+  const { perguntasSubmissoes } = require('../utils/perguntasSubmissoes');
+  const snapshot = [{ id: 1, categoria: 'Categoria histórica' }];
+  let consultas = 0;
+  const executor = { query: async (sql, params) => {
+    consultas++;
+    assert.deepEqual(params, [[3]]);
+    assert.doesNotMatch(sql, /ativo\s*=/);
+    return { rows: [{ id: 1, id_modelo: 3, categoria: 'Categoria atual' }] };
+  } };
+  const perguntas = await perguntasSubmissoes([
+    { id_modelo: 3, snapshot: { perguntas: snapshot } },
+    { id_modelo: 3, snapshot: null },
+    { id_modelo: 3, snapshot: {} },
+  ], executor);
+  assert.equal(consultas, 1);
+  assert.equal(perguntas[0], snapshot);
+  assert.equal(perguntas[1][0].categoria, 'Categoria atual');
+  assert.deepEqual(perguntas[1], perguntas[2]);
+  await perguntasSubmissoes([{ id_modelo: 3, snapshot: { perguntas: snapshot } }], executor);
+  assert.equal(consultas, 1);
+});

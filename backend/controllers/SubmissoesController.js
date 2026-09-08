@@ -1,4 +1,5 @@
 const db = require('../db');
+const { perguntasSubmissoes } = require('../utils/perguntasSubmissoes');
 const { calcularPontuacao, agruparRespostasPorCategoria, calcularConformidade } = require('../utils/scoring');
 
 const MAX_PG_INT = 2147483647;
@@ -176,15 +177,16 @@ exports.listarSubmissoes = async (req, res) => {
 
         const where = filtros.length ? `WHERE ${filtros.join(' AND ')}` : '';
         const joins = `FROM formulario_submissoes s LEFT JOIN usuarios u ON s.id_usuario = u.id LEFT JOIN modelo m ON s.id_modelo = m.id LEFT JOIN marcas ma ON ma.id = m.id_marca_fk LEFT JOIN celulas_producao cp ON s.id_celula = cp.id LEFT JOIN setores st_sub ON s.id_setor = st_sub.id LEFT JOIN setores st_cp ON cp.id_setor_fk = st_cp.id LEFT JOIN setores st_user ON u.id_setor_fk = st_user.id`;
-        const sql = `SELECT s.id, s.data_envio, s.respostas, s.snapshot, COALESCE(s.snapshot -> 'auditor' ->> 'nome', u.nome, 'Não informado') AS nome_usuario, COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome, 'Não informado') AS nome_modelo, COALESCE(s.snapshot -> 'celula' ->> 'nome', cp.nome, 'Não informada') AS nome_celula, COALESCE(s.snapshot -> 'setor' ->> 'nome', st_sub.nome, st_cp.nome, st_user.nome, 'Geral') AS nome_setor ${joins} ${where} ORDER BY s.data_envio DESC`;
+        const sql = `SELECT s.id, s.id_modelo, s.data_envio, s.respostas, s.snapshot, COALESCE(s.snapshot -> 'auditor' ->> 'nome', u.nome, 'Não informado') AS nome_usuario, COALESCE(s.snapshot -> 'modelo' ->> 'nome', m.nome, 'Não informado') AS nome_modelo, COALESCE(s.snapshot -> 'celula' ->> 'nome', cp.nome, 'Não informada') AS nome_celula, COALESCE(s.snapshot -> 'setor' ->> 'nome', st_sub.nome, st_cp.nome, st_user.nome, 'Geral') AS nome_setor ${joins} ${where} ORDER BY s.data_envio DESC`;
         const [totalResult, resultado] = await Promise.all([
             db.query(`SELECT count(*) ${joins} ${where}`, valores),
             db.query(`${sql} LIMIT $${valores.length + 1} OFFSET $${valores.length + 2}`, [...valores, pageSize, (page - 1) * pageSize]),
         ]);
         const total = Number(totalResult.rows[0].count);
-        const dados = resultado.rows.map(({ respostas, snapshot, ...submissao }) => ({
+        const perguntas = await perguntasSubmissoes(resultado.rows, db);
+        const dados = resultado.rows.map(({ respostas, snapshot, id_modelo, ...submissao }, index) => ({
             ...submissao,
-            pontuacao: calcularConformidade(respostas, snapshot?.perguntas),
+            pontuacao: calcularConformidade(respostas, perguntas[index]),
         }));
         res.json({ sucesso: true, dados, paginacao: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
     } catch (error) {

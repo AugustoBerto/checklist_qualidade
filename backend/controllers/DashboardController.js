@@ -1,4 +1,5 @@
 const db = require('../db');
+const { perguntasSubmissoes } = require('../utils/perguntasSubmissoes');
 const { calcularConformidade, normalizarResposta } = require('../utils/scoring');
 
 const MAX_PG_INT = 2147483647;
@@ -61,7 +62,7 @@ const validarFiltros = (query = {}) => {
     };
 };
 
-const processarMetricas = (rows = []) => {
+const processarMetricas = (rows = [], perguntasResolvidas = []) => {
     const totalAuditorias = rows.length;
     if (totalAuditorias === 0) {
         return {
@@ -108,8 +109,8 @@ const processarMetricas = (rows = []) => {
     const agrupamentoPorDia = Object.create(null);
     const agrupamentoPorCelula = Object.create(null);
 
-    for (const submissao of rows) {
-        const perguntasSnapshot = submissao.snapshot?.perguntas || [];
+    for (const [index, submissao] of rows.entries()) {
+        const perguntasSnapshot = perguntasResolvidas[index] || submissao.snapshot?.perguntas || [];
         const pontuacao = calcularConformidade(submissao.respostas, perguntasSnapshot);
         somaPontuacoes += pontuacao;
 
@@ -319,6 +320,7 @@ exports.obterMetricas = async (req, res) => {
         const sql = `
             SELECT
                 s.id,
+                s.id_modelo,
                 s.data_envio,
                 s.inicio_checklist,
                 s.respostas,
@@ -333,7 +335,8 @@ exports.obterMetricas = async (req, res) => {
         `;
 
         const { rows } = await db.query(sql, valores);
-        const metricas = processarMetricas(rows);
+        const perguntas = await perguntasSubmissoes(rows, db);
+        const metricas = processarMetricas(rows, perguntas);
 
         res.json({
             sucesso: true,
