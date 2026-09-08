@@ -2,11 +2,12 @@
 
 import { flushPromises, shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 import DashboardView from '../src/views/DashboardView.vue'
 
 const { api, router, session } = vi.hoisted(() => ({
   api: { get: vi.fn() },
-  router: { push: vi.fn() },
+  router: { push: vi.fn(), replace: vi.fn(), currentRoute: { value: { query: {} } } },
   session: {
     obterPerfilLocal: vi.fn(),
   },
@@ -51,6 +52,8 @@ const metricasMock = {
 describe('DashboardView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    router.currentRoute = ref({ query: {} })
+    router.replace.mockImplementation(({ query }) => { router.currentRoute.value = { query }; return Promise.resolve() })
     session.obterPerfilLocal.mockReturnValue({ id: 1, id_setor_fk: 2, id_celula_fk: 4 })
     api.get.mockImplementation((url) => {
       if (url === '/cadastros/setores') return Promise.resolve({ data: [{ id: 2, nome: 'Costura' }] })
@@ -85,7 +88,7 @@ describe('DashboardView', () => {
     expect(wrapper.text()).toContain('15')
     expect(wrapper.text()).toContain('98%')
     expect(wrapper.text()).toContain('4')
-    expect(wrapper.text()).toContain('14.5')
+    expect(wrapper.text()).toContain('14,5')
   })
 
   it('renderiza os 3 gráficos de rosca com faixas, CTQ e distribuição por categoria', async () => {
@@ -228,4 +231,160 @@ describe('DashboardView', () => {
     expect(wrapper.find('.error-state').exists()).toBe(false)
     expect(wrapper.vm.dados.resumo.totalAuditorias).toBe(15)
   })
+  it('usa limites consistentes e distingue ausência de CTQ de conformidade total', async () => {
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+    expect(wrapper.vm.classeStatusConformidade(85)).toBe('status-alerta')
+    expect(wrapper.vm.classeStatusConformidade(84)).toBe('status-critico')
+    expect(wrapper.vm.classeStatusConformidade(95)).toBe('status-meta-atingida')
+    wrapper.vm.dados = { ...metricasMock.data.dados, detalheCtq: { totalItens: 0 } }
+    await flushPromises()
+    expect(wrapper.find('.kpi-card-ctq').text()).toContain('Sem itens CTQ avaliados')
+    expect(wrapper.find('.kpi-card-ctq .kpi-value').text()).toBe('—')
+    wrapper.unmount()
+  })
+
+  it('limpa modelo e célula incompatíveis ao trocar de setor', async () => {
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+    wrapper.vm.modelosOptions = [{ id: 10, id_setor_fk: 2 }, { id: 11, id_setor_fk: 3 }]
+    wrapper.vm.filtros.modeloId = '10'
+    wrapper.vm.filtros.setorId = '3'
+    wrapper.vm.onSetorChange()
+    await flushPromises()
+    expect(wrapper.vm.filtros.modeloId).toBe('')
+    expect(wrapper.vm.filtros.celulaId).toBe('')
+    expect(wrapper.vm.modelosFiltrados.map(m => m.id)).toEqual([11])
+    wrapper.unmount()
+  })
+
+  it('não consulta datas invertidas nem repete consulta ao abrir período personalizado', async () => {
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+    api.get.mockClear()
+    wrapper.vm.selecionarPeriodo('custom')
+    expect(api.get).not.toHaveBeenCalled()
+    wrapper.vm.filtros.dataInicio = '2026-09-10'
+    wrapper.vm.filtros.dataFim = '2026-09-01'
+    await wrapper.vm.carregarMetricas()
+    expect(api.get).not.toHaveBeenCalled()
+    expect(wrapper.vm.error).toContain('data inicial')
+    expect(wrapper.vm.isLoading).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('posiciona datas proporcionalmente e limita rótulos sem remover pontos', async () => {
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+    wrapper.vm.dados = { ...metricasMock.data.dados, serieTemporal: [
+      { data: '2026-09-01', conformidadeMedia: 80 },
+      { data: '2026-09-02', conformidadeMedia: 90 },
+      { data: '2026-09-11', conformidadeMedia: 95 },
+    ] }
+    await flushPromises()
+    expect(wrapper.vm.svgDados.pontos.map(p => p.x)).toEqual([60, 111, 570])
+    wrapper.vm.dados = { ...metricasMock.data.dados, serieTemporal: Array.from({ length: 30 }, (_, i) => ({
+      data: `2026-09-${String(i + 1).padStart(2, '0')}`, conformidadeMedia: 95, totalAuditorias: 1,
+    })) }
+    await flushPromises()
+    expect(wrapper.findAll('.trend-point')).toHaveLength(30)
+    expect(wrapper.findAll('.axis-x-text').length).toBeLessThanOrEqual(7)
+    await wrapper.find('.trend-point').trigger('focus')
+    expect(wrapper.findAll('.trend-tooltip .tooltip-row')).toHaveLength(3)
+    wrapper.unmount()
+  })
+
+  it('inclui no destaque Pareto a categoria que cruza os 80%', async () => {
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+    expect(wrapper.findAll('.fill-vital')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('carrega indicadores sem esperar filtros e preserva opções bem-sucedidas', async () => {
+    let liberarSetores
+    api.get.mockImplementation((url) => {
+      if (url === '/cadastros/setores') return new Promise(resolve => { liberarSetores = resolve })
+      if (url === '/dados/modelos') return Promise.reject(new Error('Falha nos modelos'))
+      if (url === '/dashboard/metricas') return Promise.resolve(metricasMock)
+      return Promise.resolve({ data: [] })
+    })
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+    expect(wrapper.vm.isLoading).toBe(false)
+    expect(wrapper.findAll('.kpi-card')).toHaveLength(5)
+    liberarSetores({ data: [{ id: 2, nome: 'Costura' }] })
+    await flushPromises()
+    expect(wrapper.vm.setoresOptions).toEqual([{ id: 2, nome: 'Costura' }])
+    expect(wrapper.find('.filter-warning').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('limita o Pareto a 15 categorias sem recalcular percentuais nem cortar a distribuição', async () => {
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+    const categorias = Array.from({ length: 20 }, (_, i) => ({
+      categoria: `Categoria ${i + 1}`, quantidade: 1, percentual: 5, percentualAcumulado: (i + 1) * 5,
+    }))
+    wrapper.vm.dados = { ...metricasMock.data.dados, resumo: { ...metricasMock.data.dados.resumo, totalNaoConformidades: 20 }, paretoCategorias: categorias }
+    await flushPromises()
+    expect(wrapper.findAll('.pareto-item')).toHaveLength(15)
+    expect(wrapper.find('.pareto-limit-note').text()).toContain('15 de 20')
+    expect(wrapper.findAll('.pareto-item')[14].text()).toContain('Acumulado: 75%')
+    expect(wrapper.vm.donutCategorias.segmentos.at(-1).count).toBe(16)
+    wrapper.unmount()
+  })
+
+  it('exibe resumo e volumes diários na evolução sem modificar a ordem do gráfico', async () => {
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+    expect(wrapper.find('.trend-summary').text()).toContain('+4 p.p.')
+    expect(wrapper.vm.resumoEvolucao).toEqual({ dias: 2, diasNaMeta: 1, variacao: 4 })
+    const linhas = wrapper.findAll('.trend-daily-table tbody tr')
+    expect(linhas).toHaveLength(2)
+    expect(linhas[0].text()).toContain('02/09/2026')
+    expect(linhas[0].findAll('td').map(td => td.text())).toEqual(['8', '1', '98%'])
+    expect(wrapper.vm.svgDados.pontos[0].data).toBe('2026-09-01')
+    wrapper.vm.dados = { ...metricasMock.data.dados, serieTemporal: [metricasMock.data.dados.serieTemporal[0]] }
+    await flushPromises()
+    expect(wrapper.vm.resumoEvolucao.variacao).toBeNull()
+    expect(wrapper.find('.trend-summary').text()).toContain('—')
+    wrapper.unmount()
+  })
+
+  it('alterna o modo BI mantendo filtros, dados e demais parâmetros da rota', async () => {
+    router.currentRoute.value = { query: { origem: 'tv' } }
+    const wrapper = shallowMount(DashboardView, { attachTo: document.body })
+    await flushPromises()
+    const filtrosAntes = { ...wrapper.vm.filtros }
+    await wrapper.vm.alternarModoBi()
+    await flushPromises()
+    expect(wrapper.find('.bi-viewport').exists()).toBe(true)
+    expect(wrapper.find('.bi-toolbar').text()).toContain('Sair do modo BI')
+    expect(wrapper.find('.filtros-card').isVisible()).toBe(false)
+    expect(wrapper.findAll('.kpi-card')).toHaveLength(5)
+    expect(wrapper.findAll('.donut-card')).toHaveLength(3)
+    expect(router.currentRoute.value.query).toEqual({ origem: 'tv', bi: '1' })
+    expect(wrapper.vm.filtros).toEqual(filtrosAntes)
+    expect(wrapper.vm.estiloBi.transform).toContain('scale(')
+    await wrapper.vm.alternarModoBi()
+    await flushPromises()
+    expect(wrapper.find('.bi-viewport').exists()).toBe(false)
+    expect(wrapper.find('.filtros-card').isVisible()).toBe(true)
+    expect(router.currentRoute.value.query).toEqual({ origem: 'tv' })
+    expect(wrapper.vm.estiloBi).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('ajusta a escala do painel ao redimensionar a janela', async () => {
+    router.currentRoute.value = { query: { bi: '1' } }
+    const wrapper = shallowMount(DashboardView)
+    await flushPromises()
+    wrapper.vm.tamanhoTela = { largura: 1920, altura: 1080 }
+    expect(wrapper.vm.estiloBi.transform).toContain('scale(1)')
+    wrapper.vm.tamanhoTela = { largura: 960, altura: 540 }
+    expect(wrapper.vm.estiloBi.transform).toContain('scale(0.5)')
+    wrapper.unmount()
+  })
+
 })

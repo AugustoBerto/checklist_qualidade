@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <header class="header">
+    <header v-if="!modoBi" class="header">
       <div class="header-content">
         <div class="header-left">
           <!-- Botão Hambúrguer Mobile / Tablet (<= 1080px) -->
@@ -73,11 +73,11 @@
 
     <!-- Backdrop da Sidebar Retrátil -->
     <transition name="sidebar-fade">
-      <div v-if="sidebarAberta" class="sidebar-backdrop" @click="fecharSidebar"></div>
+      <div v-if="sidebarAberta && !modoBi" class="sidebar-backdrop" @click="fecharSidebar"></div>
     </transition>
 
     <!-- Sidebar Retrátil Mobile / Tablet (Drawer Off-Canvas) -->
-    <aside class="sidebar-drawer" :class="{ 'is-open': sidebarAberta }">
+    <aside v-show="!modoBi" class="sidebar-drawer" :class="{ 'is-open': sidebarAberta }">
       <!-- Topo da Sidebar com Logo e Fechar -->
       <div class="sidebar-header">
         <div class="sidebar-brand">
@@ -170,7 +170,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import localforage from 'localforage'
 import { encerrarSessao, obterPerfilLocal } from './services/session'
@@ -183,6 +183,7 @@ localforage.config({
 });
 
 const router = useRouter()
+const modoBi = computed(() => router.currentRoute.value.path === '/dashboard' && router.currentRoute.value.query.bi === '1')
 const logoDass = new URL('./img/dass.png', import.meta.url).href
 
 const usuarioLogado = ref(false);

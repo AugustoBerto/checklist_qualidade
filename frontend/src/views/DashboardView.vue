@@ -1,11 +1,21 @@
 <template>
-  <div class="page-container dashboard-page">
-    <PageHeader
+  <div :class="{ 'bi-viewport': modoBi }">
+  <div class="page-container dashboard-page" :class="{ 'dashboard-bi': modoBi }" :style="estiloBi">
+    <div v-if="modoBi" class="bi-toolbar">
+      <strong>Checklist · Dashboard de qualidade</strong>
+      <span>{{ contextoBi }}</span>
+      <button type="button" class="btn-refresh" :disabled="isLoading" @click="carregarMetricas">Atualizar</button>
+      <button type="button" class="btn-refresh" @click="alternarModoBi">Sair do modo BI</button>
+    </div>
+    <PageHeader v-if="!modoBi"
       title="Dashboard de qualidade"
       subtitle="Indicadores de desempenho, conformidade e análise de desvios operacionais."
       icon="mdi mdi-chart-box-outline"
     >
       <template #actions>
+        <button type="button" class="btn-refresh" @click="alternarModoBi" title="Compactar dashboard para exibição em TV">
+          <i class="mdi mdi-monitor-dashboard"></i><span>Modo BI</span>
+        </button>
         <button
           type="button"
           class="btn-refresh"
@@ -20,13 +30,14 @@
     </PageHeader>
 
     <!-- Barra de Filtros Integrada -->
-    <div class="card filtros-card">
+    <div v-show="!modoBi" class="card filtros-card">
       <div class="filtros-header">
         <div class="periodo-chips" role="group" aria-label="Seleção rápida de período">
           <button
             type="button"
             class="chip-btn"
             :class="{ active: periodoSelecionado === 'hoje' }"
+            :aria-pressed="periodoSelecionado === 'hoje'"
             @click="selecionarPeriodo('hoje')"
           >
             Hoje
@@ -35,6 +46,7 @@
             type="button"
             class="chip-btn"
             :class="{ active: periodoSelecionado === '7d' }"
+            :aria-pressed="periodoSelecionado === '7d'"
             @click="selecionarPeriodo('7d')"
           >
             Últimos 7 dias
@@ -43,6 +55,7 @@
             type="button"
             class="chip-btn"
             :class="{ active: periodoSelecionado === '30d' }"
+            :aria-pressed="periodoSelecionado === '30d'"
             @click="selecionarPeriodo('30d')"
           >
             Últimos 30 dias
@@ -51,6 +64,7 @@
             type="button"
             class="chip-btn"
             :class="{ active: periodoSelecionado === 'mes' }"
+            :aria-pressed="periodoSelecionado === 'mes'"
             @click="selecionarPeriodo('mes')"
           >
             Mês atual
@@ -59,6 +73,7 @@
             type="button"
             class="chip-btn"
             :class="{ active: periodoSelecionado === 'custom' }"
+            :aria-pressed="periodoSelecionado === 'custom'"
             @click="selecionarPeriodo('custom')"
           >
             Personalizado
@@ -142,7 +157,7 @@
             class="filter-select"
           >
             <option value="">Todos os modelos</option>
-            <option v-for="m in modelosOptions" :key="m.id" :value="m.id">
+            <option v-for="m in modelosFiltrados" :key="m.id" :value="m.id">
               {{ m.nome }}
             </option>
           </select>
@@ -150,8 +165,17 @@
       </div>
     </div>
 
+    <p v-if="erroOpcoes" class="filter-warning" role="status">
+      {{ erroOpcoes }}
+      <button type="button" class="btn-limpar-filtros" @click="carregarOpcoesAuxiliares">Recarregar filtros</button>
+    </p>
+    <p class="dashboard-context" aria-live="polite">
+      Período: {{ formatarDataBr(filtros.dataInicio) || 'Sem início definido' }} a {{ formatarDataBr(filtros.dataFim) || 'Sem fim definido' }}.
+      <span v-if="atualizadoEm && !isLoading && !error">Atualizado às {{ atualizadoEm }}.</span>
+    </p>
+
     <!-- Feedback de Carregamento -->
-    <div v-if="isLoading" class="card status-card loading-state">
+    <div v-if="isLoading" class="card status-card loading-state" role="status" aria-live="polite">
       <div class="spinner-large"></div>
       <p>Calculando indicadores e consolidando auditorias...</p>
     </div>
@@ -219,7 +243,7 @@
           </div>
 
           <!-- KPI 3: Conformidade CTQ (Crítico para Qualidade) -->
-          <div class="card kpi-card kpi-card-ctq" :class="classeStatusConformidade(dados.resumo.conformidadeCtq)">
+          <div class="card kpi-card kpi-card-ctq" :class="temItensCtq ? classeStatusConformidade(dados.resumo.conformidadeCtq) : 'status-sem-dados'">
             <div class="kpi-header">
               <span class="kpi-title">Índice crítico (CTQ)</span>
               <div class="kpi-icon-wrapper kpi-icon-ctq">
@@ -227,14 +251,14 @@
               </div>
             </div>
             <div class="kpi-value-row">
-              <span class="kpi-value">{{ dados.resumo.conformidadeCtq }}%</span>
+              <span class="kpi-value">{{ temItensCtq ? `${dados.resumo.conformidadeCtq}%` : '—' }}</span>
               <span class="badge-ctq-pill" title="Pontos críticos para a qualidade">
                 <span class="ctq-pill-dot"></span>
                 <span>CTQ</span>
               </span>
             </div>
             <div class="kpi-footer">
-              <span class="kpi-context">Itens de processo de alto risco</span>
+              <span class="kpi-context">{{ temItensCtq ? `${dados.detalheCtq.totalItens} itens críticos avaliados` : 'Sem itens CTQ avaliados' }}</span>
             </div>
           </div>
 
@@ -247,7 +271,7 @@
               </div>
             </div>
             <div class="kpi-value-row">
-              <span class="kpi-value kpi-danger-text">{{ dados.resumo.totalNaoConformidades }}</span>
+              <span :class="['kpi-value', { 'kpi-danger-text': dados.resumo.totalNaoConformidades > 0 }]">{{ dados.resumo.totalNaoConformidades }}</span>
             </div>
             <div class="kpi-footer">
               <span class="kpi-context">Total de apontamentos com falha</span>
@@ -263,7 +287,7 @@
               </div>
             </div>
             <div class="kpi-value-row">
-              <span class="kpi-value">{{ dados.resumo.tempoMedioMinutos }} <small class="kpi-unit">min</small></span>
+              <span class="kpi-value">{{ formatarNumero(dados.resumo.tempoMedioMinutos) }} <small class="kpi-unit">min</small></span>
             </div>
             <div class="kpi-footer">
               <span class="kpi-context">Duração média em chão de fábrica</span>
@@ -347,7 +371,7 @@
               </div>
               <div class="donut-header-text">
                 <h3 class="donut-title">Qualidade crítica (CTQ)</h3>
-                <p class="donut-subtitle">Itens críticos para a qualidade</p>
+                <p class="donut-subtitle">Itens críticos: conformes e N/A contam como positivos</p>
               </div>
             </div>
 
@@ -377,7 +401,7 @@
                     class="donut-segment"
                   />
                   <text x="80" y="74" text-anchor="middle" class="donut-center-value">
-                    {{ dados.resumo.conformidadeCtq }}%
+                    {{ temItensCtq ? `${dados.resumo.conformidadeCtq}%` : '—' }}
                   </text>
                   <text x="80" y="92" text-anchor="middle" class="donut-center-label">
                     CTQ
@@ -482,7 +506,7 @@
                   </div>
                   <div class="chart-title-text">
                     <h2 class="chart-title">Pareto de não conformidades por categoria</h2>
-                    <p class="chart-subtitle">Identificação dos processos que mais geram desvios (Regra 80/20)</p>
+                    <p class="chart-subtitle">Até 15 categorias com mais falhas; percentuais sobre o total do período</p>
                   </div>
                 </div>
               </div>
@@ -495,8 +519,11 @@
             </div>
 
             <div v-else class="pareto-bars-list">
+              <p v-if="dados.paretoCategorias.length > 15" class="pareto-limit-note">
+                Exibindo 15 de {{ dados.paretoCategorias.length }} categorias.
+              </p>
               <div
-                v-for="item in dados.paretoCategorias"
+                v-for="(item, index) in paretoVisivel"
                 :key="item.categoria"
                 class="pareto-item"
               >
@@ -504,7 +531,7 @@
                   <span class="pareto-category-name" :title="item.categoria">{{ item.categoria }}</span>
                   <div class="pareto-badges">
                     <span class="pareto-count">{{ item.quantidade }} {{ item.quantidade === 1 ? 'falha' : 'falhas' }} ({{ item.percentual }}%)</span>
-                    <span class="pareto-acumulado" :class="{ 'acumulado-vital': item.percentualAcumulado <= 80 }">
+                    <span class="pareto-acumulado" :class="{ 'acumulado-vital': index === 0 || dados.paretoCategorias[index - 1].percentualAcumulado < 80 }">
                       Acumulado: {{ item.percentualAcumulado }}%
                     </span>
                   </div>
@@ -514,7 +541,7 @@
                 <div class="pareto-progress-track">
                   <div
                     class="pareto-progress-fill"
-                    :class="{ 'fill-vital': item.percentualAcumulado <= 80 }"
+                    :class="{ 'fill-vital': index === 0 || dados.paretoCategorias[index - 1].percentualAcumulado < 80 }"
                     :style="{ width: `${item.percentual}%` }"
                   ></div>
                 </div>
@@ -532,7 +559,7 @@
                   </div>
                   <div class="chart-title-text">
                     <h2 class="chart-title">Evolução da conformidade diária</h2>
-                    <p class="chart-subtitle">Acompanhamento contínuo da taxa de conformidade (%) ao longo do tempo</p>
+                    <p class="chart-subtitle">Média por dia com auditorias; dias sem registros não são pontuados</p>
                   </div>
                 </div>
               </div>
@@ -554,8 +581,15 @@
               <p>Não há inspeções distribuídas no período selecionado.</p>
             </div>
 
-            <div v-else class="trend-chart-container">
-              <svg viewBox="0 0 600 240" class="trend-svg" preserveAspectRatio="none">
+            <template v-else>
+            <dl class="trend-summary">
+              <div><dt>Dias com auditorias</dt><dd>{{ resumoEvolucao.dias }}</dd></div>
+              <div><dt>Dias na meta</dt><dd>{{ resumoEvolucao.diasNaMeta }} <small>de {{ resumoEvolucao.dias }}</small></dd></div>
+              <div><dt>Variação no período</dt><dd>{{ resumoEvolucao.variacao === null ? '—' : `${resumoEvolucao.variacao > 0 ? '+' : ''}${formatarNumero(resumoEvolucao.variacao)} p.p.` }}</dd></div>
+            </dl>
+            <p class="trend-summary-note">Variação entre o primeiro e o último dia com auditorias.</p>
+            <div class="trend-chart-container">
+              <svg viewBox="0 0 600 240" class="trend-svg" role="img" aria-label="Evolução diária da conformidade">
                 <defs>
                   <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="#b1072c" stop-opacity="0.3" />
@@ -598,11 +632,18 @@
                     r="5"
                     class="trend-point"
                     :class="{ 'point-below-target': ponto.conformidadeMedia < 95 }"
+                    tabindex="0"
+                    :aria-label="`${formatarDataBr(ponto.data)}: ${ponto.conformidadeMedia}% de conformidade, ${ponto.totalAuditorias} auditorias`"
+                    @focus="hoverPoint = ponto"
+                    @blur="hoverPoint = null"
+                    @click="hoverPoint = ponto"
+                    @keydown.esc="hoverPoint = null"
                     @mouseenter="hoverPoint = ponto"
                     @mouseleave="hoverPoint = null"
                   />
                   <!-- Rótulo do Eixo X (Data) -->
                   <text
+                    v-if="ponto.mostrarRotulo"
                     :x="ponto.x"
                     y="222"
                     class="axis-x-text"
@@ -627,21 +668,26 @@
                   <span>{{ hoverPoint.totalAuditorias }}</span>
                 </div>
                 <div class="tooltip-row">
-                  <span>Conformidade:</span>
-                  <strong :class="hoverPoint.conformidadeMedia >= 95 ? 'text-success' : 'text-danger'">
-                    {{ hoverPoint.conformidadeMedia }}%
-                  </strong>
-                </div>
-                <div class="tooltip-row">
-                  <span>Auditorias:</span>
-                  <span>{{ hoverPoint.totalAuditorias }}</span>
-                </div>
-                <div class="tooltip-row">
                   <span>Não conformes:</span>
                   <span>{{ hoverPoint.totalNC }}</span>
                 </div>
               </div>
             </div>
+            <div class="trend-daily-table" tabindex="0" role="region" aria-label="Detalhamento diário das auditorias">
+              <table>
+                <caption>Resultados por dia · mais recentes primeiro</caption>
+                <thead><tr><th scope="col">Data</th><th scope="col">Auditorias</th><th scope="col">Não conformidades</th><th scope="col">Conformidade</th></tr></thead>
+                <tbody>
+                  <tr v-for="dia in diasRecentes" :key="dia.data">
+                    <th scope="row">{{ formatarDataBr(dia.data) }}</th>
+                    <td>{{ formatarNumero(dia.totalAuditorias) }}</td>
+                    <td>{{ formatarNumero(dia.totalNC) }}</td>
+                    <td><span class="kpi-badge" :class="classeStatusConformidade(dia.conformidadeMedia)">{{ dia.conformidadeMedia }}%</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            </template>
           </div>
         </section>
 
@@ -797,6 +843,7 @@
       </template>
     </div>
   </div>
+  </div>
 </template>
 
 <script setup>
@@ -804,15 +851,40 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import PageHeader from '../components/PageHeader.vue';
 import api from '../services/api';
+import { extrairArrayDeDados } from '../services/formatters';
 import { obterPerfilLocal } from '../services/session';
 
 const router = useRouter();
+const modoBi = computed(() => router.currentRoute.value.query.bi === '1');
+const tamanhoTela = ref({ largura: window.innerWidth, altura: window.innerHeight });
+const atualizarTamanhoTela = () => { tamanhoTela.value = { largura: window.innerWidth, altura: window.innerHeight }; };
+const estiloBi = computed(() => {
+  if (!modoBi.value) return undefined;
+  const escala = Math.min(tamanhoTela.value.largura / 1920, tamanhoTela.value.altura / 1080);
+  return { transform: `translate(-50%, -50%) scale(${escala})` };
+});
+const alternarModoBi = () => {
+  const query = { ...router.currentRoute.value.query };
+  if (modoBi.value) delete query.bi;
+  else query.bi = '1';
+  return router.replace({ query });
+};
+const contextoBi = computed(() => [
+  setoresOptions.value.find(s => String(s.id) === String(filtros.setorId))?.nome || (filtros.setorId ? `Setor ${filtros.setorId}` : 'Todos os setores'),
+  celulasOptions.value.find(c => String(c.id) === String(filtros.celulaId))?.nome || (filtros.celulaId ? `Célula ${filtros.celulaId}` : 'Todas as células'),
+  modelosOptions.value.find(m => String(m.id) === String(filtros.modeloId))?.nome || (filtros.modeloId ? `Modelo ${filtros.modeloId}` : 'Todos os modelos'),
+].join(' · '));
 
 let requisicao = null;
 let desmontado = false;
 
 const isLoading = ref(true);
 const error = ref('');
+const erroOpcoes = ref('');
+const atualizadoEm = ref('');
+const temItensCtq = computed(() => (dados.value.detalheCtq?.totalItens || 0) > 0);
+const numeroPtBr = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+const formatarNumero = (valor) => numeroPtBr.format(valor);
 const periodoSelecionado = ref('7d');
 const hoverPoint = ref(null);
 
@@ -863,6 +935,8 @@ const celulasFiltradas = computed(() => {
   return celulasOptions.value.filter((c) => String(c.id_setor_fk ?? c.id_setor) === String(filtros.setorId));
 });
 
+const modelosFiltrados = computed(() => modelosOptions.value.filter((m) => !filtros.setorId || String(m.id_setor_fk) === String(filtros.setorId)));
+
 const temFiltrosAtivos = computed(() => {
   return periodoSelecionado.value !== '7d'
     || Boolean(filtros.setorId)
@@ -873,13 +947,13 @@ const temFiltrosAtivos = computed(() => {
 
 const classeStatusConformidade = (taxa) => {
   if (taxa >= 95) return 'status-meta-atingida';
-  if (taxa >= 90) return 'status-alerta';
+  if (taxa >= 85) return 'status-alerta';
   return 'status-critico';
 };
 
 const labelStatusConformidade = (taxa) => {
   if (taxa >= 95) return 'Meta atingida';
-  if (taxa >= 90) return 'Atenção';
+  if (taxa >= 85) return 'Atenção';
   return 'Abaixo da meta';
 };
 
@@ -904,6 +978,17 @@ const formatarDataBr = (dataStr) => {
   return dataStr;
 };
 
+const paretoVisivel = computed(() => dados.value.paretoCategorias.slice(0, 15));
+const diasRecentes = computed(() => [...dados.value.serieTemporal].reverse());
+const resumoEvolucao = computed(() => {
+  const dias = dados.value.serieTemporal;
+  return {
+    dias: dias.length,
+    diasNaMeta: dias.filter((dia) => dia.conformidadeMedia >= 95).length,
+    variacao: dias.length > 1 ? dias[dias.length - 1].conformidadeMedia - dias[0].conformidadeMedia : null,
+  };
+});
+
 // Computação de Coordenadas do Gráfico SVG
 const svgDados = computed(() => {
   const serie = dados.value.serieTemporal || [];
@@ -916,14 +1001,19 @@ const svgDados = computed(() => {
   const chartHeight = bottomY - topY; // 180
 
   const n = serie.length;
-  const stepX = n > 1 ? (endX - startX) / (n - 1) : 0;
+  const inicio = Date.parse(serie[0].data);
+  const fim = Date.parse(serie[n - 1].data);
+  let ultimoRotuloX = -Infinity;
 
   const pontos = serie.map((item, idx) => {
-    const x = n === 1 ? (startX + endX) / 2 : startX + idx * stepX;
+    const x = fim === inicio ? (startX + endX) / 2 : startX + ((Date.parse(item.data) - inicio) / (fim - inicio)) * (endX - startX);
+    const mostrarRotulo = idx === n - 1 || (x - ultimoRotuloX >= 85 && (idx === 0 || endX - x >= 85));
+    if (mostrarRotulo) ultimoRotuloX = x;
     const taxa = Math.max(0, Math.min(100, item.conformidadeMedia || 0));
     const y = topY + ((100 - taxa) / 100) * chartHeight;
     return {
       ...item,
+      mostrarRotulo,
       x: Math.round(x * 10) / 10,
       y: Math.round(y * 10) / 10,
     };
@@ -974,7 +1064,7 @@ const donutCtq = computed(() => {
   if (total === 0) return { total: 0, segmentos: [] };
 
   const itens = [
-    { label: 'Conformes', count: ctq.totalConforme || 0, color: '#0284c7' },
+    { label: 'Conformes / N/A', count: ctq.totalConforme || 0, color: '#0284c7' },
     { label: 'Desvios críticos', count: ctq.totalNaoConforme || 0, color: '#b1072c' },
   ].filter((i) => i.count > 0);
 
@@ -1059,13 +1149,14 @@ const selecionarPeriodo = (tipo) => {
     filtros.dataInicio = formatarDataIso(primeiroDia);
     filtros.dataFim = formatarDataIso(hoje);
   } else if (tipo === 'custom') {
-    // Mantém as datas atuais ou deixa para o usuário selecionar
+    return; // Apenas abre os campos; as datas ainda não mudaram.
   }
 
   void carregarMetricas();
 };
 
 const onSetorChange = () => {
+  if (filtros.modeloId && !modelosFiltrados.value.some((m) => String(m.id) === String(filtros.modeloId))) filtros.modeloId = '';
   if (filtros.celulaId) {
     const celulaValida = celulasFiltradas.value.some((c) => String(c.id) === String(filtros.celulaId));
     if (!celulaValida) filtros.celulaId = '';
@@ -1081,19 +1172,18 @@ const limparFiltros = () => {
 };
 
 const carregarOpcoesAuxiliares = async () => {
-  try {
-    const [resSetores, resModelos, resCelulas] = await Promise.all([
-      api.get('/cadastros/setores'),
-      api.get('/dados/modelos'),
-      api.get('/cadastros/celulas'),
-    ]);
-    if (desmontado) return;
-    setoresOptions.value = resSetores.data?.dados || resSetores.data || [];
-    modelosOptions.value = resModelos.data?.dados || resModelos.data || [];
-    celulasOptions.value = resCelulas.data?.dados || resCelulas.data || [];
-  } catch (err) {
-    console.error('Erro ao carregar opções de filtros:', err);
-  }
+  erroOpcoes.value = '';
+  const opcoes = [
+    ['/cadastros/setores', setoresOptions],
+    ['/dados/modelos', modelosOptions],
+    ['/cadastros/celulas', celulasOptions],
+  ];
+  const resultados = await Promise.allSettled(opcoes.map(([url]) => api.get(url)));
+  if (desmontado) return;
+  resultados.forEach((resultado, index) => {
+    if (resultado.status === 'fulfilled') opcoes[index][1].value = extrairArrayDeDados(resultado.value.data);
+    else erroOpcoes.value = 'Algumas opções de filtro não puderam ser carregadas.';
+  });
 };
 
 const carregarMetricas = async () => {
@@ -1102,6 +1192,13 @@ const carregarMetricas = async () => {
   requisicao = controller;
   isLoading.value = true;
   error.value = '';
+  hoverPoint.value = null;
+  if (filtros.dataInicio && filtros.dataFim && filtros.dataInicio > filtros.dataFim) {
+    error.value = 'A data inicial não pode ser posterior à data final.';
+    isLoading.value = false;
+    requisicao = null;
+    return;
+  }
 
   try {
     const params = {};
@@ -1116,6 +1213,7 @@ const carregarMetricas = async () => {
 
     if (res.data?.sucesso && res.data.dados) {
       dados.value = res.data.dados;
+      atualizadoEm.value = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     } else {
       throw new Error(res.data?.mensagem || 'Falha ao processar dados.');
     }
@@ -1153,6 +1251,7 @@ const navegarParaConsultarBusca = (termo) => {
 };
 
 onMounted(async () => {
+  window.addEventListener('resize', atualizarTamanhoTela);
   const perfil = obterPerfilLocal();
   if (perfil?.id_setor_fk) {
     filtros.setorId = String(perfil.id_setor_fk);
@@ -1168,12 +1267,11 @@ onMounted(async () => {
   filtros.dataInicio = formatarDataIso(dInicio);
   filtros.dataFim = formatarDataIso(hoje);
 
-  await carregarOpcoesAuxiliares();
-  if (desmontado) return;
-  await carregarMetricas();
+  await Promise.all([carregarOpcoesAuxiliares(), carregarMetricas()]);
 });
 
 onUnmounted(() => {
+  window.removeEventListener('resize', atualizarTamanhoTela);
   desmontado = true;
   requisicao?.abort();
 });
@@ -1184,10 +1282,11 @@ onUnmounted(() => {
    CARDS BASE E ELEVAÇÃO DE SUPERFÍCIE
    ========================================== */
 .card {
+  min-width: 0;
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -1229,7 +1328,7 @@ onUnmounted(() => {
 .filtros-card {
   margin-bottom: 1.75rem;
   padding: 1.35rem;
-  border-top: 4px solid #64748b;
+
 }
 
 .filtros-header {
@@ -1270,7 +1369,7 @@ onUnmounted(() => {
   background: var(--primary, #b1072c);
   color: #ffffff;
   border-color: var(--primary, #b1072c);
-  box-shadow: 0 3px 8px rgba(177, 7, 44, 0.28);
+
 }
 
 .btn-limpar-filtros {
@@ -1331,7 +1430,7 @@ onUnmounted(() => {
 
 .filtros-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 1.15rem;
   margin-top: 1.15rem;
 }
@@ -1369,9 +1468,9 @@ onUnmounted(() => {
    ========================================== */
 .kpi-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 1.25rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .kpi-card {
@@ -1379,19 +1478,15 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border-radius: 14px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
   border-top: 4px solid #94a3b8;
-  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   position: relative;
   background: #ffffff;
 }
 
-.kpi-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 20px -3px rgba(15, 23, 42, 0.09), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
-}
 
 .kpi-header {
   display: flex;
@@ -1491,13 +1586,8 @@ onUnmounted(() => {
   height: 7px;
   border-radius: 50%;
   background: var(--primary, #b1072c);
-  animation: pulse-dot 1.8s infinite ease-in-out;
 }
 
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.8); }
-}
 
 .kpi-footer {
   display: flex;
@@ -1589,9 +1679,9 @@ onUnmounted(() => {
    ========================================== */
 .donuts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 1.25rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .donut-card {
@@ -1599,16 +1689,12 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.donut-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 18px -3px rgba(15, 23, 42, 0.08);
-}
 
 .donut-card-metas {
   border-top: 4px solid #10b981;
@@ -1772,9 +1858,9 @@ onUnmounted(() => {
    ========================================== */
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
   gap: 1.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .chart-card {
@@ -2011,9 +2097,10 @@ onUnmounted(() => {
 }
 
 .trend-chart-container {
+  min-height: 240px;
   position: relative;
   width: 100%;
-  height: 240px;
+  aspect-ratio: 5 / 2;
   padding: 1.25rem 1.35rem 1rem;
   box-sizing: border-box;
 }
@@ -2124,7 +2211,7 @@ onUnmounted(() => {
    ========================================== */
 .analytics-bottom-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
   gap: 1.5rem;
 }
 
@@ -2186,11 +2273,6 @@ onUnmounted(() => {
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.ranking-item:hover {
-  transform: translateX(3px);
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 8px rgba(15, 23, 42, 0.06);
-}
 
 .ranking-rank-box {
   width: 36px;
@@ -2383,11 +2465,6 @@ onUnmounted(() => {
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.defeito-item:hover {
-  transform: translateX(3px);
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 8px rgba(15, 23, 42, 0.06);
-}
 
 .defeito-rank-box {
   width: 34px;
@@ -2601,4 +2678,92 @@ onUnmounted(() => {
     margin-left: 0;
   }
 }
+.dashboard-context { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; color: #64748b; font-size: .82rem; margin: 0 0 1rem; }
+.filter-warning { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; padding: .8rem 1rem; border: 1px solid #fcd34d; border-radius: 8px; background: #fffbeb; color: #92400e; }
+.status-sem-dados { border-top-color: #cbd5e1; }
+.dashboard-page :is(button, input, select):focus-visible { outline: 2px solid var(--primary, #b1072c); outline-offset: 3px; }
+.dashboard-page :is(button, input, select) { min-height: 40px; }
+.trend-point:focus { stroke: #0f172a; stroke-width: 3; outline: none; }
+.kpi-value, .ranking-rate-badge, .donut-center-value { font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) {
+  .dashboard-page { padding: 1rem .75rem 2rem; }
+  .kpi-cards-grid { grid-template-columns: 1fr; }
+  .date-field { flex-direction: column; align-items: stretch; width: 100%; }
+  .ranking-metrics-row, .pareto-info-row { flex-direction: column; align-items: stretch; }
+  .pareto-badges { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page *, .dashboard-page *::before, .dashboard-page *::after { animation: none !important; transition: none !important; }
+}
+.pareto-limit-note, .trend-summary-note { margin: 0; color: #64748b; font-size: .78rem; }
+.trend-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0; padding: 1.25rem 1.35rem .5rem; }
+.trend-summary dt { color: #64748b; font-size: .78rem; }
+.trend-summary dd { margin: .4rem 0 0; color: #0f172a; font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.trend-summary dd small { font-size: .8rem; font-weight: 400; color: #64748b; }
+.trend-summary-note { padding: 0 1.35rem; }
+.trend-daily-table { margin: 0 1.35rem 1.25rem; max-height: 420px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+.trend-daily-table table { width: 100%; border-collapse: collapse; font-size: .8rem; font-variant-numeric: tabular-nums; }
+.trend-daily-table caption { padding: .85rem; text-align: left; font-weight: 600; color: #475569; }
+.trend-daily-table th, .trend-daily-table td { padding: .8rem; text-align: right; border-bottom: 1px solid #e2e8f0; }
+.trend-daily-table thead th { position: sticky; top: 0; background: #f8fafc; color: #475569; z-index: 1; }
+.trend-daily-table th:first-child { text-align: left; white-space: nowrap; }
+.trend-daily-table tbody th { font-weight: 500; }
+.trend-daily-table tbody tr:last-child > * { border-bottom: 0; }
+.trend-daily-table:focus-visible { outline: 2px solid var(--primary, #b1072c); outline-offset: 3px; }
+@media (max-width: 480px) {
+  .trend-summary { grid-template-columns: 1fr; gap: .75rem; }
+  .trend-summary > div { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+}
+/* Painel 16:9 que se ajusta à janela, inclusive ao entrar em tela cheia. */
+.bi-viewport { position: fixed; inset: 0; z-index: 100; background: #f8fafc; overflow: hidden; }
+.dashboard-bi { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; max-width: none; margin: 0; padding: 16px; transform-origin: center; display: flex; flex-direction: column; gap: 8px; }
+.bi-toolbar { display: flex; align-items: center; gap: 16px; min-height: 42px; }
+.bi-toolbar > strong { font-size: 20px; }
+.bi-toolbar > span { flex: 1; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-bi .dashboard-context { margin: 0; }
+.dashboard-bi .dashboard-content { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: 110px 210px minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.dashboard-bi :is(.charts-grid, .analytics-bottom-grid) { display: contents; }
+.dashboard-bi .kpi-cards-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.dashboard-bi .donuts-grid { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.dashboard-bi .pareto-card { grid-column: 1; grid-row: 3 / 5; }
+.dashboard-bi .trend-card { grid-column: 2; grid-row: 3 / 5; }
+.dashboard-bi .ranking-card { grid-column: 3; grid-row: 3; }
+.dashboard-bi .top-defeitos-card { grid-column: 3; grid-row: 4; }
+.dashboard-bi .empty-state { grid-column: 1 / -1; grid-row: 1 / -1; }
+.dashboard-bi .card { min-height: 0; }
+.dashboard-bi .kpi-card { padding: 10px 14px; }
+.dashboard-bi .kpi-header, .dashboard-bi .kpi-value-row { margin-bottom: 4px; }
+.dashboard-bi .kpi-value { font-size: 28px; }
+.dashboard-bi .kpi-icon-wrapper { width: 26px; height: 26px; font-size: 18px; }
+.dashboard-bi .kpi-footer { padding-top: 4px; }
+.dashboard-bi .donut-card { padding: 10px 16px; }
+.dashboard-bi .donut-card-header { margin-bottom: 4px; padding-bottom: 6px; }
+.dashboard-bi .donut-svg-wrapper { width: 135px; height: 135px; flex: 0 0 135px; }
+.dashboard-bi .donut-body { flex: 1; min-height: 0; flex-direction: row; text-align: left; }
+.dashboard-bi .donut-legend-info { align-items: flex-start; }
+.dashboard-bi .trend-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dashboard-bi .trend-summary > div { display: block; }
+.dashboard-bi .ranking-metrics-row, .dashboard-bi .pareto-info-row { flex-direction: row; align-items: center; }
+.dashboard-bi .chart-header { padding: 10px 14px; gap: 6px; }
+.dashboard-bi .chart-subtitle { display: none; }
+.dashboard-bi .chart-icon-box { width: 28px; height: 28px; font-size: 18px; }
+.dashboard-bi .chart-title { font-size: 15px; }
+.dashboard-bi .pareto-bars-list { padding: 10px 14px; gap: 8px; overflow: auto; min-height: 0; }
+.dashboard-bi .pareto-info-row { margin-bottom: 3px; }
+.dashboard-bi .pareto-category-name { font-size: 12px; }
+.dashboard-bi .pareto-count, .dashboard-bi .pareto-acumulado { font-size: 11px; padding: 2px 4px; }
+.dashboard-bi .pareto-progress-track { height: 6px; }
+.dashboard-bi .trend-summary { padding: 10px 14px 4px; gap: 8px; }
+.dashboard-bi .trend-summary dd { font-size: 20px; }
+.dashboard-bi .trend-summary-note { padding: 0 14px; }
+.dashboard-bi .trend-chart-container { flex: 0 0 220px; min-height: 0; aspect-ratio: auto; padding: 6px 14px; }
+.dashboard-bi .trend-daily-table { flex: 1; min-height: 0; max-height: none; margin: 0 14px 10px; }
+.dashboard-bi .trend-daily-table th, .dashboard-bi .trend-daily-table td { padding: 6px; }
+.dashboard-bi .trend-daily-table caption { padding: 6px; }
+.dashboard-bi .ranking-list, .dashboard-bi .top-defeitos-list { padding: 8px 12px; gap: 6px; overflow: auto; min-height: 0; max-height: none; }
+.dashboard-bi .ranking-item, .dashboard-bi .defeito-item { padding: 6px 8px; gap: 8px; }
+.dashboard-bi .ranking-tags, .dashboard-bi .ranking-metrics-row { gap: 4px; }
+.dashboard-bi .defeito-pergunta, .dashboard-bi .ranking-cell-name { font-size: 12px; }
+.dashboard-bi .defeito-meta-row { gap: 4px; }
+.dashboard-bi .btn-drilldown, .dashboard-bi .btn-investigar { display: none; }
 </style>

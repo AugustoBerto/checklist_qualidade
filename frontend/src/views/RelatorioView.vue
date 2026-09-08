@@ -95,8 +95,8 @@
             </div>
             <p class="score-details">{{ pontuacao.detalhes }}</p>
             <div class="status-indicator">
-              <i class="mdi" :class="pontuacao.score >= 70 ? 'mdi-check-decagram' : 'mdi-alert-decagram'"></i>
-              <span>{{ pontuacao.score >= 90 ? 'Excelente' : (pontuacao.score >= 70 ? 'Dentro do Padrão' : 'Abaixo do Esperado') }}</span>
+              <i class="mdi" :class="pontuacao.score >= 95 ? 'mdi-check-decagram' : 'mdi-alert-decagram'"></i>
+              <span>{{ pontuacao.score >= 95 ? 'Meta atingida' : (pontuacao.score >= 85 ? 'Atenção' : 'Abaixo da meta') }}</span>
             </div>
           </div>
         </div>
@@ -147,7 +147,7 @@ const pontuacao = computed(() => {
   if (totalCategorias === 0) return { texto: 'N/A', score: 0, classe: '', detalhes: 'Nenhuma categoria avaliada.' };
 
   const score = Math.round((totalConforme / totalCategorias) * 100);
-  let classe = score >= 90 ? 'otimo' : (score >= 70 ? 'bom' : 'ruim');
+  let classe = score >= 95 ? 'otimo' : (score >= 85 ? 'bom' : 'ruim');
   
   return {
     texto: `${score}%`,
