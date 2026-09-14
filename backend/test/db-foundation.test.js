@@ -62,7 +62,7 @@ describe('fundação DB', () => {
 
   test('descobre as migrations em ordem', () => {
     const migrations = validateMigrationSet(listMigrationFiles());
-    assert.deepEqual(migrations.map(({ version }) => version), [1, 2, 3, 4, 5, 6, 7, 8]);
+    assert.deepEqual(migrations.map(({ version }) => version), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
     assert.match(readMigrationSql(migrations[0]), /^CREATE SCHEMA checklist_app;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /^BEGIN;/);
     assert.doesNotMatch(readMigrationSql(migrations[0]), /COMMIT;\s*$/);
@@ -99,7 +99,7 @@ describe('fundação DB', () => {
       `, [String(unica.id), duplicadaA.id]);
 
       const migrated = await migrateDatabase({ pool, env, schema: migrationSchema });
-      assert.deepEqual(migrated.applied, ['002_modelo_marca_fk.sql', '003_categorias_padrao.sql', '004_marca_logo.sql', '005_modelo_versao_assinatura_mime.sql', '006_formulario_evidencias.sql', '007_remover_assinatura_path.sql', '008_perfis_pendentes.sql']);
+      assert.deepEqual(migrated.applied, ['002_modelo_marca_fk.sql', '003_categorias_padrao.sql', '004_marca_logo.sql', '005_modelo_versao_assinatura_mime.sql', '006_formulario_evidencias.sql', '007_remover_assinatura_path.sql', '008_perfis_pendentes.sql', '009_ordem_categorias.sql']);
       const modelos = await pool.query(`
         SELECT nome, marca, id_marca_fk
         FROM ${migrationSchema}.modelo
@@ -115,7 +115,7 @@ describe('fundação DB', () => {
 
       const status = await statusDatabase({ pool, env, schema: migrationSchema });
       assert.equal(status.initialized, true);
-      assert.deepEqual(status.migrations.map((item) => item.applied), [true, true, true, true, true, true, true, true]);
+      assert.deepEqual(status.migrations.map((item) => item.applied), [true, true, true, true, true, true, true, true, true]);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS ${migrationSchema} CASCADE`);
       await pool.end();

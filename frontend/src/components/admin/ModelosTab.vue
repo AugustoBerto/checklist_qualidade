@@ -184,6 +184,11 @@
                 <span>{{ textoBotaoImportar }}</span>
               </button>
             </div>
+            <ol v-if="categoriasSelecionadasOrdenadas.length" class="categorias-selecionadas-ordem">
+              <li v-for="categoria in categoriasSelecionadasOrdenadas" :key="categoria.id">
+                {{ categoria.nome }}
+              </li>
+            </ol>
             <span class="dica-catalogo">Categorias do catálogo já incluem perguntas e parametrização pré-definidas. Você pode selecionar várias para importar de uma vez.</span>
           </div>
 
@@ -254,7 +259,7 @@
                 >
                   <i class="mdi" :class="cat.expandida === false ? 'mdi-chevron-right' : 'mdi-chevron-down'"></i>
                 </button>
-                <i class="mdi mdi-tag-outline categoria-icone"></i>
+                <span class="categoria-ordem" :title="`Posição ${catIndex + 1} no checklist`">{{ catIndex + 1 }}</span>
                 <input type="text" v-model="cat.nome" class="input-editavel titulo-cat" placeholder="Nome da Categoria">
                 <span class="badge-perguntas-count" :title="`${(cat.perguntas || []).length} pergunta(s) cadastrada(s)`">
                   {{ (cat.perguntas || []).length }} {{ (cat.perguntas || []).length === 1 ? 'pergunta' : 'perguntas' }}
@@ -471,6 +476,14 @@ const textoBotaoImportar = computed(() => {
   const total = totalCategoriasSelecionadas.value;
   return total > 1 ? `Importar (${total})` : 'Importar';
 });
+const categoriasSelecionadasOrdenadas = computed(() => {
+  const ids = Array.isArray(categoriasPadraoSelecionadas.value)
+    ? categoriasPadraoSelecionadas.value
+    : (categoriasPadraoSelecionadas.value ? [categoriasPadraoSelecionadas.value] : []);
+  return ids
+    .map(id => categoriasPadrao.value.find(categoria => String(categoria.id) === String(id)))
+    .filter(Boolean);
+});
 const opcoesCategoriasPadrao = computed(() =>
   categoriasPadrao.value.map(c => ({
     label: `${c.nome} (${c.ctq ? 'CRÍTICO' : 'NORMAL'} · ${(c.perguntas || []).length} perguntas)`,
@@ -588,12 +601,14 @@ const abrirEdicao = async (modelo) => {
       form.ativo = ![false, 'false', 0, '0'].includes(dadosModelo.ativo);
 
       const catsBanco = dadosModelo.categorias || {};
-      categoriasUI.value = Object.keys(catsBanco).map(nomeCat => ({
+      categoriasUI.value = Object.entries(catsBanco)
+        .sort(([, a], [, b]) => (a.ordem ?? Number.MAX_SAFE_INTEGER) - (b.ordem ?? Number.MAX_SAFE_INTEGER))
+        .map(([nomeCat, dadosCat]) => ({
         nome: nomeCat,
-        ctq: catsBanco[nomeCat].ctq || false,
+        ctq: dadosCat.ctq || false,
         expandida: true,
         novaPergunta: '',
-        perguntas: catsBanco[nomeCat].perguntas.map(texto => ({ texto }))
+        perguntas: dadosCat.perguntas.map(texto => ({ texto }))
       }));
 
       modoAtual.value = 'formulario';
@@ -628,12 +643,14 @@ watch(modeloReferencia, async (novoValor) => {
     if (res.data?.sucesso) {
       const catsBanco = res.data.modelo.categorias || {};
       
-      categoriasUI.value = Object.keys(catsBanco).map(nomeCat => ({
+      categoriasUI.value = Object.entries(catsBanco)
+        .sort(([, a], [, b]) => (a.ordem ?? Number.MAX_SAFE_INTEGER) - (b.ordem ?? Number.MAX_SAFE_INTEGER))
+        .map(([nomeCat, dadosCat]) => ({
         nome: nomeCat, 
-        ctq: catsBanco[nomeCat].ctq || false,
+        ctq: dadosCat.ctq || false,
         expandida: true,
         novaPergunta: '',
-        perguntas: catsBanco[nomeCat].perguntas.map(texto => ({ texto }))
+        perguntas: dadosCat.perguntas.map(texto => ({ texto }))
       }));
 
       if (marcaReferencia.value && !form.nomeMarca) form.nomeMarca = marcaReferencia.value;
@@ -779,7 +796,7 @@ const salvarChecklist = async () => {
   }
 
   const payloadCategorias = {};
-  categoriasUI.value.forEach(cat => {
+  categoriasUI.value.forEach((cat, indice) => {
     const nomeLimpo = cat.nome.trim();
     const perguntas = cat.perguntas.map(p => p.texto.trim()).filter(Boolean);
     const perguntasPendentes = String(cat.novaPergunta || '')
@@ -790,6 +807,7 @@ const salvarChecklist = async () => {
     if (nomeLimpo && perguntas.length > 0) {
       payloadCategorias[nomeLimpo] = {
         ctq: !!cat.ctq,
+        ordem: indice + 1,
         perguntas
       };
     }
@@ -1067,6 +1085,15 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
   cursor: not-allowed;
 }
 
+.categorias-selecionadas-ordem {
+  margin: 0.15rem 0 0;
+  padding-left: 2rem;
+  color: #334155;
+  font-size: 0.88rem;
+}
+
+.categorias-selecionadas-ordem li { padding: 0.15rem 0; }
+
 .dica-catalogo {
   font-size: 0.82rem;
   color: #64748b;
@@ -1181,7 +1208,19 @@ label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #34495e;
 
 .categoria-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 0.85rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .categoria-header-left { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 240px; }
-.categoria-icone { font-size: 1.25rem; color: #94a3b8; }
+.categoria-ordem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--primary, #b1072c);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
 .categoria-header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 
 .btn-toggle-collapse {

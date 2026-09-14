@@ -6,7 +6,7 @@ registrar evidências e consultar relatórios. O acesso usa a sessão corporativ
 
 ## Componentes
 
-- **Frontend:** Vue 3, Vue Router, Vite, Axios e ECharts.
+- **Frontend:** Vue 3, Vue Router, Vite e Axios.
 - **API:** Node.js, Express e PostgreSQL.
 - **Autenticação:** cookie JWT emitido pelo `dass_auth` e encaminhado pelo API Gateway.
 - **Banco:** schema PostgreSQL `checklist_app`, versionado por migrations SQL.
@@ -44,7 +44,6 @@ exemplo. Antes de iniciar a API, configure um `JWT_SECRET` válido e igual ao do
 - [Arquitetura](docs/ARQUITETURA.md)
 - [Referência da API](docs/API.md)
 - [Operação, deploy e manutenção](docs/OPERACAO.md)
-- [Padrão de publicação web e proxy reverso](docs/PADRAO_PUBLICACAO.md)
 - [Banco de dados e migrations](migrations/README.md)
 
 ## Comandos principais

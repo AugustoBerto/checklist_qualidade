@@ -26,7 +26,7 @@ const resposta = () => ({
 test('baseline consolidado deixa o schema operacional', async () => {
   const status = await statusDatabase({ pool, env: process.env });
   assert.equal(status.initialized, true);
-  assert.deepEqual(status.migrations.map(({ applied }) => applied), [true, true, true, true, true, true, true, true]);
+  assert.deepEqual(status.migrations.map(({ applied }) => applied), [true, true, true, true, true, true, true, true, true]);
 
   const modeloVersion = await pool.query(`
     SELECT data_type, column_default
@@ -36,6 +36,16 @@ test('baseline consolidado deixa o schema operacional', async () => {
   assert.equal(modeloVersion.rowCount, 1);
   assert.equal(modeloVersion.rows[0].data_type, 'integer');
   assert.equal(modeloVersion.rows[0].column_default, '1');
+
+  const categoriaOrdem = await pool.query(`
+    SELECT data_type, column_default, is_nullable
+      FROM information_schema.columns
+     WHERE table_schema = $1 AND table_name = 'categorias' AND column_name = 'ordem'
+  `, [DB_SCHEMA]);
+  assert.equal(categoriaOrdem.rowCount, 1);
+  assert.equal(categoriaOrdem.rows[0].data_type, 'integer');
+  assert.equal(categoriaOrdem.rows[0].column_default, '1');
+  assert.equal(categoriaOrdem.rows[0].is_nullable, 'NO');
 
   const assinaturaMime = await pool.query(`
     SELECT data_type

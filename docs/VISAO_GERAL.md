@@ -54,6 +54,10 @@ A configuração administrativa reúne:
 - modelos, categorias e perguntas;
 - perfis locais cadastrados previamente e ligados a uma matrícula corporativa.
 
+As categorias de um modelo mantêm a sequência definida no painel gerencial. Ao
+importar várias categorias do catálogo, a ordem em que elas são selecionadas
+define sua numeração e sua posição no checklist.
+
 Setores, unidades, células e categorias padrão são desativados logicamente nas
 operações de exclusão. Marcas e turnos são removidos fisicamente quando não há
 uma restrição de integridade impedindo a operação.

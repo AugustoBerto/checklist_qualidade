@@ -69,6 +69,9 @@ de evidências. As fotos ficam em `formulario_evidencias`, com expiração próp
 e não dentro das respostas permanentes. Consulte [Visão geral e regras de
 negócio](VISAO_GERAL.md).
 
+Cada categoria possui uma posição positiva dentro do modelo. Essa ordem é
+persistida e usada tanto na edição quanto na execução do checklist.
+
 O schema da aplicação é fixo em `checklist_app`; ele não é uma variável do
 ambiente de execução.
 

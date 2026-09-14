@@ -34,7 +34,7 @@ describe('edição de modelos', () => {
     await wrapper.vm.salvarChecklist()
 
     expect(api.put).toHaveBeenCalledWith('/cadastros/modelos/9', expect.objectContaining({
-      categorias: { CCCCCC: { ctq: false, perguntas: ['Primeira', 'Segunda', 'Terceira'] } },
+      categorias: { CCCCCC: { ctq: false, ordem: 1, perguntas: ['Primeira', 'Segunda', 'Terceira'] } },
     }))
     expect(wrapper.emitted('catalogo-atualizado')).toHaveLength(1)
   })
@@ -110,6 +110,7 @@ describe('edição de modelos', () => {
     wrapper.vm.categoriasPadraoSelecionadas = [10, 20]
     expect(wrapper.vm.totalCategoriasSelecionadas).toBe(2)
     expect(wrapper.vm.textoBotaoImportar).toBe('Importar (2)')
+    expect(wrapper.vm.categoriasSelecionadasOrdenadas.map(categoria => categoria.nome)).toEqual(['Solado', 'Costura'])
 
     wrapper.vm.importarCategoriaCatalogo()
 

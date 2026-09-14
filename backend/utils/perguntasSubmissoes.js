@@ -9,6 +9,7 @@ async function perguntasSubmissoes(submissoes, executor) {
             SELECT p.id, p.id_modelo, p.pergunta, c.categoria, c.ctq
             FROM perguntas p LEFT JOIN categorias c ON c.id = p.id_categoria
             WHERE p.id_modelo = ANY($1::int[])
+            ORDER BY c.ordem, c.id, p.id
         `, [modelos]);
         for (const pergunta of rows) {
             const id = Number(pergunta.id_modelo);

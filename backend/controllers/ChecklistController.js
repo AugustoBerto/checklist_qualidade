@@ -174,7 +174,7 @@ exports.buscarPerguntas = async (req, res) => {
             JOIN modelo m ON p.id_modelo = m.id
             JOIN categorias c ON p.id_categoria = c.id
             WHERE p.id_modelo = $1 AND p.ativo = 1 AND m.ativo = true
-            ORDER BY c.id, p.id
+            ORDER BY c.ordem, c.id, p.id
         `, [modeloId]);
         if (!rows.length) return res.status(404).json({ sucesso: false, mensagem: 'Modelo ativo sem perguntas não encontrado.' });
         const agrupado = Object.create(null);
@@ -232,7 +232,7 @@ exports.salvarChecklist = async (req, res) => {
             const perguntasRes = await client.query(`
                 SELECT p.id, p.pergunta, p.identificacao, c.categoria, c.ctq
                 FROM perguntas p JOIN categorias c ON c.id = p.id_categoria
-                WHERE p.id_modelo = $1 AND p.ativo = 1 ORDER BY c.id, p.id FOR SHARE
+                WHERE p.id_modelo = $1 AND p.ativo = 1 ORDER BY c.ordem, c.id, p.id FOR SHARE
             `, [id_modelo]);
             if (!perguntasRes.rows.length) throw new ErroValidacao('O modelo não possui perguntas ativas.');
             validarRespostas(respostas, perguntasRes.rows);

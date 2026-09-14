@@ -47,6 +47,7 @@ const categoriasValidas = (categorias) => {
     return Object.entries(categorias).every(([nomeCategoria, dados]) => {
         if (!nomeValido(nomeCategoria)
             || (dados?.ctq !== undefined && typeof dados.ctq !== 'boolean')
+            || (dados?.ordem !== undefined && (!Number.isInteger(dados.ordem) || dados.ordem <= 0))
             || !Array.isArray(dados?.perguntas)
             || dados.perguntas.length === 0
             || !dados.perguntas.every(nomeValido)) return false;
@@ -93,15 +94,16 @@ exports.criarModelo = async (req, res) => {
         const resModelo = await client.query(sqlModelo, [nomeModelo.trim(), Number(idMarca), Number(id_setor)]);
         const modeloId = resModelo.rows[0].id;
 
-        for (const nomeCategoria in categorias) {
+        for (const [indiceCategoria, nomeCategoria] of Object.keys(categorias).entries()) {
             const catData = categorias[nomeCategoria];
             const isCtq = catData.ctq ?? false;
             const arrayPerguntas = catData.perguntas;
+            const ordem = catData.ordem ?? indiceCategoria + 1;
 
             await sincronizarCategoriaPadrao(client, nomeCategoria, isCtq, arrayPerguntas);
 
-            const sqlCategoria = 'INSERT INTO categorias (categoria, id_modelo, ctq) VALUES ($1, $2, $3) RETURNING id';
-            const resCategoria = await client.query(sqlCategoria, [nomeCategoria, modeloId, isCtq]);
+            const sqlCategoria = 'INSERT INTO categorias (categoria, id_modelo, ctq, ordem) VALUES ($1, $2, $3, $4) RETURNING id';
+            const resCategoria = await client.query(sqlCategoria, [nomeCategoria, modeloId, isCtq, ordem]);
             const categoriaId = resCategoria.rows[0].id;
 
             for (const [index, textoPergunta] of arrayPerguntas.entries()) {
@@ -169,11 +171,11 @@ exports.buscarModeloPorId = async (req, res) => {
         const modelo = modeloResult.rows[0];
 
         const queryDetalhes = `
-            SELECT c.categoria, c.ctq, p.pergunta
+            SELECT c.categoria, c.ctq, c.ordem, p.pergunta
             FROM categorias c
             JOIN perguntas p ON c.id = p.id_categoria AND p.ativo = 1
             WHERE c.id_modelo = $1
-            ORDER BY c.id, p.id
+            ORDER BY c.ordem, c.id, p.id
         `;
         const detalhesResult = await db.query(queryDetalhes, [id]);
 
@@ -183,6 +185,7 @@ exports.buscarModeloPorId = async (req, res) => {
             if (!categoriasFormatadas[row.categoria]) {
                 categoriasFormatadas[row.categoria] = {
                     ctq: row.ctq || false,
+                    ordem: row.ordem,
                     perguntas: []
                 };
             }
@@ -245,10 +248,11 @@ exports.atualizarModelo = async (req, res) => {
 
         const perguntasMantidasIds = [];
 
-        for (const nomeCategoria in categorias) {
+        for (const [indiceCategoria, nomeCategoria] of Object.keys(categorias).entries()) {
             const catData = categorias[nomeCategoria];
             const isCtq = catData.ctq ?? false;
             const arrayPerguntas = catData.perguntas;
+            const ordem = catData.ordem ?? indiceCategoria + 1;
 
             await sincronizarCategoriaPadrao(client, nomeCategoria, isCtq, arrayPerguntas);
 
@@ -257,11 +261,11 @@ exports.atualizarModelo = async (req, res) => {
             
             if (resCat.rows.length > 0) {
                 categoriaId = resCat.rows[0].id;
-                await client.query('UPDATE categorias SET ctq = $1 WHERE id = $2', [isCtq, categoriaId]);
+                await client.query('UPDATE categorias SET ctq = $1, ordem = $2 WHERE id = $3', [isCtq, ordem, categoriaId]);
             } else {
                 const insCat = await client.query(
-                    'INSERT INTO categorias (categoria, id_modelo, ctq) VALUES ($1, $2, $3) RETURNING id', 
-                    [nomeCategoria, id, isCtq]
+                    'INSERT INTO categorias (categoria, id_modelo, ctq, ordem) VALUES ($1, $2, $3, $4) RETURNING id',
+                    [nomeCategoria, id, isCtq, ordem]
                 );
                 categoriaId = insCat.rows[0].id;
             }

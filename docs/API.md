@@ -106,6 +106,10 @@ versão. Se outro administrador tiver salvo antes, a API retorna `409` com o
 código `MODELO_ALTERADO_CONCORRENTEMENTE`, e o cliente deve recarregar o modelo
 antes de tentar novamente.
 
+Em `categorias`, cada categoria pode informar `ordem`, um inteiro positivo que
+define sua posição no checklist. Na ausência desse campo, a API mantém a ordem
+de recebimento para compatibilidade com clientes anteriores.
+
 Nomes de cadastros são obrigatórios, limitados a 255 caracteres e normalizados
 para maiúsculas. Logotipos de marca aceitam JPEG, PNG ou WebP em Base64, até
 512 KB.
