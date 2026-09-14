@@ -27,9 +27,16 @@
           <span class="progresso-percent">{{ Math.round((progresso.respondidas / (progresso.total || 1)) * 100) }}%</span>
         </div>
         <progress :value="progresso.respondidas" :max="progresso.total || 1"></progress>
-        <span v-if="tentouFinalizar && progresso.pendentes.length" class="progresso-pendentes" role="alert">
-          <i class="mdi mdi-alert-circle-outline"></i> Pendentes: {{ progresso.pendentes.join(', ') }}
-        </span>
+        <div class="progresso-validacao" :class="{ completo: pendencias.length === 0 }" role="status">
+          <span>
+            <i class="mdi" :class="pendencias.length ? 'mdi-alert-circle-outline' : 'mdi-check-circle-outline'"></i>
+            {{ pendencias.length ? `${pendencias.length} ${pendencias.length === 1 ? 'pendência obrigatória' : 'pendências obrigatórias'}` : 'Checklist pronto para enviar' }}
+          </span>
+          <button v-if="pendencias.length" type="button" class="btn-proxima-pendencia" @click="irParaProximaPendencia">
+            Ir para a próxima
+            <i class="mdi mdi-arrow-down"></i>
+          </button>
+        </div>
       </div>
 
       <div v-if="Object.keys(categorias).length > 1" class="formulario-toolbar-categorias">
@@ -47,9 +54,34 @@
         </div>
       </div>
 
+      <nav v-if="Object.keys(categorias).length > 1" class="mapa-checklist" aria-label="Mapa das categorias do checklist">
+        <span class="mapa-titulo">Mapa do checklist</span>
+        <div class="mapa-categorias">
+          <button
+            v-for="(perguntas, categoria, categoriaIndex) in categorias"
+            :key="categoria"
+            type="button"
+            class="mapa-categoria"
+            :class="getCategoryStatusClass(categoria)"
+            :title="`${categoriaIndex + 1}. ${categoria} — ${descricaoEstadoCategoria(categoria)}`"
+            :aria-label="`${categoriaIndex + 1}. ${categoria}: ${descricaoEstadoCategoria(categoria)}`"
+            @click="irParaCategoria(categoria)"
+          >
+            {{ categoriaIndex + 1 }}
+          </button>
+        </div>
+        <div class="mapa-legenda" aria-hidden="true">
+          <span><i class="legenda-cor nao-iniciada"></i> Não iniciada</span>
+          <span><i class="legenda-cor em-andamento"></i> Em andamento</span>
+          <span><i class="legenda-cor completa"></i> Completa</span>
+          <span><i class="legenda-cor com-pendencia"></i> Requer atenção</span>
+        </div>
+      </nav>
+
       <details
-        v-for="(perguntas, categoria) in categorias"
+        v-for="(perguntas, categoria, categoriaIndex) in categorias"
         :key="categoria"
+        :ref="(element) => registrarCategoriaRef(categoria, element)"
         class="sessaoOpcao"
         :class="getCategoryStatusClass(categoria)"
         :open="categoriasAbertas[categoria] !== false"
@@ -57,6 +89,7 @@
       >
         <summary class="cabecalhoSessao">
           <div class="titulo-categoria-wrapper">
+            <span class="numero-categoria">{{ categoriaIndex + 1 }}</span>
             <h2>{{ categoria }}</h2>
             <span v-if="perguntas[0]?.ctq" class="badge-ctq-pill" title="Processo Crítico para a Qualidade (CTQ)">
               <i class="mdi mdi-alert-decagram"></i>
@@ -64,6 +97,20 @@
             </span>
           </div>
           <div class="categoria-header-right">
+            <button
+              v-if="estatisticasCategorias[categoria]?.pendencias > 0"
+              type="button"
+              class="badge-categoria-pendencias"
+              :title="`${estatisticasCategorias[categoria].pendencias} pendência(s). Ir para a primeira.`"
+              :aria-label="`${estatisticasCategorias[categoria].pendencias} pendência(s) na categoria ${categoria}`"
+              @click.prevent.stop="irParaPrimeiraPendenciaCategoria(categoria)"
+            >
+              <i class="mdi mdi-alert-circle"></i>
+              {{ estatisticasCategorias[categoria].pendencias }}
+            </button>
+            <span v-else-if="estatisticasCategorias[categoria]?.completo" class="icone-categoria-completa" title="Categoria completa">
+              <i class="mdi mdi-check-circle"></i>
+            </span>
             <span
               class="badge-categoria-progresso"
               :class="{ 'completo': estatisticasCategorias[categoria]?.completo }"
@@ -76,9 +123,15 @@
         </summary>
         
         <div class="conteudoSessao">
-          <div v-for="pergunta in perguntas" :key="pergunta.variavel" class="grupoPergunta">
+          <div
+            v-for="(pergunta, perguntaIndex) in perguntas"
+            :key="pergunta.variavel"
+            :ref="(element) => registrarPendenciaRef(`resposta:${pergunta.variavel}`, element)"
+            class="grupoPergunta"
+            :class="{ 'pendencia-destacada': pendenciaDestacada === `resposta:${pergunta.variavel}` }"
+          >
             <div class="pergunta-e-opcoes-wrapper">
-              <label class="textoPergunta">{{ pergunta.texto }}</label>
+              <label class="textoPergunta"><span class="numero-pergunta">{{ categoriaIndex + 1 }}.{{ perguntaIndex + 1 }}</span>{{ pergunta.texto }}</label>
               
               <div class="touch-option-group" role="radiogroup" :aria-label="pergunta.texto">
                 <button
@@ -114,7 +167,11 @@
             </div>
 
             <div v-if="respostas[pergunta.variavel] === 'Não Conforme'" class="captura-foto-container">
-              <div class="foto-actions">
+              <div
+                :ref="(element) => registrarPendenciaRef(`foto:${pergunta.variavel}`, element)"
+                class="foto-actions"
+                :class="{ 'pendencia-destacada': pendenciaDestacada === `foto:${pergunta.variavel}` }"
+              >
                 <button type="button" class="btn-foto" @click="solicitarFoto(pergunta.variavel)">
                   <i class="mdi mdi-camera"></i> Tirar / Anexar Foto
                 </button>
@@ -138,7 +195,11 @@
               </div>
               <p v-if="errosFotos[pergunta.variavel]" class="foto-erro" role="alert">{{ errosFotos[pergunta.variavel] }}</p>
 
-              <div class="observacao-container">
+              <div
+                :ref="(element) => registrarPendenciaRef(`observacao:${pergunta.variavel}`, element)"
+                class="observacao-container"
+                :class="{ 'pendencia-destacada': pendenciaDestacada === `observacao:${pergunta.variavel}` }"
+              >
                 <label :for="'obs-' + pergunta.variavel" class="label-observacao">
                   Observação da não conformidade
                   <span v-if="requireObservacaoOnNonConforme" class="obrigatorio">*</span>
@@ -150,7 +211,12 @@
             </div>
           </div>
 
-          <div v-if="categoriaTemNaoConformidade(categoria)" class="card-assinatura-categoria">
+          <div
+            v-if="categoriaTemNaoConformidade(categoria)"
+            :ref="(element) => registrarPendenciaRef(`assinatura-categoria:${categoria}`, element)"
+            class="card-assinatura-categoria"
+            :class="{ 'pendencia-destacada': pendenciaDestacada === `assinatura-categoria:${categoria}` }"
+          >
             <div class="assinatura-cat-header">
               <h4 class="assinatura-cat-title">
                 <i class="mdi mdi-draw-pen"></i>
@@ -181,7 +247,11 @@
         </div>
       </details>
 
-      <div class="card card-assinatura">
+      <div
+        :ref="(element) => registrarPendenciaRef('assinatura-geral', element)"
+        class="card card-assinatura"
+        :class="{ 'pendencia-destacada': pendenciaDestacada === 'assinatura-geral' }"
+      >
         <h3 class="section-title"><i class="mdi mdi-pen"></i> Assinatura Geral do Auditor</h3>
         <div class="signature-wrapper">
           <SignaturePad ref="signatureRef" width="100%" height="220px"
@@ -205,7 +275,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../services/api'; 
 import SignaturePad from 'vue3-signature';
@@ -240,7 +310,6 @@ const erroCarregamento = ref('');
 const assinatura = ref(null);
 const signatureRef = ref(null);
 const enviando = ref(false); 
-const tentouFinalizar = ref(false);
 const inicioChecklistTimestamp = ref(null);
 const fotosNaoConformes = ref({}); 
 const errosFotos = ref({});
@@ -249,6 +318,20 @@ const requirePhotoOnNonConforme = ref(false);
 const requireObservacaoOnNonConforme = ref(true); 
 const assinaturasCategorias = ref({});
 const refsAssinaturasCategorias = new Map();
+const refsCategorias = new Map();
+const refsPendencias = new Map();
+const pendenciaDestacada = ref('');
+let temporizadorDestaque = null;
+
+const registrarCategoriaRef = (categoria, element) => {
+  if (element) refsCategorias.set(categoria, element);
+  else refsCategorias.delete(categoria);
+};
+
+const registrarPendenciaRef = (chave, element) => {
+  if (element) refsPendencias.set(chave, element);
+  else refsPendencias.delete(chave);
+};
 
 const registrarRefAssinaturaCategoria = (nomeCategoria, element) => {
   if (element) {
@@ -394,7 +477,6 @@ const carregarPerguntas = async () => {
     nomeModelo.value = modeloResposta.nome || primeiraPergunta.modelo || primeiraPergunta.nome_modelo || '';
     versaoModelo.value = modeloResposta.versao ?? primeiraPergunta.modelo_versao ?? primeiraPergunta.versao ?? null;
     categorias.value = agrupadas;
-    tentouFinalizar.value = false;
 
     await carregarRascunho();
     if (componenteDesmontado || controller.signal.aborted) return;
@@ -423,6 +505,7 @@ onUnmounted(() => {
   delete window.onFotoCapturada;
   document.removeEventListener('visibilitychange', salvarRascunhoAoOcultar);
   window.removeEventListener('pagehide', salvarRascunhoAoOcultar);
+  clearTimeout(temporizadorDestaque);
   if (rascunhoCarregado && !enviadoComSucesso.value) void persistenciaRascunho.flush(obterMetadataRascunho());
 });
 
@@ -432,19 +515,41 @@ const salvarRascunhoAoOcultar = (event) => {
   }
 };
 
-const categoryStatus = computed(() => {
-  const status = {};
-  for (const categoria in categorias.value) {
-    const perguntas = categorias.value[categoria];
-    const respondidas = perguntas.filter(p => respostas.value[p.variavel]).length;
-    if (perguntas.length > 0 && respondidas === perguntas.length) {
-      status[categoria] = perguntas.some(p => respostas.value[p.variavel] === 'Não Conforme') 
-        ? 'nao-conforme' : 'conforme';
-    } else {
-      status[categoria] = 'pendente';
+const pendencias = computed(() => {
+  const lista = [];
+  let todasRespondidas = true;
+  let categoriaIndex = 0;
+
+  for (const [categoria, perguntas] of Object.entries(categorias.value)) {
+    categoriaIndex += 1;
+    perguntas.forEach((pergunta, perguntaIndex) => {
+      const referencia = `${categoriaIndex}.${perguntaIndex + 1}`;
+      const resposta = respostas.value[pergunta.variavel];
+      if (!resposta) {
+        todasRespondidas = false;
+        lista.push({ chave: `resposta:${pergunta.variavel}`, categoria, tipo: 'resposta', mensagem: `Responda o item ${referencia} da categoria ${categoria}.` });
+        return;
+      }
+      if (resposta !== 'Não Conforme') return;
+      if (requireObservacaoOnNonConforme.value && !observacoesNaoConformes.value[pergunta.variavel]?.trim()) {
+        lista.push({ chave: `observacao:${pergunta.variavel}`, categoria, tipo: 'observacao', mensagem: `Falta a observação do item ${referencia} da categoria ${categoria}.` });
+      }
+      if (requirePhotoOnNonConforme.value && !fotosNaoConformes.value[pergunta.variavel]) {
+        lista.push({ chave: `foto:${pergunta.variavel}`, categoria, tipo: 'foto', mensagem: `Falta a foto do item ${referencia} da categoria ${categoria}.` });
+      } else if (errosFotos.value[pergunta.variavel]) {
+        lista.push({ chave: `foto:${pergunta.variavel}`, categoria, tipo: 'foto', mensagem: `A foto do item ${referencia} da categoria ${categoria} precisa ser substituída.` });
+      }
+    });
+
+    if (categoriaTemNaoConformidade(categoria) && !assinaturasCategorias.value[categoria]) {
+      lista.push({ chave: `assinatura-categoria:${categoria}`, categoria, tipo: 'assinatura', mensagem: `Falta a assinatura da categoria ${categoriaIndex}. ${categoria}.` });
     }
   }
-  return status;
+
+  if (todasRespondidas && Object.keys(categorias.value).length > 0 && !assinatura.value) {
+    lista.push({ chave: 'assinatura-geral', categoria: null, tipo: 'assinatura', mensagem: 'Falta a assinatura geral do auditor.' });
+  }
+  return lista;
 });
 
 const estatisticasCategorias = computed(() => {
@@ -452,13 +557,28 @@ const estatisticasCategorias = computed(() => {
   for (const categoria in categorias.value) {
     const perguntas = categorias.value[categoria];
     const respondidas = perguntas.filter(p => respostas.value[p.variavel]).length;
+    const totalPendencias = pendencias.value.filter(pendencia => pendencia.categoria === categoria).length;
     map[categoria] = {
       total: perguntas.length,
       respondidas,
-      completo: perguntas.length > 0 && respondidas === perguntas.length,
+      pendencias: totalPendencias,
+      completo: perguntas.length > 0 && totalPendencias === 0,
     };
   }
   return map;
+});
+
+const categoryStatus = computed(() => {
+  const status = {};
+  for (const categoria in categorias.value) {
+    const estatisticas = estatisticasCategorias.value[categoria];
+    const pendenciasCategoria = pendencias.value.filter(pendencia => pendencia.categoria === categoria);
+    if (estatisticas.respondidas === 0) status[categoria] = 'pendente';
+    else if (pendenciasCategoria.some(pendencia => pendencia.tipo !== 'resposta')) status[categoria] = 'requer-atencao';
+    else if (estatisticas.pendencias > 0) status[categoria] = 'em-andamento';
+    else status[categoria] = categoriaTemNaoConformidade(categoria) ? 'nao-conforme' : 'conforme';
+  }
+  return status;
 });
 
 const categoriasAbertas = ref({});
@@ -473,8 +593,39 @@ const onToggleCategoria = (categoria, event) => {
   categoriasAbertas.value[categoria] = event?.target?.open ?? true;
 };
 
+const descricaoEstadoCategoria = (categoria) => {
+  const estado = categoryStatus.value[categoria];
+  if (estado === 'conforme') return 'Completa';
+  if (estado === 'nao-conforme') return 'Completa com não conformidade';
+  if (estado === 'requer-atencao') return `${estatisticasCategorias.value[categoria]?.pendencias || 0} pendência(s)`;
+  if (estado === 'em-andamento') return 'Em andamento';
+  return 'Não iniciada';
+};
+
+const irParaCategoria = async (categoria) => {
+  categoriasAbertas.value[categoria] = true;
+  await nextTick();
+  refsCategorias.get(categoria)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+};
+
+const irParaPendencia = async (pendencia) => {
+  if (!pendencia) return;
+  if (pendencia.categoria) categoriasAbertas.value[pendencia.categoria] = true;
+  await nextTick();
+  const elemento = refsPendencias.get(pendencia.chave) || refsCategorias.get(pendencia.categoria);
+  pendenciaDestacada.value = pendencia.chave;
+  elemento?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  elemento?.querySelector?.('textarea, button, input:not([type="hidden"]), canvas, [tabindex]')?.focus?.({ preventScroll: true });
+  clearTimeout(temporizadorDestaque);
+  temporizadorDestaque = setTimeout(() => { pendenciaDestacada.value = ''; }, 2500);
+};
+
+const irParaProximaPendencia = () => irParaPendencia(pendencias.value[0]);
+const irParaPrimeiraPendenciaCategoria = (categoria) => irParaPendencia(
+  pendencias.value.find(pendencia => pendencia.categoria === categoria)
+);
+
 const progresso = computed(() => {
-  const pendentes = [];
   let total = 0;
   let respondidas = 0;
   for (const categoria in categorias.value) {
@@ -482,9 +633,8 @@ const progresso = computed(() => {
     total += perguntas.length;
     const respondidasCategoria = perguntas.filter((p) => respostas.value[p.variavel]).length;
     respondidas += respondidasCategoria;
-    if (respondidasCategoria < perguntas.length) pendentes.push(categoria);
   }
-  return { total, respondidas, pendentes };
+  return { total, respondidas };
 });
 
 const getCategoryStatusClass = (cat) => categoryStatus.value[cat] || 'pendente';
@@ -595,44 +745,16 @@ const onFotoCapturada = async (variavel, fotoBase64) => {
 
 async function enviarFormulario() {
   if (enviando.value) return;
-  tentouFinalizar.value = true;
   atualizarAssinatura();
   for (const cat of categoriasNaoConformes.value) {
     atualizarAssinaturaCategoria(cat);
   }
-  
-  for (const cat in categorias.value) {
-    for (const p of categorias.value[cat]) {
-      if (!respostas.value[p.variavel]) {
-        categoriasAbertas.value[cat] = true;
-        toast.warning(`Por favor, responda a pergunta: "${p.texto}"`);
-        return;
-      }
-    }
-  }
+  await nextTick();
 
-  for (const varName in respostas.value) {
-    if (respostas.value[varName] === 'Não Conforme') {
-      if (requirePhotoOnNonConforme.value && !fotosNaoConformes.value[varName]) {
-        toast.warning('Foto de evidência obrigatória para itens Não Conformes.');
-        return;
-      }
-      if (requireObservacaoOnNonConforme.value && !observacoesNaoConformes.value[varName]?.trim()) {
-        toast.warning('Observação obrigatória para itens Não Conformes.');
-        return;
-      }
-    }
-  }
-
-  for (const cat of categoriasNaoConformes.value) {
-    if (!assinaturasCategorias.value[cat]) {
-      toast.warning(`A assinatura para a categoria "${cat}" é obrigatória devido às não conformidades.`);
-      return;
-    }
-  }
-  
-  if (!assinatura.value) {
-    toast.warning('A assinatura geral do auditor é obrigatória no rodapé.');
+  const primeiraPendencia = pendencias.value[0];
+  if (primeiraPendencia) {
+    toast.warning(primeiraPendencia.mensagem);
+    await irParaPendencia(primeiraPendencia);
     return;
   }
   
@@ -679,7 +801,6 @@ async function enviarFormulario() {
     fotosNaoConformes.value = {};
     observacoesNaoConformes.value = {};
     assinaturasCategorias.value = {};
-    tentouFinalizar.value = false;
     
     const idRota = res.data.id_formulario || res.data.id_relatorio;
     router.push(`/relatorio/${idRota}`); 
@@ -743,24 +864,33 @@ async function enviarFormulario() {
   border-radius: 999px;
 }
 
-.progresso-pendentes {
-  margin-top: 0.75rem;
-  padding: 0.55rem 0.9rem;
-  background-color: #fffbeb;
+.progresso-validacao {
+  margin-top: 0.35rem;
+  padding: 0.65rem 0.85rem;
+  background: #fffbeb;
   border: 1px solid #fde68a;
   border-radius: 8px;
-  font-size: 0.85rem;
-  color: #b45309;
-  font-weight: 600;
+  color: #92400e;
+  font-size: 0.88rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 6px;
-  animation: fadeInAlert 0.25s ease-in-out;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
-@keyframes fadeInAlert {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+.progresso-validacao > span { display: inline-flex; align-items: center; gap: 6px; }
+.progresso-validacao.completo { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+
+.btn-proxima-pendencia {
+  border: 1px solid #f59e0b;
+  background: #fff;
+  color: #92400e;
+  border-radius: 7px;
+  padding: 0.45rem 0.7rem;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 /* ==========================================
@@ -817,6 +947,38 @@ async function enviarFormulario() {
   color: var(--text-primary, #0f172a);
 }
 
+.mapa-checklist {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.15rem;
+  background: #fff;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+}
+
+.mapa-titulo { display: block; margin-bottom: 0.65rem; font-size: 0.85rem; font-weight: 800; color: #334155; }
+.mapa-categorias { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.mapa-categoria {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 800;
+  cursor: pointer;
+}
+.mapa-categoria.em-andamento { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
+.mapa-categoria.requer-atencao { border-color: #f59e0b; background: #fffbeb; color: #b45309; }
+.mapa-categoria.conforme { border-color: #10b981; background: #ecfdf5; color: #047857; }
+.mapa-categoria.nao-conforme { border-color: #ef4444; background: #fef2f2; color: #b91c1c; }
+.mapa-categoria:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.mapa-legenda { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.7rem; font-size: 0.72rem; color: #64748b; }
+.mapa-legenda span { display: inline-flex; align-items: center; gap: 4px; }
+.legenda-cor { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: #cbd5e1; }
+.legenda-cor.em-andamento { background: #3b82f6; }
+.legenda-cor.completa { background: #10b981; }
+.legenda-cor.com-pendencia { background: #f59e0b; }
+
 /* ==========================================
    ACORDEÃO (SESSÕES)
    ========================================== */
@@ -852,6 +1014,20 @@ async function enviarFormulario() {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.numero-categoria {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.8rem;
+  height: 1.8rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 800;
 }
 
 .badge-ctq-pill {
@@ -903,6 +1079,21 @@ async function enviarFormulario() {
   border-color: #a7f3d0;
 }
 
+.badge-categoria-pendencias {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #b45309;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.icone-categoria-completa { color: #10b981; font-size: 1.25rem; line-height: 1; }
+
 .icone-acordeao {
   font-size: 1.4rem;
   color: var(--text-secondary, #64748b);
@@ -929,6 +1120,11 @@ async function enviarFormulario() {
 .sessaoOpcao.nao-conforme .cabecalhoSessao {
   background-color: #fef2f2;
 }
+
+.sessaoOpcao.em-andamento { border-left: 6px solid #3b82f6; }
+.sessaoOpcao.em-andamento .cabecalhoSessao { background-color: #eff6ff; }
+.sessaoOpcao.requer-atencao { border-left: 6px solid #f59e0b; }
+.sessaoOpcao.requer-atencao .cabecalhoSessao { background-color: #fffbeb; }
 
 .conteudoSessao {
   padding: 0 1.5rem 1.5rem 1.5rem;
@@ -959,6 +1155,26 @@ async function enviarFormulario() {
   font-weight: 600;
   color: var(--text-primary, #0f172a);
   line-height: 1.45;
+}
+
+.numero-pergunta {
+  display: inline-block;
+  margin-right: 0.5rem;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pendencia-destacada {
+  border-radius: 8px;
+  outline: 3px solid #f59e0b;
+  outline-offset: 4px;
+  animation: destacarPendencia 0.55s ease-in-out 2 alternate;
+}
+
+@keyframes destacarPendencia {
+  from { background-color: #fff; }
+  to { background-color: #fef3c7; }
 }
 
 .touch-option-group {
@@ -1262,5 +1478,7 @@ async function enviarFormulario() {
   .touch-option-group { width: 100%; }
   .touch-option-btn { flex: 1; min-width: auto; }
   .btn-enviar { max-width: none; }
+  .progresso-validacao { align-items: stretch; flex-direction: column; }
+  .btn-proxima-pendencia { width: 100%; }
 }
 </style>

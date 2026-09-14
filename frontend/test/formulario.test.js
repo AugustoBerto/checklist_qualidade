@@ -120,12 +120,12 @@ describe('carregamento do formulário', () => {
     expect(wrapper.vm.categoriasNaoConformes).toEqual(['Categoria'])
 
     await wrapper.find('form').trigger('submit')
-    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('A assinatura para a categoria "Categoria" é obrigatória'))
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('Falta a assinatura da categoria 1. Categoria'))
     expect(api.post).not.toHaveBeenCalled()
 
     wrapper.vm.assinaturasCategorias['Categoria'] = 'data:image/png;base64,sigCat'
     await wrapper.find('form').trigger('submit')
-    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('A assinatura geral do auditor é obrigatória'))
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('Falta a assinatura geral do auditor'))
     expect(api.post).not.toHaveBeenCalled()
 
     wrapper.vm.assinatura = 'data:image/png;base64,sigGeral'
@@ -214,7 +214,7 @@ describe('carregamento do formulário', () => {
     expect(wrapper.vm.categoriasAbertas.Cat2).toBe(true)
   })
 
-  it('mantém texto de pendentes oculto inicialmente e só exibe ao tentar finalizar com itens pendentes', async () => {
+  it('exibe pendências dinamicamente e permite navegar até a primeira', async () => {
     const resposta = {
       data: {
         sucesso: true,
@@ -228,17 +228,45 @@ describe('carregamento do formulário', () => {
     const wrapper = shallowMount(FormularioView)
     await flushPromises()
 
-    expect(wrapper.vm.tentouFinalizar).toBe(false)
-    expect(wrapper.find('.progresso-pendentes').exists()).toBe(false)
+    expect(wrapper.vm.pendencias).toHaveLength(1)
+    expect(wrapper.vm.pendencias[0].mensagem).toContain('item 1.1')
+    expect(wrapper.find('.progresso-validacao').text()).toContain('1 pendência obrigatória')
+    expect(wrapper.find('.btn-proxima-pendencia').exists()).toBe(true)
 
     await wrapper.find('form').trigger('submit')
-    expect(wrapper.vm.tentouFinalizar).toBe(true)
-    expect(wrapper.find('.progresso-pendentes').exists()).toBe(true)
-    expect(wrapper.find('.progresso-pendentes').text()).toContain('Montagem')
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('item 1.1'))
 
     wrapper.vm.respostas.p1 = 'Conforme'
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.progresso-pendentes').exists()).toBe(false)
+    expect(wrapper.vm.pendencias).toHaveLength(1)
+    expect(wrapper.vm.pendencias[0].chave).toBe('assinatura-geral')
+    expect(wrapper.find('.progresso-validacao').text()).toContain('1 pendência obrigatória')
+  })
+
+  it('numera categorias e itens e sinaliza observação pendente no mapa e no cabeçalho', async () => {
+    api.get.mockResolvedValueOnce({ data: {
+      sucesso: true,
+      modelo: { id: 7, nome: 'Modelo grande', versao: 2 },
+      respostasAgrupadas: {
+        Corte: [{ id: 10, texto: 'P1', variavel: 'p1' }],
+        Costura: [{ id: 20, texto: 'P2', variavel: 'p2' }],
+      },
+    } })
+    const wrapper = shallowMount(FormularioView)
+    await flushPromises()
+
+    expect(wrapper.findAll('.mapa-categoria')).toHaveLength(2)
+    expect(wrapper.findAll('.numero-categoria').map(item => item.text())).toEqual(['1', '2'])
+    expect(wrapper.findAll('.numero-pergunta').map(item => item.text())).toEqual(['1.1', '2.1'])
+
+    wrapper.vm.respostas.p1 = 'Conforme'
+    wrapper.vm.respostas.p2 = 'Não Conforme'
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.pendencias.some(item => item.chave === 'observacao:p2')).toBe(true)
+    expect(wrapper.vm.categoryStatus.Costura).toBe('requer-atencao')
+    expect(wrapper.findAll('.mapa-categoria')[1].classes()).toContain('requer-atencao')
+    expect(wrapper.findAll('.badge-categoria-pendencias')).toHaveLength(1)
   })
   it('mantém respostas e rascunho quando o servidor rejeita a versão antiga', async () => {
     const wrapper = shallowMount(FormularioView)
