@@ -113,7 +113,7 @@ test('controllers executam filtros e atualizações no PostgreSQL real', async (
   assert.equal(atualizado.body.setor.ativo, 1);
 });
 
-test('criação de modelos sincroniza categoria padrão concorrente com UPSERT', async () => {
+test('criação de modelos sincroniza somente categorias manuais com o catálogo', async () => {
   const sufixo = `${Date.now()}_${process.pid}`;
   const nomeMarca = `MARCA TASK3 ${sufixo}`;
   const nomeSetor = `SETOR TASK3 ${sufixo}`;
@@ -127,7 +127,7 @@ test('criação de modelos sincroniza categoria padrão concorrente com UPSERT',
       nomeModelo,
       id_marca_fk: marca.id,
       id_setor: setor.id,
-      categorias: { [nomeCategoria]: { ctq: false, perguntas: [`Pergunta TASK3 ${indice + 1}`] } },
+      categorias: { [nomeCategoria]: { ctq: false, salvarNoCatalogo: true, perguntas: [`Pergunta TASK3 ${indice + 1}`] } },
     } }, res);
     return res;
   }));

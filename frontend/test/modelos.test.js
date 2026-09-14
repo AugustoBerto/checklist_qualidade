@@ -147,6 +147,23 @@ describe('edição de modelos', () => {
     expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('já foi adicionada'))
   })
 
+  it('marca para o catálogo somente categorias criadas manualmente do zero', async () => {
+    api.get.mockImplementation((url) => Promise.resolve({ data: { dados: url.endsWith('categorias-padrao')
+      ? [{ id: 10, nome: 'Catálogo', ctq: false, perguntas: ['P1'] }]
+      : [] } }))
+    const wrapper = shallowMount(ModelosTab)
+    await flushPromises()
+
+    wrapper.vm.categoriasPadraoSelecionadas = [10]
+    wrapper.vm.importarCategoriaCatalogo()
+    wrapper.vm.categoriasUI[0].nome = 'Catálogo alterado'
+    expect(wrapper.vm.categoriasUI[0].salvarNoCatalogo).toBe(false)
+
+    wrapper.vm.novaCategoria = 'Categoria manual'
+    wrapper.vm.adicionarCategoria()
+    expect(wrapper.vm.categoriasUI[1].salvarNoCatalogo).toBe(true)
+  })
+
   it('permite alternar a visibilidade de perguntas de uma categoria individualmente', async () => {
     const wrapper = shallowMount(ModelosTab)
     await flushPromises()

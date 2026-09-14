@@ -606,6 +606,7 @@ const abrirEdicao = async (modelo) => {
         .map(([nomeCat, dadosCat]) => ({
         nome: nomeCat,
         ctq: dadosCat.ctq || false,
+        salvarNoCatalogo: false,
         expandida: true,
         novaPergunta: '',
         perguntas: dadosCat.perguntas.map(texto => ({ texto }))
@@ -648,6 +649,7 @@ watch(modeloReferencia, async (novoValor) => {
         .map(([nomeCat, dadosCat]) => ({
         nome: nomeCat, 
         ctq: dadosCat.ctq || false,
+        salvarNoCatalogo: false,
         expandida: true,
         novaPergunta: '',
         perguntas: dadosCat.perguntas.map(texto => ({ texto }))
@@ -692,6 +694,7 @@ const importarCategoriaCatalogo = () => {
     categoriasUI.value.push({
       nome: catEncontrada.nome,
       ctq: Boolean(catEncontrada.ctq),
+      salvarNoCatalogo: false,
       expandida: true,
       novaPergunta: '',
       perguntas: Array.isArray(catEncontrada.perguntas) ? catEncontrada.perguntas.map(texto => ({ texto })) : []
@@ -736,6 +739,7 @@ const adicionarCategoria = () => {
     categoriasUI.value.push({
       nome: catCatalogo.nome,
       ctq: Boolean(catCatalogo.ctq),
+      salvarNoCatalogo: false,
       expandida: true,
       novaPergunta: '',
       perguntas: Array.isArray(catCatalogo.perguntas) ? catCatalogo.perguntas.map(texto => ({ texto })) : []
@@ -747,6 +751,7 @@ const adicionarCategoria = () => {
   categoriasUI.value.push({
     nome: nomeLimpo,
     ctq: false,
+    salvarNoCatalogo: true,
     expandida: true,
     novaPergunta: '',
     perguntas: []
@@ -808,6 +813,7 @@ const salvarChecklist = async () => {
       payloadCategorias[nomeLimpo] = {
         ctq: !!cat.ctq,
         ordem: indice + 1,
+        ...(cat.salvarNoCatalogo === true ? { salvarNoCatalogo: true } : {}),
         perguntas
       };
     }

@@ -58,6 +58,10 @@ As categorias de um modelo mantêm a sequência definida no painel gerencial. Ao
 importar várias categorias do catálogo, a ordem em que elas são selecionadas
 define sua numeração e sua posição no checklist.
 
+Somente categorias montadas do zero durante a criação de um modelo são
+adicionadas automaticamente ao catálogo reutilizável. Categorias importadas,
+clonadas ou alteradas durante a edição de um modelo não criam novas entradas.
+
 Setores, unidades, células e categorias padrão são desativados logicamente nas
 operações de exclusão. Marcas e turnos são removidos fisicamente quando não há
 uma restrição de integridade impedindo a operação.

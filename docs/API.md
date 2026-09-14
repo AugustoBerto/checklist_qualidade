@@ -110,6 +110,10 @@ Em `categorias`, cada categoria pode informar `ordem`, um inteiro positivo que
 define sua posição no checklist. Na ausência desse campo, a API mantém a ordem
 de recebimento para compatibilidade com clientes anteriores.
 
+Durante a criação de um modelo, `salvarNoCatalogo: true` identifica uma
+categoria montada manualmente que deve entrar no catálogo reutilizável. O campo
+não produz esse efeito na atualização de modelos.
+
 Nomes de cadastros são obrigatórios, limitados a 255 caracteres e normalizados
 para maiúsculas. Logotipos de marca aceitam JPEG, PNG ou WebP em Base64, até
 512 KB.

@@ -48,6 +48,7 @@ const categoriasValidas = (categorias) => {
         if (!nomeValido(nomeCategoria)
             || (dados?.ctq !== undefined && typeof dados.ctq !== 'boolean')
             || (dados?.ordem !== undefined && (!Number.isInteger(dados.ordem) || dados.ordem <= 0))
+            || (dados?.salvarNoCatalogo !== undefined && typeof dados.salvarNoCatalogo !== 'boolean')
             || !Array.isArray(dados?.perguntas)
             || dados.perguntas.length === 0
             || !dados.perguntas.every(nomeValido)) return false;
@@ -100,7 +101,9 @@ exports.criarModelo = async (req, res) => {
             const arrayPerguntas = catData.perguntas;
             const ordem = catData.ordem ?? indiceCategoria + 1;
 
-            await sincronizarCategoriaPadrao(client, nomeCategoria, isCtq, arrayPerguntas);
+            if (catData.salvarNoCatalogo === true) {
+                await sincronizarCategoriaPadrao(client, nomeCategoria, isCtq, arrayPerguntas);
+            }
 
             const sqlCategoria = 'INSERT INTO categorias (categoria, id_modelo, ctq, ordem) VALUES ($1, $2, $3, $4) RETURNING id';
             const resCategoria = await client.query(sqlCategoria, [nomeCategoria, modeloId, isCtq, ordem]);
@@ -253,8 +256,6 @@ exports.atualizarModelo = async (req, res) => {
             const isCtq = catData.ctq ?? false;
             const arrayPerguntas = catData.perguntas;
             const ordem = catData.ordem ?? indiceCategoria + 1;
-
-            await sincronizarCategoriaPadrao(client, nomeCategoria, isCtq, arrayPerguntas);
 
             let categoriaId;
             const resCat = await client.query('SELECT id FROM categorias WHERE categoria = $1 AND id_modelo = $2', [nomeCategoria, id]);
