@@ -27,35 +27,32 @@
           <span class="progresso-percent">{{ Math.round((progresso.respondidas / (progresso.total || 1)) * 100) }}%</span>
         </div>
         <progress :value="progresso.respondidas" :max="progresso.total || 1"></progress>
-        <div class="progresso-validacao" :class="{ completo: pendencias.length === 0 }" role="status">
+        <div class="progresso-validacao" :class="{ completo: pendencias.length === 0, 'tem-pendencia': pendenciasComplementares > 0 }" role="status">
           <span>
-            <i class="mdi" :class="pendencias.length ? 'mdi-alert-circle-outline' : 'mdi-check-circle-outline'"></i>
-            {{ pendencias.length ? `${pendencias.length} ${pendencias.length === 1 ? 'pendência obrigatória' : 'pendências obrigatórias'}` : 'Checklist pronto para enviar' }}
+            <i class="mdi" :class="pendencias.length ? 'mdi-progress-check' : 'mdi-check-circle-outline'"></i>
+            {{ resumoPreenchimento }}
           </span>
           <button v-if="pendencias.length" type="button" class="btn-proxima-pendencia" @click="irParaProximaPendencia">
-            Ir para a próxima
+            {{ itensRestantes ? 'Ir para o próximo item' : 'Ir para a pendência' }}
             <i class="mdi mdi-arrow-down"></i>
           </button>
         </div>
       </div>
 
-      <div v-if="Object.keys(categorias).length > 1" class="formulario-toolbar-categorias">
-        <span class="toolbar-contador">
-          <i class="mdi mdi-format-list-checks"></i>
-          <strong>{{ Object.keys(categorias).length }}</strong> categorias no checklist
-        </span>
-        <div class="toolbar-acoes-lote">
-          <button type="button" class="btn-toolbar-lote" @click="alternarTodasCategorias(true)">
-            <i class="mdi mdi-unfold-more-horizontal"></i> Expandir Todas
-          </button>
-          <button type="button" class="btn-toolbar-lote" @click="alternarTodasCategorias(false)">
-            <i class="mdi mdi-unfold-less-horizontal"></i> Recolher Todas
-          </button>
-        </div>
-      </div>
-
       <nav v-if="Object.keys(categorias).length > 1" class="mapa-checklist" aria-label="Mapa das categorias do checklist">
-        <span class="mapa-titulo">Mapa do checklist</span>
+        <div class="mapa-header">
+          <span class="mapa-titulo">Mapa do checklist</span>
+          <div class="toolbar-acoes-lote">
+            <button type="button" class="btn-toolbar-lote" title="Expandir todas as categorias" aria-label="Expandir todas as categorias" @click="alternarTodasCategorias(true)">
+              <i class="mdi mdi-unfold-more-horizontal"></i>
+              <span>Expandir</span>
+            </button>
+            <button type="button" class="btn-toolbar-lote" title="Recolher todas as categorias" aria-label="Recolher todas as categorias" @click="alternarTodasCategorias(false)">
+              <i class="mdi mdi-unfold-less-horizontal"></i>
+              <span>Recolher</span>
+            </button>
+          </div>
+        </div>
         <div class="mapa-categorias">
           <button
             v-for="(perguntas, categoria, categoriaIndex) in categorias"
@@ -69,12 +66,6 @@
           >
             {{ categoriaIndex + 1 }}
           </button>
-        </div>
-        <div class="mapa-legenda" aria-hidden="true">
-          <span><i class="legenda-cor nao-iniciada"></i> Não iniciada</span>
-          <span><i class="legenda-cor em-andamento"></i> Em andamento</span>
-          <span><i class="legenda-cor completa"></i> Completa</span>
-          <span><i class="legenda-cor com-pendencia"></i> Requer atenção</span>
         </div>
       </nav>
 
@@ -92,13 +83,12 @@
             <span class="numero-categoria">{{ categoriaIndex + 1 }}</span>
             <h2>{{ categoria }}</h2>
             <span v-if="perguntas[0]?.ctq" class="badge-ctq-pill" title="Processo Crítico para a Qualidade (CTQ)">
-              <i class="mdi mdi-alert-decagram"></i>
-              <span>CRÍTICO (CTQ)</span>
+              <span>CTQ</span>
             </span>
           </div>
           <div class="categoria-header-right">
             <button
-              v-if="estatisticasCategorias[categoria]?.pendencias > 0"
+              v-if="estatisticasCategorias[categoria]?.pendencias > 0 && (estatisticasCategorias[categoria]?.respondidas > 0 || tentouFinalizar)"
               type="button"
               class="badge-categoria-pendencias"
               :title="`${estatisticasCategorias[categoria].pendencias} pendência(s). Ir para a primeira.`"
@@ -106,7 +96,6 @@
               @click.prevent.stop="irParaPrimeiraPendenciaCategoria(categoria)"
             >
               <i class="mdi mdi-alert-circle"></i>
-              {{ estatisticasCategorias[categoria].pendencias }}
             </button>
             <span v-else-if="estatisticasCategorias[categoria]?.completo" class="icone-categoria-completa" title="Categoria completa">
               <i class="mdi mdi-check-circle"></i>
@@ -310,6 +299,7 @@ const erroCarregamento = ref('');
 const assinatura = ref(null);
 const signatureRef = ref(null);
 const enviando = ref(false); 
+const tentouFinalizar = ref(false);
 const inicioChecklistTimestamp = ref(null);
 const fotosNaoConformes = ref({}); 
 const errosFotos = ref({});
@@ -477,9 +467,11 @@ const carregarPerguntas = async () => {
     nomeModelo.value = modeloResposta.nome || primeiraPergunta.modelo || primeiraPergunta.nome_modelo || '';
     versaoModelo.value = modeloResposta.versao ?? primeiraPergunta.modelo_versao ?? primeiraPergunta.versao ?? null;
     categorias.value = agrupadas;
+    tentouFinalizar.value = false;
 
     await carregarRascunho();
     if (componenteDesmontado || controller.signal.aborted) return;
+    configurarAberturaInicial();
     rascunhoCarregado = true;
     estadoCarregamento.value = 'ready';
   } catch (err) {
@@ -576,12 +568,22 @@ const categoryStatus = computed(() => {
     if (estatisticas.respondidas === 0) status[categoria] = 'pendente';
     else if (pendenciasCategoria.some(pendencia => pendencia.tipo !== 'resposta')) status[categoria] = 'requer-atencao';
     else if (estatisticas.pendencias > 0) status[categoria] = 'em-andamento';
-    else status[categoria] = categoriaTemNaoConformidade(categoria) ? 'nao-conforme' : 'conforme';
+    else status[categoria] = 'conforme';
   }
   return status;
 });
 
 const categoriasAbertas = ref({});
+
+const configurarAberturaInicial = () => {
+  const nomes = Object.keys(categorias.value);
+  const primeiraIncompleta = nomes.find(categoria =>
+    pendencias.value.some(pendencia => pendencia.categoria === categoria)
+  ) || nomes[0];
+  categoriasAbertas.value = Object.fromEntries(
+    nomes.map(categoria => [categoria, categoria === primeiraIncompleta])
+  );
+};
 
 const alternarTodasCategorias = (abrir) => {
   for (const cat in categorias.value) {
@@ -596,7 +598,6 @@ const onToggleCategoria = (categoria, event) => {
 const descricaoEstadoCategoria = (categoria) => {
   const estado = categoryStatus.value[categoria];
   if (estado === 'conforme') return 'Completa';
-  if (estado === 'nao-conforme') return 'Completa com não conformidade';
   if (estado === 'requer-atencao') return `${estatisticasCategorias.value[categoria]?.pendencias || 0} pendência(s)`;
   if (estado === 'em-andamento') return 'Em andamento';
   return 'Não iniciada';
@@ -620,7 +621,11 @@ const irParaPendencia = async (pendencia) => {
   temporizadorDestaque = setTimeout(() => { pendenciaDestacada.value = ''; }, 2500);
 };
 
-const irParaProximaPendencia = () => irParaPendencia(pendencias.value[0]);
+const irParaProximaPendencia = () => irParaPendencia(
+  itensRestantes.value
+    ? pendencias.value.find(pendencia => pendencia.tipo === 'resposta')
+    : pendencias.value[0]
+);
 const irParaPrimeiraPendenciaCategoria = (categoria) => irParaPendencia(
   pendencias.value.find(pendencia => pendencia.categoria === categoria)
 );
@@ -635,6 +640,19 @@ const progresso = computed(() => {
     respondidas += respondidasCategoria;
   }
   return { total, respondidas };
+});
+
+const itensRestantes = computed(() => Math.max(0, progresso.value.total - progresso.value.respondidas));
+const pendenciasComplementares = computed(() => pendencias.value.filter(pendencia => pendencia.tipo !== 'resposta').length);
+const resumoPreenchimento = computed(() => {
+  const partes = [];
+  if (itensRestantes.value) {
+    partes.push(`${itensRestantes.value} ${itensRestantes.value === 1 ? 'item restante' : 'itens restantes'}`);
+  }
+  if (pendenciasComplementares.value) {
+    partes.push(`${pendenciasComplementares.value} ${pendenciasComplementares.value === 1 ? 'pendência' : 'pendências'}`);
+  }
+  return partes.length ? partes.join(' · ') : 'Checklist pronto para enviar';
 });
 
 const getCategoryStatusClass = (cat) => categoryStatus.value[cat] || 'pendente';
@@ -745,6 +763,7 @@ const onFotoCapturada = async (variavel, fotoBase64) => {
 
 async function enviarFormulario() {
   if (enviando.value) return;
+  tentouFinalizar.value = true;
   atualizarAssinatura();
   for (const cat of categoriasNaoConformes.value) {
     atualizarAssinaturaCategoria(cat);
@@ -801,6 +820,7 @@ async function enviarFormulario() {
     fotosNaoConformes.value = {};
     observacoesNaoConformes.value = {};
     assinaturasCategorias.value = {};
+    tentouFinalizar.value = false;
     
     const idRota = res.data.id_formulario || res.data.id_relatorio;
     router.push(`/relatorio/${idRota}`); 
@@ -867,10 +887,10 @@ async function enviarFormulario() {
 .progresso-validacao {
   margin-top: 0.35rem;
   padding: 0.65rem 0.85rem;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  color: #92400e;
+  color: #475569;
   font-size: 0.88rem;
   font-weight: 700;
   display: flex;
@@ -880,12 +900,13 @@ async function enviarFormulario() {
 }
 
 .progresso-validacao > span { display: inline-flex; align-items: center; gap: 6px; }
+.progresso-validacao.tem-pendencia { background: #f8fafc; border-color: #dbe2ea; color: #475569; }
 .progresso-validacao.completo { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
 
 .btn-proxima-pendencia {
-  border: 1px solid #f59e0b;
+  border: 1px solid #cbd5e1;
   background: #fff;
-  color: #92400e;
+  color: #475569;
   border-radius: 7px;
   padding: 0.45rem 0.7rem;
   font: inherit;
@@ -893,32 +914,10 @@ async function enviarFormulario() {
   white-space: nowrap;
 }
 
-/* ==========================================
-   TOOLBAR DE CATEGORIAS
-   ========================================== */
-.formulario-toolbar-categorias {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.25rem;
-  padding: 0.75rem 1.15rem;
-  background: #f8fafc;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 10px;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.toolbar-contador {
-  font-size: 0.88rem;
-  color: var(--text-secondary, #64748b);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.toolbar-contador strong {
-  color: var(--text-primary, #0f172a);
+.btn-proxima-pendencia:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #1e293b;
 }
 
 .toolbar-acoes-lote {
@@ -930,7 +929,9 @@ async function enviarFormulario() {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0.4rem 0.8rem;
+  width: auto;
+  height: 2rem;
+  padding: 0 0.65rem;
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -955,29 +956,24 @@ async function enviarFormulario() {
   border-radius: 10px;
 }
 
-.mapa-titulo { display: block; margin-bottom: 0.65rem; font-size: 0.85rem; font-weight: 800; color: #334155; }
+.mapa-header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.65rem; }
+.mapa-titulo { display: block; font-size: 0.85rem; font-weight: 650; color: #334155; }
 .mapa-categorias { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 .mapa-categoria {
   width: 2.15rem;
   height: 2.15rem;
-  border-radius: 50%;
-  border: 2px solid #cbd5e1;
-  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #d7dee8;
+  background: #fafbfc;
   color: #64748b;
-  font-weight: 800;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
 }
-.mapa-categoria.em-andamento { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
-.mapa-categoria.requer-atencao { border-color: #f59e0b; background: #fffbeb; color: #b45309; }
-.mapa-categoria.conforme { border-color: #10b981; background: #ecfdf5; color: #047857; }
-.mapa-categoria.nao-conforme { border-color: #ef4444; background: #fef2f2; color: #b91c1c; }
+.mapa-categoria.em-andamento { border-color: #a9bdd5; background: #f5f8fb; color: #45617f; }
+.mapa-categoria.requer-atencao { border-color: #e4bd78; background: #fffcf5; color: #9a6618; }
+.mapa-categoria.conforme { border-color: #8bcdb2; background: #f4fbf8; color: #197454; }
 .mapa-categoria:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
-.mapa-legenda { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.7rem; font-size: 0.72rem; color: #64748b; }
-.mapa-legenda span { display: inline-flex; align-items: center; gap: 4px; }
-.legenda-cor { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: #cbd5e1; }
-.legenda-cor.em-andamento { background: #3b82f6; }
-.legenda-cor.completa { background: #10b981; }
-.legenda-cor.com-pendencia { background: #f59e0b; }
 
 /* ==========================================
    ACORDEÃO (SESSÕES)
@@ -1023,7 +1019,7 @@ async function enviarFormulario() {
   min-width: 1.8rem;
   height: 1.8rem;
   padding: 0 0.35rem;
-  border-radius: 999px;
+  border-radius: 5px;
   background: #e2e8f0;
   color: #334155;
   font-size: 0.8rem;
@@ -1043,10 +1039,6 @@ async function enviarFormulario() {
   font-weight: 800;
   letter-spacing: 0.3px;
   white-space: nowrap;
-}
-
-.badge-ctq-pill i {
-  font-size: 0.95rem;
 }
 
 .cabecalhoSessao h2 {
@@ -1082,12 +1074,14 @@ async function enviarFormulario() {
 .badge-categoria-pendencias {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
   border: 1px solid #f59e0b;
   background: #fffbeb;
   color: #b45309;
-  border-radius: 999px;
-  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  justify-content: center;
   font-weight: 800;
   cursor: pointer;
 }
@@ -1108,23 +1102,16 @@ async function enviarFormulario() {
 
 /* Cores de Status para Sessões */
 .sessaoOpcao.conforme {
-  border-left: 6px solid var(--success, #10b981);
+  border-left: 4px solid var(--success, #10b981);
 }
 .sessaoOpcao.conforme .cabecalhoSessao {
-  background-color: #f0fdf4;
+  background-color: #ffffff;
 }
 
-.sessaoOpcao.nao-conforme {
-  border-left: 6px solid var(--danger, #ef4444);
-}
-.sessaoOpcao.nao-conforme .cabecalhoSessao {
-  background-color: #fef2f2;
-}
-
-.sessaoOpcao.em-andamento { border-left: 6px solid #3b82f6; }
-.sessaoOpcao.em-andamento .cabecalhoSessao { background-color: #eff6ff; }
-.sessaoOpcao.requer-atencao { border-left: 6px solid #f59e0b; }
-.sessaoOpcao.requer-atencao .cabecalhoSessao { background-color: #fffbeb; }
+.sessaoOpcao.em-andamento { border-left: 4px solid #64748b; }
+.sessaoOpcao.em-andamento .cabecalhoSessao { background-color: #ffffff; }
+.sessaoOpcao.requer-atencao { border-left: 4px solid #f59e0b; }
+.sessaoOpcao.requer-atencao .cabecalhoSessao { background-color: #ffffff; }
 
 .conteudoSessao {
   padding: 0 1.5rem 1.5rem 1.5rem;

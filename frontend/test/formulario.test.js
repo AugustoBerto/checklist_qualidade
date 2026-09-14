@@ -195,11 +195,14 @@ describe('carregamento do formulário', () => {
     await flushPromises()
 
     expect(wrapper.find('.badge-ctq-pill').exists()).toBe(true)
-    expect(wrapper.find('.badge-ctq-pill').text()).toContain('CRÍTICO (CTQ)')
+    expect(wrapper.find('.badge-ctq-pill').text()).toBe('CTQ')
+    expect(wrapper.find('.badge-ctq-pill i').exists()).toBe(false)
 
     expect(wrapper.vm.estatisticasCategorias.Cat1.total).toBe(1)
     expect(wrapper.vm.estatisticasCategorias.Cat1.respondidas).toBe(0)
     expect(wrapper.vm.estatisticasCategorias.Cat1.completo).toBe(false)
+    expect(wrapper.vm.categoriasAbertas.Cat1).toBe(true)
+    expect(wrapper.vm.categoriasAbertas.Cat2).toBe(false)
 
     wrapper.vm.respostas.p1 = 'Conforme'
     expect(wrapper.vm.estatisticasCategorias.Cat1.respondidas).toBe(1)
@@ -230,7 +233,7 @@ describe('carregamento do formulário', () => {
 
     expect(wrapper.vm.pendencias).toHaveLength(1)
     expect(wrapper.vm.pendencias[0].mensagem).toContain('item 1.1')
-    expect(wrapper.find('.progresso-validacao').text()).toContain('1 pendência obrigatória')
+    expect(wrapper.find('.progresso-validacao').text()).toContain('1 item restante')
     expect(wrapper.find('.btn-proxima-pendencia').exists()).toBe(true)
 
     await wrapper.find('form').trigger('submit')
@@ -240,7 +243,7 @@ describe('carregamento do formulário', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.vm.pendencias).toHaveLength(1)
     expect(wrapper.vm.pendencias[0].chave).toBe('assinatura-geral')
-    expect(wrapper.find('.progresso-validacao').text()).toContain('1 pendência obrigatória')
+    expect(wrapper.find('.progresso-validacao').text()).toContain('1 pendência')
   })
 
   it('numera categorias e itens e sinaliza observação pendente no mapa e no cabeçalho', async () => {
@@ -258,6 +261,7 @@ describe('carregamento do formulário', () => {
     expect(wrapper.findAll('.mapa-categoria')).toHaveLength(2)
     expect(wrapper.findAll('.numero-categoria').map(item => item.text())).toEqual(['1', '2'])
     expect(wrapper.findAll('.numero-pergunta').map(item => item.text())).toEqual(['1.1', '2.1'])
+    expect(wrapper.findAll('.badge-categoria-pendencias')).toHaveLength(0)
 
     wrapper.vm.respostas.p1 = 'Conforme'
     wrapper.vm.respostas.p2 = 'Não Conforme'
@@ -267,6 +271,24 @@ describe('carregamento do formulário', () => {
     expect(wrapper.vm.categoryStatus.Costura).toBe('requer-atencao')
     expect(wrapper.findAll('.mapa-categoria')[1].classes()).toContain('requer-atencao')
     expect(wrapper.findAll('.badge-categoria-pendencias')).toHaveLength(1)
+  })
+
+  it('mostra indicadores de categorias intocadas somente depois de tentar finalizar', async () => {
+    api.get.mockResolvedValueOnce({ data: {
+      sucesso: true,
+      modelo: { id: 7, nome: 'Modelo', versao: 2 },
+      respostasAgrupadas: {
+        Corte: [{ id: 10, texto: 'P1', variavel: 'p1' }],
+        Costura: [{ id: 20, texto: 'P2', variavel: 'p2' }],
+      },
+    } })
+    const wrapper = shallowMount(FormularioView)
+    await flushPromises()
+
+    expect(wrapper.findAll('.badge-categoria-pendencias')).toHaveLength(0)
+    await wrapper.find('form').trigger('submit')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findAll('.badge-categoria-pendencias')).toHaveLength(2)
   })
   it('mantém respostas e rascunho quando o servidor rejeita a versão antiga', async () => {
     const wrapper = shallowMount(FormularioView)
