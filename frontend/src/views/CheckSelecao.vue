@@ -30,17 +30,37 @@
       />
 
       <div v-else class="brand-grid">
-        <div v-for="marca in marcas" :key="marca.id" class="brand-card" @click="selecionarMarca(marca)">
+        <div
+          v-for="marca in marcas"
+          :key="marca.id"
+          class="brand-card"
+          role="button"
+          tabindex="0"
+          :aria-label="`Selecionar marca ${marca.nome}`"
+          @click="selecionarMarca(marca)"
+          @keydown.enter="selecionarMarca(marca)"
+          @keydown.space.prevent="selecionarMarca(marca)"
+        >
           <div class="brand-logo-wrapper">
-            <img v-if="urlLogo(marca) && !errosImagens[marca.id]" :src="urlLogo(marca)" :alt="marca.nome"
-              class="img-responsive" @error="marcarErroImagem(marca.id)">
-
+            <img
+              v-if="urlLogo(marca) && !errosImagens[marca.id]"
+              :src="urlLogo(marca)"
+              :alt="marca.nome"
+              class="img-responsive"
+              @error="marcarErroImagem(marca.id)"
+            />
             <span v-else class="brand-initial">
               {{ marca.nome ? marca.nome.charAt(0) : '?' }}
             </span>
           </div>
 
-          <span class="brand-name">{{ marca.nome || 'Sem Nome' }}</span>
+          <div class="brand-info">
+            <span class="brand-name">{{ marca.nome || 'Sem Nome' }}</span>
+            <span class="brand-action">
+              <span>Auditar</span>
+              <i class="mdi mdi-arrow-right"></i>
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -291,63 +311,124 @@ onBeforeUnmount(() => carregarModelosController?.abort())
   font-size: 1.1rem;
 }
 
+.brand-grid-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem 0 3rem;
+  width: 100%;
+}
+
 .brand-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 25px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 280px));
+  justify-content: center;
+  gap: 1.5rem;
+  width: 100%;
 }
 
 .brand-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
   border-radius: 16px;
-  padding: 25px 15px;
+  padding: 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: space-between;
   cursor: pointer;
-  transition: all 0.3s ease;
-  aspect-ratio: 1/1;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .brand-card:hover {
   border-color: var(--primary, #b1072c);
-  transform: translateY(-5px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -6px rgba(177, 7, 44, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+}
+
+.brand-card:hover .brand-logo-wrapper {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  transform: scale(1.02);
+}
+
+.brand-card:hover .brand-action {
+  color: var(--primary, #b1072c);
+  transform: translateX(3px);
+}
+
+.brand-card:focus-visible {
+  outline: none;
+  border-color: var(--primary, #b1072c);
+  box-shadow: 0 0 0 4px rgba(177, 7, 44, 0.15);
 }
 
 .brand-logo-wrapper {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 15px;
+  width: 100%;
+  height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 1rem;
+  border: 1px solid #f1f5f9;
+  transition: all 0.25s ease;
+  box-sizing: border-box;
 }
 
 .img-responsive {
   max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.04));
 }
 
 .brand-initial {
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   font-weight: 800;
-  color: #fff;
-  background: linear-gradient(135deg, #b1072c 0%, #8f0523 100%);
-  width: 100%;
-  height: 100%;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary, #b1072c) 0%, var(--primary-hover, #8f0523) 100%);
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  box-shadow: 0 4px 8px rgba(177, 7, 44, 0.2);
+}
+
+.brand-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
 }
 
 .brand-name {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.1rem;
   color: #1e293b;
   text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.brand-action {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
 }
 
 .card-formulario {
@@ -482,10 +563,13 @@ onBeforeUnmount(() => carregarModelosController?.abort())
   .titulo-flex { margin-bottom: 2rem; }
   .titulo-flex h1 { font-size: 1.6rem; }
   .subtitle { font-size: 1rem; }
-  .brand-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
-  .brand-card { padding: 1rem 0.5rem; border-radius: 12px; }
-  .brand-logo-wrapper { width: 60px; height: 60px; margin-bottom: 0.5rem; }
-  .brand-name { font-size: 0.9rem; overflow-wrap: anywhere; }
+  .brand-grid-container { padding: 0.5rem 0 2rem; }
+  .brand-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.85rem; }
+  .brand-card { padding: 1.1rem 0.75rem; min-height: 160px; border-radius: 14px; }
+  .brand-logo-wrapper { height: 72px; padding: 8px 10px; margin-bottom: 0.75rem; }
+  .brand-initial { width: 52px; height: 52px; font-size: 1.75rem; }
+  .brand-name { font-size: 0.95rem; overflow-wrap: anywhere; }
+  .brand-action { font-size: 0.78rem; }
   .card-formulario { padding: 1.25rem; border-radius: 12px; }
   .header-marca { align-items: flex-start; gap: 0.75rem; }
   .btn-trocar { min-height: 44px; }

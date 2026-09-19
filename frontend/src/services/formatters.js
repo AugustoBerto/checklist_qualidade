@@ -36,9 +36,12 @@ export const urlLogoMarca = (
     const versao = marca.ultimaAlteracao ? `?v=${encodeURIComponent(marca.ultimaAlteracao)}` : '';
     return `${apiBase}/cadastros/marcas/${marca.id}/logo${versao}`;
   }
-  if (String(marca?.nome || '').trim().toUpperCase() !== 'FILA') return null;
+  const nome = String(marca?.nome || '').trim().toUpperCase();
   const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-  return `${base}logos/fila.png`;
+  if (nome === 'FILA') return `${base}logos/fila.png`;
+  if (nome === 'UMBRO') return `${base}logos/umbro.png`;
+  if (nome === 'NIKE') return `${base}logos/nike.png`;
+  return null;
 };
 
 export const formatarNomeCurto = (nomeCompleto) => {
